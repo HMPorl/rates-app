@@ -8,9 +8,9 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 # Set page config
-st.set_page_config(page_title="HM Net Rates Calculator", layout="wide")
+st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 
-st.title("Net Rates Calculator V1")
+st.title("Net Rates Calculator")
 
 # Upload Excel file
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])

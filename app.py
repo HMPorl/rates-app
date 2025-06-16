@@ -4,6 +4,10 @@ import io
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+
 
 # Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
@@ -72,39 +76,43 @@ if uploaded_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # Export to PDF
-    pdf_buffer = io.BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=A4)
-    width, height = A4
-    x_margin = 50
-    y = height - 50
-    line_height = 14
+   # Export to PDF with table formatting
+pdf_buffer = io.BytesIO()
+doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+elements = []
+styles = getSampleStyleSheet()
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(x_margin, y, "Custom Price List")
-    y -= 30
+elements.append(Paragraph("Custom Price List", styles['Title']))
+elements.append(Spacer(1, 12))
 
-    c.setFont("Helvetica", 10)
-    for group, group_df in final_df.groupby("GroupName"):
-        if y < 100:
-            c.showPage()
-            y = height - 50
-            c.setFont("Helvetica", 10)
-        c.setFont("Helvetica-Bold", 12)
-        c.drawString(x_margin, y, f"Group: {group}")
-        y -= 20
-        c.setFont("Helvetica", 10)
-        for _, row in group_df.iterrows():
-            line = f"{row['ItemCategory']} - {row['EquipmentName']} | Weekly Rate: £{row['HireRateWeekly']:.2f} | Custom Price: £{row['CustomPrice']:.2f}"
-            c.drawString(x_margin, y, line)
-            y -= line_height
-            if y < 50:
-                c.showPage()
-                y = height - 50
-                c.setFont("Helvetica", 10)
+for group, group_df in final_df.groupby("GroupName"):
+    elements.append(Paragraph(f"Group: {group}", styles['Heading2']))
+    elements.append(Spacer(1, 6))
 
-    c.save()
-    pdf_buffer.seek(0)
+    table_data = [["ItemCategory", "EquipmentName", "HireRateWeekly", "CustomPrice"]]
+    for _, row in group_df.iterrows():
+        table_data.append([
+            row["ItemCategory"],
+            row["EquipmentName"],
+            f"£{row['HireRateWeekly']:.2f}",
+            f"£{row['CustomPrice']:.2f}"
+        ])
+
+    table = Table(table_data, colWidths=[100, 150, 100, 100])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 12))
+
+doc.build(elements)
+pdf_buffer.seek(0)
+
 
     st.download_button(
         label="Download as PDF",

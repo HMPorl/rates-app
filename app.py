@@ -85,12 +85,11 @@ if uploaded_file:
         elements.append(Paragraph(f"Group: {group}", styles['Heading2']))
         elements.append(Spacer(1, 6))
 
-        table_data = [["ItemCategory", "EquipmentName", "HireRateWeekly", "CustomPrice"]]
+        table_data = [["ItemCategory", "EquipmentName", "CustomPrice"]]
         for _, row in group_df.iterrows():
             table_data.append([
                 row["ItemCategory"],
                 row["EquipmentName"],
-                f"£{row['HireRateWeekly']:.2f}",
                 f"£{row['CustomPrice']:.2f}"
             ])
 

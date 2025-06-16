@@ -5,6 +5,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
+
 # Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 
@@ -29,8 +30,17 @@ if uploaded_file:
     if "CustomPrice" not in df.columns:
         df["CustomPrice"] = df["HireRateWeekly"]
 
-    # Global discount
-    discount = st.slider("Global Discount (%)", min_value=0, max_value=100, value=0)
+    # Global discount using text input
+    discount_input = st.text_input("Global Discount (%)", value="0")
+    try:
+        discount = float(discount_input)
+        if not (0 <= discount <= 100):
+            st.warning("Please enter a discount between 0 and 100.")
+            st.stop()
+    except ValueError:
+        st.warning("Please enter a valid number for the discount.")
+        st.stop()
+
     df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - discount / 100)
 
     st.markdown("### Adjust Prices by Group")
@@ -89,11 +99,12 @@ if uploaded_file:
         for _, row in group_df.iterrows():
             table_data.append([
                 row["ItemCategory"],
-                row["EquipmentName"],
+                Paragraph(row["EquipmentName"], styles['BodyText']),
                 f"£{row['CustomPrice']:.2f}"
             ])
 
-        table = Table(table_data, colWidths=[100, 150, 100, 100])
+        # Adjusted column widths: ItemCategory (120), EquipmentName (200), CustomPrice (80)
+        table = Table(table_data, colWidths=[120, 200, 80])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -116,4 +127,5 @@ if uploaded_file:
     )
 else:
     st.info("Please upload an Excel file to begin.")
+
     

@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
+import fitz  # PyMuPDF
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -119,13 +120,23 @@ if uploaded_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
+    # Merge with header PDF
+    merged_pdf = fitz.open("NRHeader.pdf")
+    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+    for page in generated_pdf:
+        merged_pdf.insert_pdf(generated_pdf, from_page=page.number, to_page=page.number)
+    merged_output = io.BytesIO()
+    merged_pdf.save(merged_output)
+    merged_pdf.close()
+
     st.download_button(
         label="Download as PDF",
-        data=pdf_buffer,
+        data=merged_output.getvalue(),
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
 else:
     st.info("Please upload an Excel file to begin.")
+
 
     

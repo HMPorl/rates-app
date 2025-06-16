@@ -8,14 +8,15 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
 # Set page config
-st.set_page_config(page_title="Net Rates Calculator", layout="wide")
+st.set_page_config(page_title="HM Net Rates Calculator", layout="wide")
 
 st.title("Net Rates Calculator")
 
 # Upload Excel file
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
-if uploaded_file:
+if uploaded_file and header_pdf_file:
     try:
         df = pd.read_excel(uploaded_file, engine='openpyxl')
     except Exception as e:
@@ -104,7 +105,6 @@ if uploaded_file:
                 f"£{row['CustomPrice']:.2f}"
             ])
 
-        # Adjusted column widths: ItemCategory (120), EquipmentName (200), CustomPrice (80)
         table = Table(table_data, colWidths=[120, 200, 80])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -120,8 +120,8 @@ if uploaded_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
-    # Merge with header PDF
-    merged_pdf = fitz.open("NRHeader.pdf")
+    # Merge header PDF with generated PDF
+    merged_pdf = fitz.open(stream=header_pdf_file.read(), filetype="pdf")
     generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
     for page in generated_pdf:
         merged_pdf.insert_pdf(generated_pdf, from_page=page.number, to_page=page.number)
@@ -136,7 +136,7 @@ if uploaded_file:
         mime="application/pdf"
     )
 else:
-    st.info("Please upload an Excel file to begin.")
+    st.info("Please upload both an Excel file and a header PDF to begin.")
 
 
     

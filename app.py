@@ -82,10 +82,11 @@ if uploaded_file and header_pdf_file:
                 except (ValueError, TypeError):
                     default_price = float(row["HireRateWeekly"])
                 new_price = st.number_input(
-                    f"Custom price for {row['ItemCategory']}",
+                    "",
                     min_value=0.0,
                     value=default_price,
-                    key=f"price_{idx}"
+                    key=f"price_{idx}",
+                    label_visibility="collapsed"
                 )
                 final_df.at[idx, "CustomPrice"] = new_price
             with col4:
@@ -168,6 +169,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

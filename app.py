@@ -114,7 +114,7 @@ if uploaded_file and header_pdf_file:
         elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
         elements.append(Spacer(1, 6))
 
-        table_data = [["ItemCategory", "EquipmentName", "CustomPrice", "DiscountPercent"]]
+        table_data = [["Code", "Equipment Name", "Custom Price", "Discount"]]
         for _, row in group_df.iterrows():
             table_data.append([
                 row["ItemCategory"],
@@ -123,7 +123,7 @@ if uploaded_file and header_pdf_file:
                 f"{row['DiscountPercent']:.1f}%"
             ])
 
-        table = Table(table_data, colWidths=[100, 200, 80, 80])
+        table = Table(table_data, colWidths=[150, 250, 80, 80], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

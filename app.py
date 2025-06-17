@@ -11,8 +11,21 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
+# Inject custom CSS for tighter spacing
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    .stTextInput, .stNumberInput {
+        margin-bottom: 0.25rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Upload files
-uploaded_file = st.file_uploader("V1 Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 if uploaded_file and header_pdf_file:
@@ -56,13 +69,13 @@ if uploaded_file and header_pdf_file:
     final_df = df.copy()
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        st.subheader(f"{group} - {subsection}")
+        st.markdown(f"**{group} - {subsection}**")
         for idx, row in group_df.iterrows():
             col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
             with col1:
-                st.text(row["ItemCategory"])
+                st.write(row["ItemCategory"])
             with col2:
-                st.text(row["EquipmentName"])
+                st.write(row["EquipmentName"])
             with col3:
                 try:
                     default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
@@ -78,11 +91,11 @@ if uploaded_file and header_pdf_file:
             with col4:
                 try:
                     discount_percent = ((row["HireRateWeekly"] - new_price) / row["HireRateWeekly"]) * 100
-                    st.text(f"{discount_percent:.1f}%")
+                    st.write(f"{discount_percent:.1f}%")
                     if discount_percent > row["Max Discount"]:
                         st.warning(f"⚠️ {row['ItemCategory']} exceeds Max Discount ({row['Max Discount']}%)")
                 except ZeroDivisionError:
-                    st.text("N/A")
+                    st.write("N/A")
 
     # Calculate DiscountPercent
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
@@ -114,7 +127,7 @@ if uploaded_file and header_pdf_file:
         elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
         elements.append(Spacer(1, 6))
 
-        table_data = [["Code", "Equipment Name", "Custom Price", "Discount"]]
+        table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
         for _, row in group_df.iterrows():
             table_data.append([
                 row["ItemCategory"],
@@ -123,7 +136,7 @@ if uploaded_file and header_pdf_file:
                 f"{row['DiscountPercent']:.1f}%"
             ])
 
-        table = Table(table_data, colWidths=[150, 250, 80, 80], repeatRows=1)
+        table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -155,6 +168,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

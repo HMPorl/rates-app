@@ -9,10 +9,10 @@ from reportlab.lib import colors
 
 # Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
-st.title("Net Rates Calculator V1")
+st.title("Net Rates Calculator")
 
 # Upload files
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("V1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 if uploaded_file and header_pdf_file:

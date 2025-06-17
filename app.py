@@ -15,8 +15,8 @@ st.markdown("""
         padding-bottom: 1rem;
     }
     .stNumberInput input {
-        padding-top: 2px;
-        padding-bottom: 2px;
+        padding-top: 0px;
+        padding-bottom: 0px;
         height: 28px;
     }
     .stTextInput, .stNumberInput {

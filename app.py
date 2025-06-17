@@ -17,7 +17,11 @@ st.markdown("""
     .stNumberInput input {
         padding-top: 0px;
         padding-bottom: 0px;
+<<<<<<< HEAD
         height: 28px;
+=======
+        height: 20px;
+>>>>>>> cbcb6d8 (Streamlit app v1.1)
     }
     .stTextInput, .stNumberInput {
         margin-bottom: 0.25rem;

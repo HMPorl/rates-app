@@ -28,7 +28,7 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
-    # Add a column for custom prices
+    # Add a column for custom prices if not already present
     if "CustomPrice" not in df.columns:
         df["CustomPrice"] = df["HireRateWeekly"]
 
@@ -43,6 +43,7 @@ if uploaded_file and header_pdf_file:
         st.warning("Please enter a valid number for the discount.")
         st.stop()
 
+    # Apply global discount
     df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - discount / 100)
 
     st.markdown("### Adjust Prices by Group")
@@ -62,16 +63,19 @@ if uploaded_file and header_pdf_file:
             with col2:
                 st.text(row["EquipmentName"])
             with col3:
+                default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
                 new_price = st.number_input(
                     f"Custom price for {row['ItemCategory']}",
                     min_value=0.0,
-                    value=float(row["DiscountedPrice"]),
+                    value=default_price,
                     key=f"price_{idx}"
                 )
                 final_df.at[idx, "CustomPrice"] = new_price
 
+    # Calculate DiscountPercent
+    final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
     st.markdown("### Final Price List")
-    st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "CustomPrice"]])
+    st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "CustomPrice", "DiscountPercent"]])
 
     # Export to Excel
     output_excel = io.BytesIO()
@@ -97,15 +101,16 @@ if uploaded_file and header_pdf_file:
         elements.append(Paragraph(f"Group: {group}", styles['Heading2']))
         elements.append(Spacer(1, 6))
 
-        table_data = [["ItemCategory", "EquipmentName", "CustomPrice"]]
+        table_data = [["ItemCategory", "EquipmentName", "CustomPrice", "DiscountPercent"]]
         for _, row in group_df.iterrows():
             table_data.append([
                 row["ItemCategory"],
                 Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}"
+                f"£{row['CustomPrice']:.2f}",
+                f"{row['DiscountPercent']:.1f}%"
             ])
 
-        table = Table(table_data, colWidths=[120, 200, 80])
+        table = Table(table_data, colWidths=[100, 200, 80, 80])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -137,6 +142,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
     

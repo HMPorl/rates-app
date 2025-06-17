@@ -7,22 +7,27 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# Set page config
-st.set_page_config(page_title="Net Rates Calculator", layout="wide")
-st.title("Net Rates Calculator")
-
-# Inject custom CSS for tighter spacing
+# Custom CSS to reduce spacing and align input boxes
 st.markdown("""
     <style>
     .block-container {
         padding-top: 1rem;
         padding-bottom: 1rem;
     }
+    .stNumberInput input {
+        padding-top: 2px;
+        padding-bottom: 2px;
+        height: 28px;
+    }
     .stTextInput, .stNumberInput {
         margin-bottom: 0.25rem;
     }
     </style>
 """, unsafe_allow_html=True)
+
+# Set page config
+st.set_page_config(page_title="Net Rates Calculator", layout="wide")
+st.title("Net Rates Calculator")
 
 # Upload files
 uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
@@ -40,17 +45,12 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
-    # Filter rows where Include is TRUE
     df = df[df["Include"] == True]
-
-    # Sort by GroupName, Sub Section, Order
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
-    # Add CustomPrice if missing
     if "CustomPrice" not in df.columns:
         df["CustomPrice"] = df["HireRateWeekly"]
 
-    # Global discount
     discount_input = st.text_input("Global Discount (%)", value="0")
     try:
         discount = float(discount_input)
@@ -61,11 +61,9 @@ if uploaded_file and header_pdf_file:
         st.warning("Please enter a valid number for the discount.")
         st.stop()
 
-    # Apply global discount
     df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - discount / 100)
 
     st.markdown("### Adjust Prices by Group and Sub Section")
-
     final_df = df.copy()
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
@@ -98,13 +96,11 @@ if uploaded_file and header_pdf_file:
                 except ZeroDivisionError:
                     st.write("N/A")
 
-    # Calculate DiscountPercent
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
     st.markdown("### Final Price List")
     st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"]])
 
-    # Export to Excel
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
         final_df.to_excel(writer, index=False)
@@ -115,7 +111,6 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # Export to PDF
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -152,7 +147,6 @@ if uploaded_file and header_pdf_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
-    # Merge header PDF
     merged_pdf = fitz.open(stream=header_pdf_file.read(), filetype="pdf")
     generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
     for page in generated_pdf:
@@ -169,6 +163,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

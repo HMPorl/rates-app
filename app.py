@@ -57,20 +57,23 @@ if uploaded_file and header_pdf_file:
     for group, group_df in grouped:
         st.subheader(group)
         for idx, row in group_df.iterrows():
-            col1, col2, col3 = st.columns([2, 4, 4])
-            with col1:
-                st.text(row["ItemCategory"])
-            with col2:
-                st.text(row["EquipmentName"])
-            with col3:
-                default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
-                new_price = st.number_input(
-                    f"Custom price for {row['ItemCategory']}",
-                    min_value=0.0,
-                    value=default_price,
-                    key=f"price_{idx}"
-                )
-                final_df.at[idx, "CustomPrice"] = new_price
+         col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
+        with col1:
+            st.text(row["ItemCategory"])
+        with col2:
+            st.text(row["EquipmentName"])
+        with col3:
+            new_price = st.number_input(
+                f"Custom price for {row['ItemCategory']}",
+                min_value=0.0,
+                value=default_price,
+                key=f"price_{idx}"
+            )
+            final_df.at[idx, "CustomPrice"] = new_price
+        with col4:
+            discount_percent = ((row["HireRateWeekly"] - new_price) / row["HireRateWeekly"]) * 100
+            st.text(f"{discount_percent:.1f}%")
+
 
     # Calculate DiscountPercent
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100

@@ -38,10 +38,10 @@ def read_pdf_header(file):
     return file.read()
 
 # ✅ Upload files and inputs
+customer_name = st.text_input("Enter Customer Name")
+logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
-logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-customer_name = st.text_input("Enter Customer Name")
 
 if uploaded_file and header_pdf_file:
     try:
@@ -182,7 +182,7 @@ if uploaded_file and header_pdf_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
-    # ✅ Modify header PDF with logo and customer name
+    # ✅ Modify header PDF with customer name and logo
     header_data = read_pdf_header(header_pdf_file)
     header_pdf = fitz.open(stream=header_data, filetype="pdf")
     page = header_pdf[0]
@@ -218,6 +218,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

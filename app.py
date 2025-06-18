@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import io
 import fitz  # PyMuPDF
+from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -36,9 +37,11 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-# ✅ Upload files
+# ✅ Upload files and inputs
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
+logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
+customer_name = st.text_input("Enter Customer Name")
 
 if uploaded_file and header_pdf_file:
     try:
@@ -179,9 +182,28 @@ if uploaded_file and header_pdf_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
-    # ✅ Merge with header PDF
+    # ✅ Modify header PDF with logo and customer name
     header_data = read_pdf_header(header_pdf_file)
-    merged_pdf = fitz.open(stream=header_data, filetype="pdf")
+    header_pdf = fitz.open(stream=header_data, filetype="pdf")
+    page = header_pdf[0]
+
+    if logo_file:
+        logo_image = Image.open(logo_file)
+        logo_bytes = io.BytesIO()
+        logo_image.save(logo_bytes, format="PNG")
+        logo_bytes.seek(0)
+        rect_logo = fitz.Rect(50, 50, 150, 150)  # Adjust position and size as needed
+        page.insert_image(rect_logo, stream=logo_bytes.read())
+
+    if customer_name:
+        page.insert_text((160, 160), f"Customer: {customer_name}", fontsize=14, fontname="helv", fill=(0, 0, 0))
+
+    modified_header = io.BytesIO()
+    header_pdf.save(modified_header)
+    header_pdf.close()
+
+    # ✅ Merge with generated PDF
+    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
     generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
     merged_pdf.insert_pdf(generated_pdf)
     merged_output = io.BytesIO()
@@ -196,6 +218,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

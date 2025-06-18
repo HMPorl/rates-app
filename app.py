@@ -7,11 +7,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# ✅ Set page config FIRST
+# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# Custom CSS to reduce spacing and align input boxes
+# ✅ Custom CSS
 st.markdown("""
     <style>
     .block-container {
@@ -19,10 +19,7 @@ st.markdown("""
         padding-bottom: 1rem;
     }
     .stNumberInput input {
-        padding-top: 0px;
-        padding-bottom: 0px;
         height: 28px;
-        height: 20px;
     }
     .stTextInput, .stNumberInput {
         margin-bottom: 0.25rem;
@@ -30,13 +27,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Upload files
+# ✅ Caching functions
+@st.cache_data
+def load_excel(file):
+    return pd.read_excel(file, engine='openpyxl')
+
+@st.cache_data
+def read_pdf_header(file):
+    return file.read()
+
+# ✅ Upload files
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 if uploaded_file and header_pdf_file:
     try:
-        df = pd.read_excel(uploaded_file, engine='openpyxl')
+        df = load_excel(uploaded_file)
     except Exception as e:
         st.error(f"Error reading Excel file: {e}")
         st.stop()
@@ -46,7 +52,7 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
-    df = df[df["Include"] == True]
+    df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
     if "CustomPrice" not in df.columns:
@@ -63,45 +69,43 @@ if uploaded_file and header_pdf_file:
         st.stop()
 
     df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - discount / 100)
-
-    st.markdown("### Adjust Prices by Group and Sub Section")
     final_df = df.copy()
 
+    st.markdown("### Adjust Prices by Group and Sub Section")
+
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        st.markdown(f"**{group} - {subsection}**")
-        for idx, row in group_df.iterrows():
-            col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
-            with col1:
-                st.write(row["ItemCategory"])
-            with col2:
-                st.write(row["EquipmentName"])
-            with col3:
-                try:
+        with st.expander(f"{group} - {subsection}", expanded=False):
+            for idx, row in group_df.iterrows():
+                col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
+                with col1:
+                    st.write(row["ItemCategory"])
+                with col2:
+                    st.write(row["EquipmentName"])
+                with col3:
                     default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
-                except (ValueError, TypeError):
-                    default_price = float(row["HireRateWeekly"])
-                new_price = st.number_input(
-                    "",
-                    min_value=0.0,
-                    value=default_price,
-                    key=f"price_{idx}",
-                    label_visibility="collapsed"
-                )
-                final_df.at[idx, "CustomPrice"] = new_price
-            with col4:
-                try:
-                    discount_percent = ((row["HireRateWeekly"] - new_price) / row["HireRateWeekly"]) * 100
-                    st.write(f"{discount_percent:.1f}%")
-                    if discount_percent > row["Max Discount"]:
-                        st.warning(f"⚠️ {row['ItemCategory']} exceeds Max Discount ({row['Max Discount']}%)")
-                except ZeroDivisionError:
-                    st.write("N/A")
+                    new_price = st.number_input(
+                        "",
+                        min_value=0.0,
+                        value=default_price,
+                        key=f"price_{idx}",
+                        label_visibility="collapsed"
+                    )
+                    final_df.at[idx, "CustomPrice"] = new_price
+                with col4:
+                    try:
+                        discount_percent = ((row["HireRateWeekly"] - new_price) / row["HireRateWeekly"]) * 100
+                        st.write(f"{discount_percent:.1f}%")
+                        if discount_percent > row["Max Discount"]:
+                            st.warning(f"⚠️ {row['ItemCategory']} exceeds Max Discount ({row['Max Discount']}%)")
+                    except ZeroDivisionError:
+                        st.write("N/A")
 
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
     st.markdown("### Final Price List")
     st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"]])
 
+    # ✅ Excel export
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
         final_df.to_excel(writer, index=False)
@@ -112,6 +116,7 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+    # ✅ PDF generation
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -148,10 +153,11 @@ if uploaded_file and header_pdf_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
-    merged_pdf = fitz.open(stream=header_pdf_file.read(), filetype="pdf")
+    # ✅ Merge with header PDF
+    header_data = read_pdf_header(header_pdf_file)
+    merged_pdf = fitz.open(stream=header_data, filetype="pdf")
     generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
-    for page in generated_pdf:
-        merged_pdf.insert_pdf(generated_pdf, from_page=page.number, to_page=page.number)
+    merged_pdf.insert_pdf(generated_pdf)
     merged_output = io.BytesIO()
     merged_pdf.save(merged_output)
     merged_pdf.close()
@@ -164,6 +170,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

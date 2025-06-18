@@ -130,13 +130,53 @@ if uploaded_file and header_pdf_file:
     st.dataframe(styled_df, use_container_width=True)
 
     manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
+# Trasnport
+if not manual_updates_df.empty:
+    st.markdown("### Summary of Manually Updated Prices")
+    st.dataframe(manual_updates_df[[
+        "ItemCategory", "EquipmentName", "GroupName", "Sub Section", "HireRateWeekly", "CustomPrice"
+    ]], use_container_width=True)
 
-    if not manual_updates_df.empty:
-        st.markdown("### Summary of Manually Updated Prices")
-        st.dataframe(manual_updates_df[[
-            "ItemCategory", "EquipmentName", "HireRateWeekly",
-            "CustomPrice", "DiscountedPrice", "DiscountPercent"
-        ]])
+# --- Transport Charges Table ---
+st.markdown("### Transport Charges")
+
+transport_types = [
+    "Standard - small tools",
+    "Towables",
+    "Non-mechanical",
+    "Fencing",
+    "Tower",
+    "Powered Access",
+    "Low-level Access",
+    "Long Distance"
+]
+
+transport_data = {
+    "Delivery or Collection type": transport_types,
+    "Charge (£)": [""] * len(transport_types)
+}
+powered_access_idx = transport_types.index("Powered Access")
+transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
+
+transport_df = pd.DataFrame(transport_data)
+
+edited_transport_df = st.data_editor(
+    transport_df,
+    column_config={
+        "Charge (£)": st.column_config.TextColumn(
+            "Charge (£)",
+            help="Enter charge in £ (leave as 'Negotiable' for Powered Access)"
+        )
+    },
+    disabled={
+        "Delivery or Collection type": True,
+        "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
+    },
+    hide_index=True,
+    use_container_width=True
+)
+
+#Trasnport end
 
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:

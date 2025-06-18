@@ -18,10 +18,10 @@ st.markdown("""
         padding-top: 1rem;
         padding-bottom: 1rem;
     }
-    .stNumberInput input {
+    .stTextInput input {
         height: 28px;
     }
-    .stTextInput, .stNumberInput {
+    .stTextInput {
         margin-bottom: 0.25rem;
     }
     </style>
@@ -83,17 +83,21 @@ if uploaded_file and header_pdf_file:
                     st.write(row["EquipmentName"])
                 with col3:
                     default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
-                    new_price = st.number_input(
+                    price_input = st.text_input(
                         "",
-                        min_value=0.0,
-                        value=default_price,
+                        value=f"{default_price:.2f}",
                         key=f"price_{idx}",
                         label_visibility="collapsed"
                     )
-                    final_df.at[idx, "CustomPrice"] = new_price
+                    try:
+                        new_price = float(price_input)
+                        final_df.at[idx, "CustomPrice"] = new_price
+                    except ValueError:
+                        st.warning(f"Invalid price entered for {row['ItemCategory']}. Using default.")
+                        final_df.at[idx, "CustomPrice"] = default_price
                 with col4:
                     try:
-                        discount_percent = ((row["HireRateWeekly"] - new_price) / row["HireRateWeekly"]) * 100
+                        discount_percent = ((row["HireRateWeekly"] - final_df.at[idx, "CustomPrice"]) / row["HireRateWeekly"]) * 100
                         st.write(f"{discount_percent:.1f}%")
                         if discount_percent > row["Max Discount"]:
                             st.warning(f"⚠️ {row['ItemCategory']} exceeds Max Discount ({row['Max Discount']}%)")
@@ -170,6 +174,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

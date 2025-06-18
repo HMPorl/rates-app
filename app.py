@@ -201,18 +201,100 @@ if uploaded_file and header_pdf_file:
                 f"£{row['HireRateWeekly']:.2f}",
                 f"£{row['CustomPrice']:.2f}",
                 f"{row['DiscountPercent']:.1f}%",
+                f"£{row['DiscountedPrice']:.2f}"
+            ])
+        t = Table(table_data, colWidths=[70, 120, 70, 70, 70, 70])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 12))
 
+    # Page 2: Summary of Manually Updated Prices
+    if not manual_updates_df.empty:
+        elements.append(PageBreak())
+        elements.append(Paragraph("Summary of Manually Updated Prices", styles['Heading2']))
+        summary_data = [["ItemCategory", "EquipmentName", "GroupName", "Sub Section", "HireRateWeekly", "CustomPrice"]]
+        for _, row in manual_updates_df.iterrows():
+            summary_data.append([
+                row["ItemCategory"],
+                row["EquipmentName"],
+                row["GroupName"],
+                row["Sub Section"],
+                f"£{row['HireRateWeekly']:.2f}",
+                f"£{row['CustomPrice']:.2f}"
+            ])
+        t2 = Table(summary_data, colWidths=[70, 120, 70, 70, 70, 70])
+        t2.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (4, 1), (-1, -1), 'RIGHT'),
+        ]))
+        elements.append(t2)
+        elements.append(Spacer(1, 12))
 
+    # Page 3: Transport Charges Table
+    elements.append(PageBreak())
+    elements.append(Paragraph("Transport Charges", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+    transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
+    for idx, row in edited_transport_df.iterrows():
+        transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
+    transport_table = Table(transport_pdf_data, colWidths=[250, 100])
+    transport_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+    ]))
+    elements.append(transport_table)
 
+    doc.build(elements)
+    pdf_buffer.seek(0)
 
+    # --- Modify header PDF with customer name and logo ---
+    header_data = read_pdf_header(header_pdf_file)
+    header_pdf = fitz.open(stream=header_data, filetype="pdf")
+    page = header_pdf[0]
 
+    if customer_name:
+        # Add customer name to header PDF (simple text overlay)
+        rect = fitz.Rect(50, 50, 400, 100)
+        page.insert_textbox(rect, customer_name, fontsize=18, color=(0, 0, 0))
 
+    if logo_file:
+        # Add logo to header PDF
+        logo_img = Image.open(logo_file)
+        img_bytes = io.BytesIO()
+        logo_img.save(img_bytes, format="PNG")
+        img_bytes.seek(0)
+        page.insert_image(fitz.Rect(450, 30, 550, 130), stream=img_bytes.getvalue())
 
+    modified_header = io.BytesIO()
+    header_pdf.save(modified_header)
+    header_pdf.close()
 
+    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+    merged_pdf.insert_pdf(generated_pdf)
+    merged_output = io.BytesIO()
+    merged_pdf.save(merged_output)
+    merged_pdf.close()
 
-
-
-
+    st.download_button(
+        label="Download as PDF",
+        data=merged_output.getvalue(),
+        file_name="custom_price_list.pdf",
+        mime="application/pdf"
+    )
+else:
+    st.info("Please upload both an Excel file and a header PDF to begin.")
 
 
 

@@ -93,32 +93,16 @@ if uploaded_file and header_pdf_file:
 
     st.markdown("### Final Price List")
 
-    def highlight_special_rates(row):
-        # Highlight GroupName and Sub Section in orange if any custom price in subsection
-        custom_subsections = set(
-            final_df.loc[
-                final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2),
-                ["GroupName", "Sub Section"]
-            ].apply(tuple, axis=1)
+    # --- Grouped display ---
+    for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
+        st.markdown(f"**{group} / {subsection}**")
+        st.dataframe(
+            group_df[[
+                "ItemCategory", "EquipmentName", "HireRateWeekly",
+                "CustomPrice", "DiscountPercent", "DiscountedPrice"
+            ]],
+            use_container_width=True
         )
-        if (row["GroupName"], row["Sub Section"]) in custom_subsections:
-            return [
-                'background-color: orange' if col in ['GroupName', 'Sub Section'] else ''
-                for col in row.index
-            ]
-        if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
-            return [
-                'background-color: yellow' if col == 'GroupName' else ''
-                for col in row.index
-            ]
-        return ['' for _ in row]
-
-    styled_df = final_df[[
-        "ItemCategory", "EquipmentName", "HireRateWeekly",
-        "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
-    ]].style.apply(highlight_special_rates, axis=1)
-
-    st.dataframe(styled_df, use_container_width=True)
 
     manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
 

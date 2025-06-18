@@ -186,14 +186,14 @@ if uploaded_file and header_pdf_file:
 
     if customer_name:
         font_size = 22
-        font_color = (0/255, 45/255, 86/255)
+        font_color = (0 / 255, 45 / 255, 86 / 255)
         font_name = "helv"
-        text_width = fitz.get_text_length(customer_name, fontname=font_name, fontsize=font_size)
         page_width = page.rect.width
         page_height = page.rect.height
-        text_x = (page_width - text_width) / 2
         text_y = page_height / 3
-
+        font = fitz.Font(fontname=font_name)
+        text_width = font.text_length(customer_name, fontsize=font_size)
+        text_x = (page_width - text_width) / 2
         page.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
 
         if logo_file:
@@ -201,12 +201,10 @@ if uploaded_file and header_pdf_file:
             logo_bytes = io.BytesIO()
             logo_image.save(logo_bytes, format="PNG")
             logo_bytes.seek(0)
-
             logo_width = 100
             logo_height = logo_image.height * (logo_width / logo_image.width)
             logo_x = (page_width - logo_width) / 2
-            logo_y = text_y + font_size + 20  # 20pt below the text
-
+            logo_y = text_y + font_size + 20
             rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
             page.insert_image(rect_logo, stream=logo_bytes.read())
 
@@ -214,7 +212,6 @@ if uploaded_file and header_pdf_file:
     header_pdf.save(modified_header)
     header_pdf.close()
 
-    # ✅ Merge with generated PDF
     merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
     generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
     merged_pdf.insert_pdf(generated_pdf)
@@ -230,7 +227,6 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
-
 
 
 

@@ -124,7 +124,6 @@ if uploaded_file and header_pdf_file:
 
     st.dataframe(styled_df, use_container_width=True)
 
-    # ✅ Summary of manually updated prices
     manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
 
     if not manual_updates_df.empty:
@@ -134,7 +133,6 @@ if uploaded_file and header_pdf_file:
             "CustomPrice", "DiscountedPrice", "DiscountPercent"
         ]])
 
-    # ✅ Excel export
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
         final_df.to_excel(writer, index=False)
@@ -145,7 +143,6 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # ✅ PDF generation
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -187,16 +184,31 @@ if uploaded_file and header_pdf_file:
     header_pdf = fitz.open(stream=header_data, filetype="pdf")
     page = header_pdf[0]
 
-    if logo_file:
-        logo_image = Image.open(logo_file)
-        logo_bytes = io.BytesIO()
-        logo_image.save(logo_bytes, format="PNG")
-        logo_bytes.seek(0)
-        rect_logo = fitz.Rect(50, 50, 150, 150)  # Adjust position and size as needed
-        page.insert_image(rect_logo, stream=logo_bytes.read())
-
     if customer_name:
-        page.insert_text((160, 160), f"Customer: {customer_name}", fontsize=14, fontname="helv", fill=(0, 0, 0))
+        font_size = 22
+        font_color = (0/255, 45/255, 86/255)
+        font_name = "helv"
+        text_width = fitz.get_text_length(customer_name, fontname=font_name, fontsize=font_size)
+        page_width = page.rect.width
+        page_height = page.rect.height
+        text_x = (page_width - text_width) / 2
+        text_y = page_height / 3
+
+        page.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+
+        if logo_file:
+            logo_image = Image.open(logo_file)
+            logo_bytes = io.BytesIO()
+            logo_image.save(logo_bytes, format="PNG")
+            logo_bytes.seek(0)
+
+            logo_width = 100
+            logo_height = logo_image.height * (logo_width / logo_image.width)
+            logo_x = (page_width - logo_width) / 2
+            logo_y = text_y + font_size + 20  # 20pt below the text
+
+            rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+            page.insert_image(rect_logo, stream=logo_bytes.read())
 
     modified_header = io.BytesIO()
     header_pdf.save(modified_header)
@@ -218,6 +230,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

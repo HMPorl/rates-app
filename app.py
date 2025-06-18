@@ -109,6 +109,16 @@ if uploaded_file and header_pdf_file:
     st.markdown("### Final Price List")
     st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"]])
 
+    # ✅ Summary of manually updated prices
+    manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
+
+    if not manual_updates_df.empty:
+        st.markdown("### Summary of Manually Updated Prices")
+        st.dataframe(manual_updates_df[[
+            "ItemCategory", "EquipmentName", "HireRateWeekly",
+            "CustomPrice", "DiscountedPrice", "DiscountPercent"
+        ]])
+
     # ✅ Excel export
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
@@ -174,6 +184,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

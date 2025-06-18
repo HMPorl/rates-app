@@ -16,8 +16,8 @@ st.title("Net Rates Calculator")
 st.markdown("""
     <style>
     .block-container {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
+        padding-top: 3rem;
+        padding-bottom: 3rem;
     }
     .stTextInput input {
         height: 28px;

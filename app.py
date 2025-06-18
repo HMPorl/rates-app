@@ -107,7 +107,19 @@ if uploaded_file and header_pdf_file:
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
     st.markdown("### Final Price List")
-    st.dataframe(final_df[["ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"]])
+
+    def highlight_special_rates(row):
+        if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
+            return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
+        else:
+            return ['' for _ in row]
+
+    styled_df = final_df[[
+        "ItemCategory", "EquipmentName", "HireRateWeekly",
+        "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
+    ]].style.apply(highlight_special_rates, axis=1)
+
+    st.dataframe(styled_df, use_container_width=True)
 
     # ✅ Summary of manually updated prices
     manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
@@ -184,6 +196,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

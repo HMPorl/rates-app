@@ -25,7 +25,12 @@ st.markdown("""
     .stTextInput {
         margin-bottom: 0.25rem;
     }
-    </style>
+    /* Change table header hover color */
+    thead tr th:hover {
+        background-color: #ffb347 !important; /* orange, change as needed */
+        color: #222 !important;
+    }
+    </style>    
 """, unsafe_allow_html=True)
 
 # ✅ Caching functions

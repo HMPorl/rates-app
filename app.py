@@ -14,9 +14,13 @@ st.title("Net Rates Calculator")
 
 # Clear session state button
 if st.button("🔄 Clear All Inputs"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    st.session_state.clear()
+    st.session_state["trigger_rerun"] = True
+
+if st.session_state.get("trigger_rerun", False):
+    st.session_state["trigger_rerun"] = False
     st.experimental_rerun()
+
 
 @st.cache_data
 def load_excel(file):

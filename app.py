@@ -116,7 +116,7 @@ if uploaded_file and header_pdf_file:
                         )
                     with col4:
                         try:
-                            discount_percent = ((row["HireRateWeekly"] - default_price) / row["HireRateWeekly"]) * 100
+                            discount_percent = ((row["HireRateWeekly"] - final_df.at[idx, "CustomPrice"]) / row["HireRateWeekly"]) * 100
                             st.write(f"{discount_percent:.1f}%")
                         except ZeroDivisionError:
                             st.write("N/A")
@@ -124,11 +124,13 @@ if uploaded_file and header_pdf_file:
 
     if submitted:
         for idx in final_df.index:
-            try:
-                new_price = float(st.session_state[f"price_{idx}"])
-                final_df.at[idx, "CustomPrice"] = new_price
-            except ValueError:
-                pass
+            key = f"price_{idx}"
+            if key in st.session_state:
+                try:
+                    new_price = float(st.session_state[key])
+                    final_df.at[idx, "CustomPrice"] = new_price
+                except ValueError:
+                    pass
 
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
@@ -305,6 +307,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

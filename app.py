@@ -8,9 +8,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
+# ✅ Custom CSS
 st.markdown("""
     <style>
     .block-container {
@@ -91,12 +93,11 @@ if uploaded_file and header_pdf_file:
         return row["HireRateWeekly"] * (1 - group_discount / 100)
 
     df["DiscountedPrice"] = df.apply(calculate_discounted_price, axis=1)
-    final_df = df.copy()
 
     st.markdown("### Adjust Prices by Group and Sub Section")
 
     with st.form("price_adjustment_form"):
-        for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
+        for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
             with st.expander(f"{group} - {subsection}", expanded=False):
                 for idx, row in group_df.iterrows():
                     col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
@@ -107,7 +108,7 @@ if uploaded_file and header_pdf_file:
                     with col3:
                         default_price = float(row["CustomPrice"])
                         st.text_input(
-                            label="Custom Price (£)",
+                            "",
                             value=f"{default_price:.2f}",
                             key=f"price_{idx}",
                             label_visibility="collapsed"
@@ -118,16 +119,16 @@ if uploaded_file and header_pdf_file:
         submitted = st.form_submit_button("Apply Changes")
 
     if submitted:
-        for idx in final_df.index:
+        for idx in df.index:
             key = f"price_{idx}"
             if key in st.session_state:
                 try:
                     new_price = float(st.session_state[key])
-                    final_df.at[idx, "CustomPrice"] = new_price
+                    df.at[idx, "CustomPrice"] = new_price
                 except ValueError:
                     pass
 
-        final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
+        df["DiscountPercent"] = ((df["HireRateWeekly"] - df["CustomPrice"]) / df["HireRateWeekly"]) * 100
 
         st.markdown("### Final Price List")
 
@@ -137,14 +138,14 @@ if uploaded_file and header_pdf_file:
             else:
                 return ['' for _ in row]
 
-        styled_df = final_df[[
+        styled_df = df[[
             "ItemCategory", "EquipmentName", "HireRateWeekly",
             "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
         ]].style.apply(highlight_special_rates, axis=1)
 
         st.dataframe(styled_df, use_container_width=True)
 
-        manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
+        manual_updates_df = df[df["CustomPrice"].round(2) != df["DiscountedPrice"].round(2)]
 
         if not manual_updates_df.empty:
             st.markdown("### Summary of Manually Updated Prices")
@@ -192,7 +193,7 @@ if uploaded_file and header_pdf_file:
 
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            final_df.to_excel(writer, index=False)
+            df.to_excel(writer, index=False)
         st.download_button(
             label="Download as Excel",
             data=output_excel.getvalue(),
@@ -208,7 +209,7 @@ if uploaded_file and header_pdf_file:
         elements.append(Paragraph("Custom Price List", styles['Title']))
         elements.append(Spacer(1, 12))
 
-        for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
+        for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
             elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
             elements.append(Spacer(1, 6))
 
@@ -304,6 +305,8 @@ if uploaded_file and header_pdf_file:
         st.info("Please click 'Apply Changes' to generate the final price list.")
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

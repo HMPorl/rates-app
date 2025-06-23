@@ -116,7 +116,8 @@ if uploaded_file and header_pdf_file:
                             label_visibility="collapsed"
                         )
                     with col4:
-                        st.markdown(f"**Discounted: £{discounted_price:.2f}**")
+                        discount_percent = ((row["HireRateWeekly"] - discounted_price) / row["HireRateWeekly"]) * 100
+                        st.markdown(f"**Discount: {discount_percent:.1f}%**")
         submitted = st.form_submit_button("Apply Changes")
 
     if submitted:
@@ -306,6 +307,7 @@ if uploaded_file and header_pdf_file:
         st.info("Please click 'Apply Changes' to generate the final price list.")
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

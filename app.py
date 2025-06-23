@@ -77,12 +77,8 @@ if uploaded_file and header_pdf_file:
                     discount_key = group_discount_keys.get((row["GroupName"], row["Sub Section"]))
                     group_discount = st.session_state.get(discount_key, global_discount)
                     discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
-                    discounted_price_str = f"{discounted_price:.2f}"
                     price_key = f"price_{idx}"
-                    if price_key in st.session_state and st.session_state[price_key] != discounted_price_str:
-                        default_price = st.session_state[price_key]
-                    else:
-                        default_price = discounted_price_str
+                    default_price = st.session_state.get(price_key, f"{discounted_price:.2f}")
                     st.text_input(
                         "",
                         value=default_price,
@@ -238,6 +234,7 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+
 
 
 

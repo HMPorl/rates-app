@@ -8,29 +8,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
-
-# ✅ Custom CSS
-st.markdown("""
-    <style>
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 3rem;
-    }
-    .stTextInput input {
-        height: 28px;
-    }
-    .stTextInput {
-        margin-bottom: 0.25rem;
-    }
-    thead tr th:hover {
-        background-color: #ffb347 !important;
-        color: #222 !important;
-    }
-    </style>    
-""", unsafe_allow_html=True)
 
 @st.cache_data
 def load_excel(file):
@@ -63,9 +42,9 @@ if uploaded_file and header_pdf_file:
     if "CustomPrice" not in df.columns:
         df["CustomPrice"] = df["HireRateWeekly"]
 
-    discount_input = st.text_input("Global Discount (%)", value="0")
+    global_discount_input = st.text_input("Global Discount (%)", value="0")
     try:
-        global_discount = float(discount_input)
+        global_discount = float(global_discount_input)
         if not (0 <= global_discount <= 100):
             st.warning("Please enter a discount between 0 and 100.")
             st.stop()
@@ -115,11 +94,7 @@ if uploaded_file and header_pdf_file:
                             label_visibility="collapsed"
                         )
                     with col4:
-                        try:
-                            discount_percent = ((row["HireRateWeekly"] - final_df.at[idx, "CustomPrice"]) / row["HireRateWeekly"]) * 100
-                            st.write(f"{discount_percent:.1f}%")
-                        except ZeroDivisionError:
-                            st.write("N/A")
+                        st.write("")  # Placeholder for discount display
         submitted = st.form_submit_button("Apply Changes")
 
     if submitted:
@@ -132,179 +107,183 @@ if uploaded_file and header_pdf_file:
                 except ValueError:
                     pass
 
-    final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
+        final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
-    st.markdown("### Final Price List")
+        st.markdown("### Final Price List")
 
-    def highlight_special_rates(row):
-        if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
-            return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
-        else:
-            return ['' for _ in row]
+        def highlight_special_rates(row):
+            if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
+                return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
+            elif round(row["DiscountedPrice"], 2) != round(row["HireRateWeekly"], 2):
+                return ['background-color: lightgreen' if col == 'GroupName' else '' for col in row.index]
+            else:
+                return ['' for _ in row]
 
-    styled_df = final_df[[
-        "ItemCategory", "EquipmentName", "HireRateWeekly",
-        "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
-    ]].style.apply(highlight_special_rates, axis=1)
+        styled_df = final_df[[
+            "ItemCategory", "EquipmentName", "HireRateWeekly",
+            "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
+        ]].style.apply(highlight_special_rates, axis=1)
 
-    st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(styled_df, use_container_width=True)
 
-    manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
+        manual_updates_df = final_df[final_df["CustomPrice"].round(2) != final_df["DiscountedPrice"].round(2)]
 
-    if not manual_updates_df.empty:
-        st.markdown("### Summary of Manually Updated Prices")
-        st.dataframe(manual_updates_df[[
-            "ItemCategory", "EquipmentName", "GroupName", "Sub Section", "HireRateWeekly", "CustomPrice"
-        ]], use_container_width=True)
+        if not manual_updates_df.empty:
+            st.markdown("### Summary of Manually Updated Prices")
+            st.dataframe(manual_updates_df[[
+                "ItemCategory", "EquipmentName", "GroupName", "Sub Section", "HireRateWeekly", "CustomPrice"
+            ]], use_container_width=True)
 
-    st.markdown("### Transport Charges")
+        st.markdown("### Transport Charges")
 
-    transport_types = [
-        "Standard - small tools",
-        "Towables",
-        "Non-mechanical",
-        "Fencing",
-        "Tower",
-        "Powered Access",
-        "Low-level Access",
-        "Long Distance"
-    ]
+        transport_types = [
+            "Standard - small tools",
+            "Towables",
+            "Non-mechanical",
+            "Fencing",
+            "Tower",
+            "Powered Access",
+            "Low-level Access",
+            "Long Distance"
+        ]
 
-    transport_data = {
-        "Delivery or Collection type": transport_types,
-        "Charge (£)": [""] * len(transport_types)
-    }
-    powered_access_idx = transport_types.index("Powered Access")
-    transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
+        transport_data = {
+            "Delivery or Collection type": transport_types,
+            "Charge (£)": [""] * len(transport_types)
+        }
+        powered_access_idx = transport_types.index("Powered Access")
+        transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
 
-    transport_df = pd.DataFrame(transport_data)
+        transport_df = pd.DataFrame(transport_data)
 
-    edited_transport_df = st.data_editor(
-        transport_df,
-        column_config={
-            "Charge (£)": st.column_config.TextColumn(
-                "Charge (£)",
-                help="Enter charge in £ (leave as 'Negotiable' for Powered Access)"
-            )
-        },
-        disabled={
-            "Delivery or Collection type": True,
-            "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
-        },
-        hide_index=True,
-        use_container_width=True
-    )
+        edited_transport_df = st.data_editor(
+            transport_df,
+            column_config={
+                "Charge (£)": st.column_config.TextColumn(
+                    "Charge (£)",
+                    help="Enter charge in £ (leave as 'Negotiable' for Powered Access)"
+                )
+            },
+            disabled={
+                "Delivery or Collection type": True,
+                "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
+            },
+            hide_index=True,
+            use_container_width=True
+        )
 
-    output_excel = io.BytesIO()
-    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-        final_df.to_excel(writer, index=False)
-    st.download_button(
-        label="Download as Excel",
-        data=output_excel.getvalue(),
-        file_name="custom_price_list.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            final_df.to_excel(writer, index=False)
+        st.download_button(
+            label="Download as Excel",
+            data=output_excel.getvalue(),
+            file_name="custom_price_list.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
-    pdf_buffer = io.BytesIO()
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-    elements = []
-    styles = getSampleStyleSheet()
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
 
-    elements.append(Paragraph("Custom Price List", styles['Title']))
-    elements.append(Spacer(1, 12))
-
-    for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
-        elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
-        elements.append(Spacer(1, 6))
-
-        table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
-        for _, row in group_df.iterrows():
-            table_data.append([
-                row["ItemCategory"],
-                Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}",
-                f"{row['DiscountPercent']:.1f}%"
-            ])
-
-        table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ]))
-        elements.append(table)
+        elements.append(Paragraph("Custom Price List", styles['Title']))
         elements.append(Spacer(1, 12))
 
-    elements.append(PageBreak())
-    elements.append(Paragraph("Transport Charges", styles['Heading2']))
-    elements.append(Spacer(1, 12))
+        for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
+            elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
+            elements.append(Spacer(1, 6))
 
-    transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
-    for idx, row in edited_transport_df.iterrows():
-        transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
+            table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
+            for _, row in group_df.iterrows():
+                table_data.append([
+                    row["ItemCategory"],
+                    Paragraph(row["EquipmentName"], styles['BodyText']),
+                    f"£{row['CustomPrice']:.2f}",
+                    f"{row['DiscountPercent']:.1f}%"
+                ])
 
-    transport_table = Table(transport_pdf_data, colWidths=[250, 100])
-    transport_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(transport_table)
+            table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 12))
 
-    doc.build(elements)
-    pdf_buffer.seek(0)
+        elements.append(PageBreak())
+        elements.append(Paragraph("Transport Charges", styles['Heading2']))
+        elements.append(Spacer(1, 12))
 
-    header_data = read_pdf_header(header_pdf_file)
-    header_pdf = fitz.open(stream=header_data, filetype="pdf")
-    page = header_pdf[0]
+        transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
+        for idx, row in edited_transport_df.iterrows():
+            transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
 
-    if customer_name:
-        font_size = 22
-        font_color = (0 / 255, 45 / 255, 86 / 255)
-        font_name = "helv"
-        page_width = page.rect.width
-        page_height = page.rect.height
-        text_y = page_height / 3
-        font = fitz.Font(fontname=font_name)
-        text_width = font.text_length(customer_name, fontsize=font_size)
-        text_x = (page_width - text_width) / 2
-        page.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+        transport_table = Table(transport_pdf_data, colWidths=[250, 100])
+        transport_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+        ]))
+        elements.append(transport_table)
 
-        if logo_file:
-            logo_image = Image.open(logo_file)
-            logo_bytes = io.BytesIO()
-            logo_image.save(logo_bytes, format="PNG")
-            logo_bytes.seek(0)
-            logo_width = 100
-            logo_height = logo_image.height * (logo_width / logo_image.width)
-            logo_x = (page_width - logo_width) / 2
-            logo_y = text_y + font_size + 20
-            rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
-            page.insert_image(rect_logo, stream=logo_bytes.read())
+        doc.build(elements)
+        pdf_buffer.seek(0)
 
-    modified_header = io.BytesIO()
-    header_pdf.save(modified_header)
-    header_pdf.close()
+        header_data = read_pdf_header(header_pdf_file)
+        header_pdf = fitz.open(stream=header_data, filetype="pdf")
+        page = header_pdf[0]
 
-    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
-    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
-    merged_pdf.insert_pdf(generated_pdf)
-    merged_output = io.BytesIO()
-    merged_pdf.save(merged_output)
-    merged_pdf.close()
+        if customer_name:
+            font_size = 22
+            font_color = (0 / 255, 45 / 255, 86 / 255)
+            font_name = "helv"
+            page_width = page.rect.width
+            page_height = page.rect.height
+            text_y = page_height / 3
+            font = fitz.Font(fontname=font_name)
+            text_width = font.text_length(customer_name, fontsize=font_size)
+            text_x = (page_width - text_width) / 2
+            page.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
 
-    st.download_button(
-        label="Download as PDF",
-        data=merged_output.getvalue(),
-        file_name="custom_price_list.pdf",
-        mime="application/pdf"
-    )
+            if logo_file:
+                logo_image = Image.open(logo_file)
+                logo_bytes = io.BytesIO()
+                logo_image.save(logo_bytes, format="PNG")
+                logo_bytes.seek(0)
+                logo_width = 100
+                logo_height = logo_image.height * (logo_width / logo_image.width)
+                logo_x = (page_width - logo_width) / 2
+                logo_y = text_y + font_size + 20
+                rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+                page.insert_image(rect_logo, stream=logo_bytes.read())
+
+        modified_header = io.BytesIO()
+        header_pdf.save(modified_header)
+        header_pdf.close()
+
+        merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+        generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+        merged_pdf.insert_pdf(generated_pdf)
+        merged_output = io.BytesIO()
+        merged_pdf.save(merged_output)
+        merged_pdf.close()
+
+        st.download_button(
+            label="Download as PDF",
+            data=merged_output.getvalue(),
+            file_name="custom_price_list.pdf",
+            mime="application/pdf"
+        )
+    else:
+        st.info("Please click 'Apply Changes' to update prices.")
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
 

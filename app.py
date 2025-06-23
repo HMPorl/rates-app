@@ -12,7 +12,7 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# ✅ Clear State Button
+# ✅ Clear All Inputs Button
 if st.button("🔄 Clear All Inputs"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
@@ -82,19 +82,19 @@ if uploaded_file and header_pdf_file:
         st.warning("Please enter a valid number for the discount.")
         st.stop()
 
-    group_discounts = {}
     st.markdown("### Group-Level Discounts")
     for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
         key = f"{group}_{subsection}_discount"
-        discount_val = st.number_input(
+        if key not in st.session_state:
+            st.session_state[key] = global_discount
+        st.number_input(
             f"Discount for {group} - {subsection} (%)",
             min_value=0.0,
             max_value=100.0,
-            value=global_discount,
+            value=st.session_state[key],
             step=0.5,
             key=key
         )
-        group_discounts[(group, subsection)] = discount_val
 
     st.markdown("### Adjust Prices by Group and Sub Section")
 
@@ -108,8 +108,8 @@ if uploaded_file and header_pdf_file:
                     st.write(row["EquipmentName"])
                 with col3:
                     key = f"price_{idx}"
-                    group_key = (row["GroupName"], row["Sub Section"])
-                    group_discount = group_discounts.get(group_key, global_discount)
+                    discount_key = f"{row['GroupName']}_{row['Sub Section']}_discount"
+                    group_discount = st.session_state.get(discount_key, global_discount)
                     discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
                     discounted_price_str = f"{discounted_price:.2f}"
                     if key in st.session_state and st.session_state[key] != discounted_price_str:
@@ -124,11 +124,11 @@ if uploaded_file and header_pdf_file:
                     )
                 with col4:
                     try:
-                        custom_price = float(st.session_state.get(f"price_{idx}", discounted_price))
+                        custom_price = float(st.session_state.get(f"price_{idx}", row["CustomPrice"]))
                         discount_percent = ((row["HireRateWeekly"] - custom_price) / row["HireRateWeekly"]) * 100
                         st.markdown(f"**Discount: {discount_percent:.1f}%**")
                     except:
-                        st.markdown("**Discount: N/A**")
+                        st.markdown("**Discount: -**")
 
     for idx in df.index:
         key = f"price_{idx}"
@@ -144,7 +144,7 @@ if uploaded_file and header_pdf_file:
     st.markdown("### Final Price List")
 
     def highlight_special_rates(row):
-        if round(row["CustomPrice"], 2) != round(row["HireRateWeekly"], 2):
+        if round(row["CustomPrice"], 2) != round(row["HireRateWeekly"] * (1 - st.session_state.get(f"{row['GroupName']}_{row['Sub Section']}_discount", global_discount) / 100), 2):
             return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
         else:
             return ['' for _ in row]
@@ -156,7 +156,7 @@ if uploaded_file and header_pdf_file:
 
     st.dataframe(styled_df, use_container_width=True)
 
-    manual_updates_df = df[df["CustomPrice"].round(2) != df["HireRateWeekly"].round(2)]
+    manual_updates_df = df[df["CustomPrice"].round(2) != (df["HireRateWeekly"] * (1 - df["DiscountPercent"] / 100)).round(2)]
 
     if not manual_updates_df.empty:
         st.markdown("### Summary of Manually Updated Prices")
@@ -179,10 +179,8 @@ if uploaded_file and header_pdf_file:
 
     transport_data = {
         "Delivery or Collection type": transport_types,
-        "Charge (£)": [""] * len(transport_types)
+        "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
     }
-    powered_access_idx = transport_types.index("Powered Access")
-    transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
 
     transport_df = pd.DataFrame(transport_data)
 
@@ -196,7 +194,7 @@ if uploaded_file and header_pdf_file:
         },
         disabled={
             "Delivery or Collection type": True,
-            "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
+            "Charge (£)": [t == "Powered Access" for t in transport_types]
         },
         hide_index=True,
         use_container_width=True
@@ -314,6 +312,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

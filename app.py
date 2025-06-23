@@ -86,7 +86,12 @@ if uploaded_file and header_pdf_file:
                         label_visibility="collapsed"
                     )
                 with col4:
-                    st.markdown(f"**Discount: {group_discount:.1f}%**")
+                    try:
+                        custom_price = float(st.session_state[price_key])
+                    except:
+                        custom_price = row["HireRateWeekly"]
+                    discount_percent = ((row["HireRateWeekly"] - custom_price) / row["HireRateWeekly"]) * 100
+                    st.markdown(f"**Discount: {discount_percent:.1f}%**")
 
     for idx in df.index:
         price_key = f"price_{idx}"

@@ -107,15 +107,16 @@ if uploaded_file and header_pdf_file:
                     with col2:
                         st.write(row["EquipmentName"])
                     with col3:
-                        default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
+                        discounted_price = float(row["DiscountedPrice"])
+                        default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else discounted_price
                         st.text_input(
-                            "",
+                            label="Custom Price (£)",
                             value=f"{default_price:.2f}",
                             key=f"price_{idx}",
                             label_visibility="collapsed"
                         )
                     with col4:
-                        st.write("")  # Placeholder for discount display
+                        st.markdown(f"**Discounted: £{discounted_price:.2f}**")
         submitted = st.form_submit_button("Apply Changes")
 
     if submitted:
@@ -305,6 +306,7 @@ if uploaded_file and header_pdf_file:
         st.info("Please click 'Apply Changes' to generate the final price list.")
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

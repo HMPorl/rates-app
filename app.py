@@ -8,11 +8,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# ✅ Custom CSS
 st.markdown("""
     <style>
     .block-container {
@@ -65,15 +63,34 @@ if uploaded_file and header_pdf_file:
 
     discount_input = st.text_input("Global Discount (%)", value="0")
     try:
-        discount = float(discount_input)
-        if not (0 <= discount <= 100):
+        global_discount = float(discount_input)
+        if not (0 <= global_discount <= 100):
             st.warning("Please enter a discount between 0 and 100.")
             st.stop()
     except ValueError:
         st.warning("Please enter a valid number for the discount.")
         st.stop()
 
-    df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - discount / 100)
+    group_discounts = {}
+    st.markdown("### Group-Level Discounts")
+    for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
+        key = f"{group}_{subsection}_discount"
+        discount_val = st.number_input(
+            f"Discount for {group} - {subsection} (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=global_discount,
+            step=0.5,
+            key=key
+        )
+        group_discounts[(group, subsection)] = discount_val
+
+    def calculate_discounted_price(row):
+        group_key = (row["GroupName"], row["Sub Section"])
+        group_discount = group_discounts.get(group_key, global_discount)
+        return row["HireRateWeekly"] * (1 - group_discount / 100)
+
+    df["DiscountedPrice"] = df.apply(calculate_discounted_price, axis=1)
     final_df = df.copy()
 
     st.markdown("### Adjust Prices by Group and Sub Section")
@@ -116,6 +133,8 @@ if uploaded_file and header_pdf_file:
     def highlight_special_rates(row):
         if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
             return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
+        elif round(row["DiscountedPrice"], 2) != round(row["HireRateWeekly"] * (1 - global_discount / 100), 2):
+            return ['background-color: lightgreen' if col == 'GroupName' else '' for col in row.index]
         else:
             return ['' for _ in row]
 
@@ -284,6 +303,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

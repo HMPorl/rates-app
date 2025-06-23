@@ -105,11 +105,18 @@ if uploaded_file and header_pdf_file:
                 with col2:
                     st.write(row["EquipmentName"])
                 with col3:
-                    default_price = float(row["CustomPrice"])
+                    key = f"price_{idx}"
+                    if key in st.session_state:
+                        default_price = st.session_state[key]
+                    else:
+                        group_key = (row["GroupName"], row["Sub Section"])
+                        group_discount = group_discounts.get(group_key, global_discount)
+                        discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
+                        default_price = f"{discounted_price:.2f}"
                     st.text_input(
                         "",
-                        value=f"{default_price:.2f}",
-                        key=f"price_{idx}",
+                        value=default_price,
+                        key=key,
                         label_visibility="collapsed"
                     )
                 with col4:
@@ -300,6 +307,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

@@ -8,38 +8,17 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# ✅ Clear All Inputs Button
+# Clear session state button
 if st.button("🔄 Clear All Inputs"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     try:
         st.experimental_rerun()
     except Exception:
-        st.warning("Unable to rerun the app automatically. Please manually refresh the page.")
-
-# ✅ Custom CSS
-st.markdown("""
-    <style>
-    .block-container {
-        padding-top: 3rem;
-        padding-bottom: 3rem;
-    }
-    .stTextInput input {
-        height: 28px;
-    }
-    .stTextInput {
-        margin-bottom: 0.25rem;
-    }
-    thead tr th:hover {
-        background-color: #ffb347 !important;
-        color: #222 !important;
-    }
-    </style>    
-""", unsafe_allow_html=True)
+        st.warning("Please manually refresh the page to complete reset.")
 
 @st.cache_data
 def load_excel(file):
@@ -69,35 +48,23 @@ if uploaded_file and header_pdf_file:
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
-    if "CustomPrice" not in df.columns:
-        df["CustomPrice"] = df["HireRateWeekly"]
-
-    discount_input = st.text_input("Global Discount (%)", value="0")
-    try:
-        global_discount = float(discount_input)
-        if not (0 <= global_discount <= 100):
-            st.warning("Please enter a discount between 0 and 100.")
-            st.stop()
-    except ValueError:
-        st.warning("Please enter a valid number for the discount.")
-        st.stop()
+    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
     st.markdown("### Group-Level Discounts")
+    group_discount_keys = {}
     for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
         key = f"{group}_{subsection}_discount"
-        if key not in st.session_state:
-            st.session_state[key] = global_discount
-        st.session_state[key] = st.number_input(
+        group_discount_keys[(group, subsection)] = key
+        st.number_input(
             f"Discount for {group} - {subsection} (%)",
             min_value=0.0,
             max_value=100.0,
-            value=st.session_state[key],
+            value=global_discount,
             step=0.5,
             key=key
         )
 
     st.markdown("### Adjust Prices by Group and Sub Section")
-
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():
@@ -107,92 +74,55 @@ if uploaded_file and header_pdf_file:
                 with col2:
                     st.write(row["EquipmentName"])
                 with col3:
-                    key = f"price_{idx}"
-                    discount_key = f"{row['GroupName']}_{row['Sub Section']}_discount"
+                    discount_key = group_discount_keys.get((row["GroupName"], row["Sub Section"]))
                     group_discount = st.session_state.get(discount_key, global_discount)
                     discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
                     discounted_price_str = f"{discounted_price:.2f}"
-                    if key in st.session_state and st.session_state[key] != discounted_price_str:
-                        default_price = st.session_state[key]
+                    price_key = f"price_{idx}"
+                    if price_key in st.session_state and st.session_state[price_key] != discounted_price_str:
+                        default_price = st.session_state[price_key]
                     else:
                         default_price = discounted_price_str
                     st.text_input(
                         "",
                         value=default_price,
-                        key=key,
+                        key=price_key,
                         label_visibility="collapsed"
                     )
                 with col4:
-                    try:
-                        custom_price = float(st.session_state.get(f"price_{idx}", discounted_price))
-                        discount_percent = ((row["HireRateWeekly"] - custom_price) / row["HireRateWeekly"]) * 100
-                        st.markdown(f"**Discount: {discount_percent:.1f}%**")
-                    except:
-                        st.markdown("**Discount: -**")
+                    st.markdown(f"**Discount: {group_discount:.1f}%**")
 
     for idx in df.index:
-        key = f"price_{idx}"
-        if key in st.session_state:
-            try:
-                new_price = float(st.session_state[key])
-                df.at[idx, "CustomPrice"] = new_price
-            except ValueError:
-                pass
+        price_key = f"price_{idx}"
+        try:
+            df.at[idx, "CustomPrice"] = float(st.session_state[price_key])
+        except:
+            df.at[idx, "CustomPrice"] = df.at[idx, "HireRateWeekly"]
 
     df["DiscountPercent"] = ((df["HireRateWeekly"] - df["CustomPrice"]) / df["HireRateWeekly"]) * 100
 
     st.markdown("### Final Price List")
-
-    def highlight_special_rates(row):
-        if round(row["CustomPrice"], 2) != round(row["HireRateWeekly"] * (1 - st.session_state.get(f"{row['GroupName']}_{row['Sub Section']}_discount", global_discount) / 100), 2):
-            return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
-        else:
-            return ['' for _ in row]
-
-    styled_df = df[[
+    st.dataframe(df[[
         "ItemCategory", "EquipmentName", "HireRateWeekly",
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
-    ]].style.apply(highlight_special_rates, axis=1)
-
-    st.dataframe(styled_df, use_container_width=True)
-
-    manual_updates_df = df[df["CustomPrice"].round(2) != df["HireRateWeekly"].round(2)]
-
-    if not manual_updates_df.empty:
-        st.markdown("### Summary of Manually Updated Prices")
-        st.dataframe(manual_updates_df[[
-            "ItemCategory", "EquipmentName", "GroupName", "Sub Section", "HireRateWeekly", "CustomPrice"
-        ]], use_container_width=True)
+    ]], use_container_width=True)
 
     st.markdown("### Transport Charges")
-
     transport_types = [
-        "Standard - small tools",
-        "Towables",
-        "Non-mechanical",
-        "Fencing",
-        "Tower",
-        "Powered Access",
-        "Low-level Access",
-        "Long Distance"
+        "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+        "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
-
     transport_data = {
         "Delivery or Collection type": transport_types,
-        "Charge (£)": [""] * len(transport_types)
+        "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
     }
-    powered_access_idx = transport_types.index("Powered Access")
-    transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
-
     transport_df = pd.DataFrame(transport_data)
+    powered_access_idx = transport_types.index("Powered Access")
 
     edited_transport_df = st.data_editor(
         transport_df,
         column_config={
-            "Charge (£)": st.column_config.TextColumn(
-                "Charge (£)",
-                help="Enter charge in £ (leave as 'Negotiable' for Powered Access)"
-            )
+            "Charge (£)": st.column_config.TextColumn("Charge (£)", help="Enter charge in £")
         },
         disabled={
             "Delivery or Collection type": True,
@@ -223,7 +153,6 @@ if uploaded_file and header_pdf_file:
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
         elements.append(Spacer(1, 6))
-
         table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
         for _, row in group_df.iterrows():
             table_data.append([
@@ -232,7 +161,6 @@ if uploaded_file and header_pdf_file:
                 f"£{row['CustomPrice']:.2f}",
                 f"{row['DiscountPercent']:.1f}%"
             ])
-
         table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -248,11 +176,9 @@ if uploaded_file and header_pdf_file:
     elements.append(PageBreak())
     elements.append(Paragraph("Transport Charges", styles['Heading2']))
     elements.append(Spacer(1, 12))
-
     transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
     for idx, row in edited_transport_df.iterrows():
         transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
-
     transport_table = Table(transport_pdf_data, colWidths=[250, 100])
     transport_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -312,8 +238,7 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
-else:
-    st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

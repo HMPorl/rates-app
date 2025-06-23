@@ -8,9 +8,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
+# ✅ Custom CSS
 st.markdown("""
     <style>
     .block-container {
@@ -95,36 +97,38 @@ if uploaded_file and header_pdf_file:
 
     st.markdown("### Adjust Prices by Group and Sub Section")
 
-    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        with st.expander(f"{group} - {subsection}", expanded=False):
-            for idx, row in group_df.iterrows():
-                col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
-                with col1:
-                    st.write(row["ItemCategory"])
-                with col2:
-                    st.write(row["EquipmentName"])
-                with col3:
-                    default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
-                    price_input = st.text_input(
-                        "",
-                        value=f"{default_price:.2f}",
-                        key=f"price_{idx}",
-                        label_visibility="collapsed"
-                    )
-                    try:
-                        new_price = float(price_input)
-                        final_df.at[idx, "CustomPrice"] = new_price
-                    except ValueError:
-                        st.warning(f"Invalid price entered for {row['ItemCategory']}. Using default.")
-                        final_df.at[idx, "CustomPrice"] = default_price
-                with col4:
-                    try:
-                        discount_percent = ((row["HireRateWeekly"] - final_df.at[idx, "CustomPrice"]) / row["HireRateWeekly"]) * 100
-                        st.write(f"{discount_percent:.1f}%")
-                        if discount_percent > row["Max Discount"]:
-                            st.warning(f"⚠️ {row['ItemCategory']} exceeds Max Discount ({row['Max Discount']}%)")
-                    except ZeroDivisionError:
-                        st.write("N/A")
+    with st.form("price_adjustment_form"):
+        for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+            with st.expander(f"{group} - {subsection}", expanded=False):
+                for idx, row in group_df.iterrows():
+                    col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
+                    with col1:
+                        st.write(row["ItemCategory"])
+                    with col2:
+                        st.write(row["EquipmentName"])
+                    with col3:
+                        default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else float(row["DiscountedPrice"])
+                        st.text_input(
+                            "",
+                            value=f"{default_price:.2f}",
+                            key=f"price_{idx}",
+                            label_visibility="collapsed"
+                        )
+                    with col4:
+                        try:
+                            discount_percent = ((row["HireRateWeekly"] - default_price) / row["HireRateWeekly"]) * 100
+                            st.write(f"{discount_percent:.1f}%")
+                        except ZeroDivisionError:
+                            st.write("N/A")
+        submitted = st.form_submit_button("Apply Changes")
+
+    if submitted:
+        for idx in final_df.index:
+            try:
+                new_price = float(st.session_state[f"price_{idx}"])
+                final_df.at[idx, "CustomPrice"] = new_price
+            except ValueError:
+                pass
 
     final_df["DiscountPercent"] = ((final_df["HireRateWeekly"] - final_df["CustomPrice"]) / final_df["HireRateWeekly"]) * 100
 
@@ -133,8 +137,6 @@ if uploaded_file and header_pdf_file:
     def highlight_special_rates(row):
         if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
             return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
-        elif round(row["DiscountedPrice"], 2) != round(row["HireRateWeekly"] * (1 - global_discount / 100), 2):
-            return ['background-color: lightgreen' if col == 'GroupName' else '' for col in row.index]
         else:
             return ['' for _ in row]
 
@@ -303,6 +305,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

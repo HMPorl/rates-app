@@ -8,8 +8,29 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+# ✅ Set page config
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
+
+# ✅ Custom CSS
+st.markdown("""
+    <style>
+    .block-container {
+        padding-top: 3rem;
+        padding-bottom: 3rem;
+    }
+    .stTextInput input {
+        height: 28px;
+    }
+    .stTextInput {
+        margin-bottom: 0.25rem;
+    }
+    thead tr th:hover {
+        background-color: #ffb347 !important;
+        color: #222 !important;
+    }
+    </style>    
+""", unsafe_allow_html=True)
 
 @st.cache_data
 def load_excel(file):
@@ -42,9 +63,9 @@ if uploaded_file and header_pdf_file:
     if "CustomPrice" not in df.columns:
         df["CustomPrice"] = df["HireRateWeekly"]
 
-    global_discount_input = st.text_input("Global Discount (%)", value="0")
+    discount_input = st.text_input("Global Discount (%)", value="0")
     try:
-        global_discount = float(global_discount_input)
+        global_discount = float(discount_input)
         if not (0 <= global_discount <= 100):
             st.warning("Please enter a discount between 0 and 100.")
             st.stop()
@@ -114,8 +135,6 @@ if uploaded_file and header_pdf_file:
         def highlight_special_rates(row):
             if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
                 return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
-            elif round(row["DiscountedPrice"], 2) != round(row["HireRateWeekly"], 2):
-                return ['background-color: lightgreen' if col == 'GroupName' else '' for col in row.index]
             else:
                 return ['' for _ in row]
 
@@ -283,7 +302,7 @@ if uploaded_file and header_pdf_file:
             mime="application/pdf"
         )
     else:
-        st.info("Please click 'Apply Changes' to update prices.")
+        st.info("Please click 'Apply Changes' to generate the final price list.")
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
 

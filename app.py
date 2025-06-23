@@ -12,7 +12,7 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# Clear session state button
+# Clear session state button with safe rerun
 if st.button("🔄 Clear All Inputs"):
     st.session_state.clear()
     st.session_state["trigger_rerun"] = True
@@ -20,7 +20,6 @@ if st.button("🔄 Clear All Inputs"):
 if st.session_state.get("trigger_rerun", False):
     st.session_state["trigger_rerun"] = False
     st.experimental_rerun()
-
 
 @st.cache_data
 def load_excel(file):

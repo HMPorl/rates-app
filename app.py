@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import io
@@ -16,7 +15,10 @@ st.title("Net Rates Calculator")
 if st.button("🔄 Clear All Inputs"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    st.experimental_rerun()
+    try:
+        st.experimental_rerun()
+    except Exception:
+        st.warning("Please manually refresh the page to complete reset.")
 
 @st.cache_data
 def load_excel(file):
@@ -53,13 +55,11 @@ if uploaded_file and header_pdf_file:
     for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
         key = f"{group}_{subsection}_discount"
         group_discount_keys[(group, subsection)] = key
-        if key not in st.session_state:
-            st.session_state[key] = global_discount
         st.number_input(
             f"Discount for {group} - {subsection} (%)",
             min_value=0.0,
             max_value=100.0,
-            value=st.session_state[key],
+            value=global_discount,
             step=0.5,
             key=key
         )
@@ -239,3 +239,4 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+    

@@ -87,7 +87,7 @@ if uploaded_file and header_pdf_file:
         key = f"{group}_{subsection}_discount"
         if key not in st.session_state:
             st.session_state[key] = global_discount
-        st.number_input(
+        st.session_state[key] = st.number_input(
             f"Discount for {group} - {subsection} (%)",
             min_value=0.0,
             max_value=100.0,
@@ -124,7 +124,7 @@ if uploaded_file and header_pdf_file:
                     )
                 with col4:
                     try:
-                        custom_price = float(st.session_state.get(f"price_{idx}", row["CustomPrice"]))
+                        custom_price = float(st.session_state.get(f"price_{idx}", discounted_price))
                         discount_percent = ((row["HireRateWeekly"] - custom_price) / row["HireRateWeekly"]) * 100
                         st.markdown(f"**Discount: {discount_percent:.1f}%**")
                     except:
@@ -156,7 +156,7 @@ if uploaded_file and header_pdf_file:
 
     st.dataframe(styled_df, use_container_width=True)
 
-    manual_updates_df = df[df["CustomPrice"].round(2) != (df["HireRateWeekly"] * (1 - df["DiscountPercent"] / 100)).round(2)]
+    manual_updates_df = df[df["CustomPrice"].round(2) != df["HireRateWeekly"].round(2)]
 
     if not manual_updates_df.empty:
         st.markdown("### Summary of Manually Updated Prices")
@@ -179,8 +179,10 @@ if uploaded_file and header_pdf_file:
 
     transport_data = {
         "Delivery or Collection type": transport_types,
-        "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
+        "Charge (£)": [""] * len(transport_types)
     }
+    powered_access_idx = transport_types.index("Powered Access")
+    transport_data["Charge (£)"][powered_access_idx] = "Negotiable"
 
     transport_df = pd.DataFrame(transport_data)
 
@@ -194,7 +196,7 @@ if uploaded_file and header_pdf_file:
         },
         disabled={
             "Delivery or Collection type": True,
-            "Charge (£)": [t == "Powered Access" for t in transport_types]
+            "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
         },
         hide_index=True,
         use_container_width=True

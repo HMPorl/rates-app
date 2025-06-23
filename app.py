@@ -111,9 +111,11 @@ if uploaded_file and header_pdf_file:
                     group_key = (row["GroupName"], row["Sub Section"])
                     group_discount = group_discounts.get(group_key, global_discount)
                     discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
-                    default_price = f"{discounted_price:.2f}"
-                    if key in st.session_state:
+                    discounted_price_str = f"{discounted_price:.2f}"
+                    if key in st.session_state and st.session_state[key] != discounted_price_str:
                         default_price = st.session_state[key]
+                    else:
+                        default_price = discounted_price_str
                     st.text_input(
                         "",
                         value=default_price,
@@ -121,8 +123,12 @@ if uploaded_file and header_pdf_file:
                         label_visibility="collapsed"
                     )
                 with col4:
-                    discount_percent = ((row["HireRateWeekly"] - row["CustomPrice"]) / row["HireRateWeekly"]) * 100
-                    st.markdown(f"**Discount: {discount_percent:.1f}%**")
+                    try:
+                        custom_price = float(st.session_state.get(f"price_{idx}", discounted_price))
+                        discount_percent = ((row["HireRateWeekly"] - custom_price) / row["HireRateWeekly"]) * 100
+                        st.markdown(f"**Discount: {discount_percent:.1f}%**")
+                    except:
+                        st.markdown("**Discount: N/A**")
 
     for idx in df.index:
         key = f"price_{idx}"
@@ -308,6 +314,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

@@ -96,7 +96,7 @@ if uploaded_file and header_pdf_file:
     st.markdown("### Adjust Prices by Group and Sub Section")
 
     with st.form("price_adjustment_form"):
-        for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+        for (group, subsection), group_df in final_df.groupby(["GroupName", "Sub Section"]):
             with st.expander(f"{group} - {subsection}", expanded=False):
                 for idx, row in group_df.iterrows():
                     col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
@@ -105,8 +105,7 @@ if uploaded_file and header_pdf_file:
                     with col2:
                         st.write(row["EquipmentName"])
                     with col3:
-                        discounted_price = float(row["DiscountedPrice"])
-                        default_price = float(row["CustomPrice"]) if row["CustomPrice"] != row["HireRateWeekly"] else discounted_price
+                        default_price = float(row["CustomPrice"])
                         st.text_input(
                             label="Custom Price (£)",
                             value=f"{default_price:.2f}",
@@ -114,7 +113,7 @@ if uploaded_file and header_pdf_file:
                             label_visibility="collapsed"
                         )
                     with col4:
-                        discount_percent = ((row["HireRateWeekly"] - discounted_price) / row["HireRateWeekly"]) * 100
+                        discount_percent = ((row["HireRateWeekly"] - row["CustomPrice"]) / row["HireRateWeekly"]) * 100
                         st.markdown(f"**Discount: {discount_percent:.1f}%**")
         submitted = st.form_submit_button("Apply Changes")
 

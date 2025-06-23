@@ -12,6 +12,12 @@ from reportlab.lib import colors
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
+# ✅ Clear State Button
+if st.button("🔄 Clear All Inputs"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.experimental_rerun()
+
 # ✅ Custom CSS
 st.markdown("""
     <style>
@@ -87,13 +93,6 @@ if uploaded_file and header_pdf_file:
         )
         group_discounts[(group, subsection)] = discount_val
 
-    def calculate_discounted_price(row):
-        group_key = (row["GroupName"], row["Sub Section"])
-        group_discount = group_discounts.get(group_key, global_discount)
-        return row["HireRateWeekly"] * (1 - group_discount / 100)
-
-    df["DiscountedPrice"] = df.apply(calculate_discounted_price, axis=1)
-
     st.markdown("### Adjust Prices by Group and Sub Section")
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
@@ -106,13 +105,14 @@ if uploaded_file and header_pdf_file:
                     st.write(row["EquipmentName"])
                 with col3:
                     key = f"price_{idx}"
+                    group_key = (row["GroupName"], row["Sub Section"])
+                    group_discount = group_discounts.get(group_key, global_discount)
+                    discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
+                    default_price = f"{discounted_price:.2f}"
+
                     if key in st.session_state:
                         default_price = st.session_state[key]
-                    else:
-                        group_key = (row["GroupName"], row["Sub Section"])
-                        group_discount = group_discounts.get(group_key, global_discount)
-                        discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
-                        default_price = f"{discounted_price:.2f}"
+
                     st.text_input(
                         "",
                         value=default_price,
@@ -133,6 +133,7 @@ if uploaded_file and header_pdf_file:
                 pass
 
     df["DiscountPercent"] = ((df["HireRateWeekly"] - df["CustomPrice"]) / df["HireRateWeekly"]) * 100
+    df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - df.apply(lambda row: group_discounts.get((row["GroupName"], row["Sub Section"]), global_discount) / 100, axis=1))
 
     st.markdown("### Final Price List")
 
@@ -307,6 +308,8 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
+
 
 
 

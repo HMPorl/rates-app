@@ -16,7 +16,10 @@ st.title("Net Rates Calculator")
 if st.button("🔄 Clear All Inputs"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-    st.experimental_rerun()
+    try:
+        st.experimental_rerun()
+    except Exception:
+        st.warning("Unable to rerun the app automatically. Please manually refresh the page.")
 
 # ✅ Custom CSS
 st.markdown("""
@@ -109,10 +112,8 @@ if uploaded_file and header_pdf_file:
                     group_discount = group_discounts.get(group_key, global_discount)
                     discounted_price = row["HireRateWeekly"] * (1 - group_discount / 100)
                     default_price = f"{discounted_price:.2f}"
-
                     if key in st.session_state:
                         default_price = st.session_state[key]
-
                     st.text_input(
                         "",
                         value=default_price,
@@ -133,24 +134,23 @@ if uploaded_file and header_pdf_file:
                 pass
 
     df["DiscountPercent"] = ((df["HireRateWeekly"] - df["CustomPrice"]) / df["HireRateWeekly"]) * 100
-    df["DiscountedPrice"] = df["HireRateWeekly"] * (1 - df.apply(lambda row: group_discounts.get((row["GroupName"], row["Sub Section"]), global_discount) / 100, axis=1))
 
     st.markdown("### Final Price List")
 
     def highlight_special_rates(row):
-        if round(row["CustomPrice"], 2) != round(row["DiscountedPrice"], 2):
+        if round(row["CustomPrice"], 2) != round(row["HireRateWeekly"], 2):
             return ['background-color: yellow' if col == 'GroupName' else '' for col in row.index]
         else:
             return ['' for _ in row]
 
     styled_df = df[[
         "ItemCategory", "EquipmentName", "HireRateWeekly",
-        "GroupName", "Sub Section", "CustomPrice", "DiscountPercent", "DiscountedPrice"
+        "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]].style.apply(highlight_special_rates, axis=1)
 
     st.dataframe(styled_df, use_container_width=True)
 
-    manual_updates_df = df[df["CustomPrice"].round(2) != df["DiscountedPrice"].round(2)]
+    manual_updates_df = df[df["CustomPrice"].round(2) != df["HireRateWeekly"].round(2)]
 
     if not manual_updates_df.empty:
         st.markdown("### Summary of Manually Updated Prices")
@@ -308,6 +308,7 @@ if uploaded_file and header_pdf_file:
     )
 else:
     st.info("Please upload both an Excel file and a header PDF to begin.")
+
 
 
 

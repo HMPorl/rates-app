@@ -172,16 +172,22 @@ if uploaded_file and header_pdf_file:
     # Transport Charges Section
     # -------------------------------
     st.markdown("### Transport Charges")
+
     transport_types = [
         "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
         "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
+
+    # Default values: "Negotiable" for Powered Access, blank for others
     transport_data = {
         "Delivery or Collection type": transport_types,
         "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
     }
+
     transport_df = pd.DataFrame(transport_data)
-    powered_access_idx = transport_types.index("Powered Access")
+
+    # Disable only the Powered Access row
+    disabled_rows = [i == transport_types.index("Powered Access") for i in range(len(transport_types))]
 
     edited_transport_df = st.data_editor(
         transport_df,
@@ -190,11 +196,12 @@ if uploaded_file and header_pdf_file:
         },
         disabled={
             "Delivery or Collection type": True,
-            "Charge (£)": [i == powered_access_idx for i in range(len(transport_types))]
+            "Charge (£)": disabled_rows
         },
         hide_index=True,
         use_container_width=True
     )
+
 
     # -------------------------------
     # Excel Export

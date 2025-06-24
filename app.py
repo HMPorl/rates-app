@@ -304,12 +304,12 @@ if uploaded_file and header_pdf_file:
     # Draw Transport Charges table as a grid on page 3
     page3 = header_pdf[2]
     page_width = page3.rect.width
-    margin_y = page3.rect.height - 200  # Position near bottom
+    margin_y = page3.rect.height - 200  # Adjust to move table up/down
     row_height = 22
     col_widths = [300, 100]
     font_size = 10
     text_padding_x = 6
-    text_offset_y = -15  # Move text up by ~5 pixels
+    text_offset_y = 2  # Fine-tune vertical text alignment
 
     # Calculate horizontal centering
     table_width = sum(col_widths)
@@ -325,31 +325,21 @@ if uploaded_file and header_pdf_file:
     # Draw header row
     for col_index, header in enumerate(headers):
         x0 = margin_x + sum(col_widths[:col_index])
-        y0 = margin_y -4  #Shift This
         x1 = x0 + col_widths[col_index]
-        y1 = y0 + row_height
-        page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=header_fill_color)
-        page3.insert_text(
-            (x0 + text_padding_x, y0 + text_offset_y),
-            header,
-            fontsize=font_size,
-            fontname="helv"
-        )
+        y_text = margin_y + text_offset_y
+        y_rect = margin_y - 4  # Move rectangle up relative to text
+        page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
+        page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
 
     # Draw data rows
     for row_index, row in enumerate(data_rows):
         for col_index, cell in enumerate(row):
             x0 = margin_x + sum(col_widths[:col_index])
-            y0 = margin_y + row_height * (row_index + 1) -4 #Shift this
             x1 = x0 + col_widths[col_index]
-            y1 = y0 + row_height
-            page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7))
-            page3.insert_text(
-                (x0 + text_padding_x, y0 + text_offset_y),
-                str(cell),
-                fontsize=font_size,
-                fontname="helv"
-            )
+            y_text = margin_y + row_height * (row_index + 1) + text_offset_y
+            y_rect = margin_y + row_height * (row_index + 1) - 4  # Move rectangle up
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
+            page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
 
 
 

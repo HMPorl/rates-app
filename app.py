@@ -278,7 +278,7 @@ if uploaded_file and header_pdf_file:
     pdf_buffer.seek(0)
 
     # -------------------------------
-    # Merge Header PDF with Generated PDF
+    # Merge Header PDF with Generated PDF doc
     # -------------------------------
     header_data = read_pdf_header(header_pdf_file)
     header_pdf = fitz.open(stream=header_data, filetype="pdf")

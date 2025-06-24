@@ -131,37 +131,35 @@ if uploaded_file and header_pdf_file:
 
 
     # -------------------------------
-    # Additional Table: Manually Entered Custom Prices
+    # Additional Table: Custom Prices Exceeding Group-Level Discount
     # -------------------------------
     st.markdown("### Manually Entered Custom Prices")
 
     manual_custom_prices = []
 
     for idx, row in df.iterrows():
-        price_key = f"price_{idx}"
-        user_input = st.session_state.get(price_key, "").strip()
+        group_key = f"{row['GroupName']}_{row['Sub Section']}_discount"
+        group_discount = st.session_state.get(group_key, global_discount)
+        actual_discount = row["DiscountPercent"]
 
-        # Only include if the user has typed something in the box
-        if user_input:
-            try:
-                entered_price = float(user_input)
-                manual_custom_prices.append({
-                    "ItemCategory": row["ItemCategory"],
-                    "EquipmentName": row["EquipmentName"],
-                    "HireRateWeekly": row["HireRateWeekly"],
-                    "CustomPrice": entered_price,
-                    "DiscountPercent": calculate_discount_percent(row["HireRateWeekly"], entered_price),
-                    "GroupName": row["GroupName"],
-                    "Sub Section": row["Sub Section"]
-                })
-            except ValueError:
-                continue  # Skip invalid entries
+        # Include only if the actual discount is greater than the group-level discount
+        if actual_discount > group_discount:
+            manual_custom_prices.append({
+                "ItemCategory": row["ItemCategory"],
+                "EquipmentName": row["EquipmentName"],
+                "HireRateWeekly": row["HireRateWeekly"],
+                "CustomPrice": row["CustomPrice"],
+                "DiscountPercent": actual_discount,
+                "GroupName": row["GroupName"],
+                "Sub Section": row["Sub Section"]
+            })
 
     if manual_custom_prices:
         manual_df = pd.DataFrame(manual_custom_prices)
         st.dataframe(manual_df, use_container_width=True)
     else:
         st.info("No manual custom prices have been entered.")
+
 
 
 

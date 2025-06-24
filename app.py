@@ -325,7 +325,7 @@ if uploaded_file and header_pdf_file:
     # Draw header row
     for col_index, header in enumerate(headers):
         x0 = margin_x + sum(col_widths[:col_index])
-        y0 = margin_y
+        y0 = margin_y -4  #Shift This
         x1 = x0 + col_widths[col_index]
         y1 = y0 + row_height
         page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=header_fill_color)
@@ -340,7 +340,7 @@ if uploaded_file and header_pdf_file:
     for row_index, row in enumerate(data_rows):
         for col_index, cell in enumerate(row):
             x0 = margin_x + sum(col_widths[:col_index])
-            y0 = margin_y + row_height * (row_index + 1)
+            y0 = margin_y + row_height * (row_index + 1) -4 #Shift this
             x1 = x0 + col_widths[col_index]
             y1 = y0 + row_height
             page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7))

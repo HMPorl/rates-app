@@ -256,7 +256,7 @@ if uploaded_file and header_pdf_file:
     elements.append(Paragraph("Transport Charges", styles['Heading2']))
     elements.append(Spacer(1, 12))
     transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
-    for idx, row in edited_transport_df.iterrows():
+    for idx, row in transport_df.iterrows():
         transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
     transport_table = Table(transport_pdf_data, colWidths=[250, 100])
     transport_table.setStyle(TableStyle([

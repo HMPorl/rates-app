@@ -169,7 +169,7 @@ if uploaded_file and header_pdf_file:
 
 
     # -------------------------------
-    # Transport Charges Section (with input boxes)
+    # Transport Charges Section (with default values)
     # -------------------------------
     st.markdown("### Transport Charges")
 
@@ -178,18 +178,22 @@ if uploaded_file and header_pdf_file:
         "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
 
+    # Default values in the same order
+    default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+
     transport_inputs = []
 
-    for i, transport_type in enumerate(transport_types):
+    for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown(f"**{transport_type}**")
         with col2:
-            if transport_type == "Powered Access":
-                charge = "Negotiable"
-                st.markdown(f"`{charge}`")
-            else:
-                charge = st.text_input(f"Charge for {transport_type}", key=f"transport_{i}", label_visibility="collapsed")
+            charge = st.text_input(
+                f"Charge for {transport_type}",
+                value=default_value,
+                key=f"transport_{i}",
+                label_visibility="collapsed"
+            )
             transport_inputs.append({
                 "Delivery or Collection type": transport_type,
                 "Charge (£)": charge
@@ -201,6 +205,7 @@ if uploaded_file and header_pdf_file:
     # Display the table
     st.markdown("### Transport Charges Summary")
     st.dataframe(transport_df, use_container_width=True)
+
 
 
 

@@ -309,8 +309,8 @@ if uploaded_file and header_pdf_file:
     # Draw table header
     page3.insert_text((margin, table_top), "Transport Charges", fontsize=14, fontname="helv", fill=(0, 0, 0))
     y = table_top + 25
-    page3.insert_text((margin, y), "Delivery or Collection type", fontsize=11, fontname="helv-bold")
-    page3.insert_text((margin + 300, y), "Charge (£)", fontsize=11, fontname="helv-bold")
+    page3.insert_text((margin, y), "Delivery or Collection type", fontsize=11, fontname="helv")
+    page3.insert_text((margin + 300, y), "Charge (£)", fontsize=11, fontname="helv")
     y += line_height
 
     # Draw table rows

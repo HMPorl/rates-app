@@ -300,24 +300,37 @@ if uploaded_file and header_pdf_file:
             rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
             page1.insert_image(rect_logo, stream=logo_bytes.read())
 
-    # Draw Transport Charges table on page 3
+    # Draw Transport Charges table as a grid on page 3
     page3 = header_pdf[2]
-    margin = 50
-    table_top = page3.rect.height - 200  # Adjust this to move the table up/down
-    line_height = 18
+    margin_x = 50
+    margin_y = page3.rect.height - 200  # Position near bottom
+    row_height = 20
+    col_widths = [300, 100]
+    num_cols = len(col_widths)
 
-    # Draw table header
-    page3.insert_text((margin, table_top), "Transport Charges", fontsize=14, fontname="helv", fill=(0, 0, 0))
-    y = table_top + 25
-    page3.insert_text((margin, y), "Delivery or Collection type", fontsize=11, fontname="helv")
-    page3.insert_text((margin + 300, y), "Charge (£)", fontsize=11, fontname="helv")
-    y += line_height
+    # Table header
+    headers = ["Delivery or Collection type", "Charge (£)"]
+    data_rows = transport_df.values.tolist()
 
-    # Draw table rows
-    for row in transport_df.itertuples(index=False):
-        page3.insert_text((margin, y), str(row[0]), fontsize=10, fontname="helv")
-        page3.insert_text((margin + 300, y), str(row[1]), fontsize=10, fontname="helv")
-        y += line_height
+    # Draw header row
+    for col_index, header in enumerate(headers):
+        x0 = margin_x + sum(col_widths[:col_index])
+        y0 = margin_y
+        x1 = x0 + col_widths[col_index]
+        y1 = y0 + row_height
+        page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=(0.9, 0.9, 0.9))
+        page3.insert_text((x0 + 5, y0 + 5), header, fontsize=10, fontname="helv")
+
+    # Draw data rows
+    for row_index, row in enumerate(data_rows):
+        for col_index, cell in enumerate(row):
+            x0 = margin_x + sum(col_widths[:col_index])
+            y0 = margin_y + row_height * (row_index + 1)
+            x1 = x0 + col_widths[col_index]
+            y1 = y0 + row_height
+            page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7))
+            page3.insert_text((x0 + 5, y0 + 5), str(cell), fontsize=10, fontname="helv")
+
 
     # Merge with generated PDF
     modified_header = io.BytesIO()

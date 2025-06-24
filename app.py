@@ -135,14 +135,16 @@ if uploaded_file and header_pdf_file:
     # -------------------------------
     st.markdown("### Manually Entered Custom Prices")
 
-    # Collect rows where a custom price was manually entered
     manual_custom_prices = []
 
     for idx, row in df.iterrows():
         price_key = f"price_{idx}"
-        if price_key in st.session_state and st.session_state[price_key]:
+        user_input = st.session_state.get(price_key, "").strip()
+
+        # Only include if the user has typed something in the box
+        if user_input:
             try:
-                entered_price = float(st.session_state[price_key])
+                entered_price = float(user_input)
                 manual_custom_prices.append({
                     "ItemCategory": row["ItemCategory"],
                     "EquipmentName": row["EquipmentName"],
@@ -160,6 +162,7 @@ if uploaded_file and header_pdf_file:
         st.dataframe(manual_df, use_container_width=True)
     else:
         st.info("No manual custom prices have been entered.")
+
 
 
 

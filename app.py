@@ -300,15 +300,23 @@ if uploaded_file and header_pdf_file:
             rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
             page1.insert_image(rect_logo, stream=logo_bytes.read())
 
+
     # Draw Transport Charges table as a grid on page 3
     page3 = header_pdf[2]
-    margin_x = 50
+    page_width = page3.rect.width
     margin_y = page3.rect.height - 200  # Position near bottom
     row_height = 22
     col_widths = [300, 100]
     font_size = 10
     text_padding_x = 6
-    text_padding_y = 6
+    text_offset_y = 1  # Move text up by ~5 pixels
+
+    # Calculate horizontal centering
+    table_width = sum(col_widths)
+    margin_x = (page_width - table_width) / 2
+
+    # Header color: #7DA6DB → RGB
+    header_fill_color = (125 / 255, 166 / 255, 219 / 255)
 
     # Table header
     headers = ["Delivery or Collection type", "Charge (£)"]
@@ -320,9 +328,9 @@ if uploaded_file and header_pdf_file:
         y0 = margin_y
         x1 = x0 + col_widths[col_index]
         y1 = y0 + row_height
-        page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=(0.9, 0.9, 0.9))
+        page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=header_fill_color)
         page3.insert_text(
-            (x0 + text_padding_x, y0 + text_padding_y),
+            (x0 + text_padding_x, y0 + text_offset_y),
             header,
             fontsize=font_size,
             fontname="helv"
@@ -337,11 +345,12 @@ if uploaded_file and header_pdf_file:
             y1 = y0 + row_height
             page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7))
             page3.insert_text(
-                (x0 + text_padding_x, y0 + text_padding_y),
+                (x0 + text_padding_x, y0 + text_offset_y),
                 str(cell),
                 fontsize=font_size,
                 fontname="helv"
             )
+
 
 
 

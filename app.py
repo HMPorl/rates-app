@@ -304,7 +304,7 @@ if uploaded_file and header_pdf_file:
     # Draw Transport Charges table as a grid on page 3
     page3 = header_pdf[2]
     page_width = page3.rect.width
-    margin_y = page3.rect.height - 500  # Position near bottom
+    margin_y = page3.rect.height - 200  # Position near bottom
     row_height = 22
     col_widths = [300, 100]
     font_size = 10

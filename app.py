@@ -336,7 +336,7 @@ if uploaded_file and header_pdf_file:
         x0 = margin_x + sum(col_widths[:col_index])
         x1 = x0 + col_widths[col_index]
         y_text = page_height - margin_y + text_offset_y
-        y_rect = page_height - margin_y - 4
+        y_rect = page_height - margin_y - 14 #height
         page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
         page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
 
@@ -346,7 +346,7 @@ if uploaded_file and header_pdf_file:
             x0 = margin_x + sum(col_widths[:col_index])
             x1 = x0 + col_widths[col_index]
             y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
-            y_rect = page_height - margin_y + row_height * (row_index + 1) - 4
+            y_rect = page_height - margin_y + row_height * (row_index + 1) - 14 #height
             page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
             page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
 

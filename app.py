@@ -1,4 +1,5 @@
-# Import necessary libraries
+# net_rates_calculator_group_discount_2col.py
+
 import streamlit as st
 import pandas as pd
 import io
@@ -32,7 +33,7 @@ uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 # -------------------------------
-# Process Excel File
+# Load and Validate Excel File
 # -------------------------------
 if uploaded_file and header_pdf_file:
     try:
@@ -46,33 +47,40 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
-    # Filter and sort data
+    # -------------------------------
+    # Filter and Sort Data
+    # -------------------------------
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
     # -------------------------------
-    # Discount Inputs
+    # Global and Group-Level Discounts
     # -------------------------------
     global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
     st.markdown("### Group-Level Discounts")
     group_discount_keys = {}
-    for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
+    group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+
+    col1, col2 = st.columns(2)
+    for i, (group, subsection) in enumerate(group_keys):
         key = f"{group}_{subsection}_discount"
         group_discount_keys[(group, subsection)] = key
-        st.number_input(
-            f"Discount for {group} - {subsection} (%)",
-            min_value=0.0,
-            max_value=100.0,
-            value=global_discount,
-            step=0.5,
-            key=key
-        )
+        col = col1 if i % 2 == 0 else col2
+        with col:
+            st.number_input(
+                f"Discount for {group} - {subsection} (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=global_discount,
+                step=0.5,
+                key=key
+            )
 
     # -------------------------------
     # Helper Functions
     # -------------------------------
-    def get_discounted_price(row, global_discount):
+    def get_discounted_price(row):
         key = f"{row['GroupName']}_{row['Sub Section']}_discount"
         discount = st.session_state.get(key, global_discount)
         return row["HireRateWeekly"] * (1 - discount / 100)
@@ -81,13 +89,13 @@ if uploaded_file and header_pdf_file:
         return ((original - custom) / original) * 100 if original else 0
 
     # -------------------------------
-    # Adjust Prices by Group/Subsection
+    # Adjust Prices by Group and Sub Section
     # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():
-                discounted_price = get_discounted_price(row, global_discount)
+                discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
 
                 col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 3, 3])
@@ -150,7 +158,7 @@ if uploaded_file and header_pdf_file:
     )
 
     # -------------------------------
-    # Export to Excel
+    # Excel Export
     # -------------------------------
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
@@ -163,7 +171,7 @@ if uploaded_file and header_pdf_file:
     )
 
     # -------------------------------
-    # Generate PDF Content
+    # PDF Generation
     # -------------------------------
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -259,7 +267,7 @@ if uploaded_file and header_pdf_file:
     merged_pdf.close()
 
     # -------------------------------
-    # Download Final PDF
+    # PDF Download Button
     # -------------------------------
     st.download_button(
         label="Download as PDF",
@@ -267,4 +275,5 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+
 

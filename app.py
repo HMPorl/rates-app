@@ -169,7 +169,7 @@ if uploaded_file and header_pdf_file:
 
 
     # -------------------------------
-    # Transport Charges Section
+    # Transport Charges Section (with input boxes)
     # -------------------------------
     st.markdown("### Transport Charges")
 
@@ -178,29 +178,30 @@ if uploaded_file and header_pdf_file:
         "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
 
-    # Default values
-    transport_data = {
-        "Delivery or Collection type": transport_types,
-        "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
-    }
+    transport_inputs = []
 
-    transport_df = pd.DataFrame(transport_data)
+    for i, transport_type in enumerate(transport_types):
+        col1, col2 = st.columns([3, 2])
+        with col1:
+            st.markdown(f"**{transport_type}**")
+        with col2:
+            if transport_type == "Powered Access":
+                charge = "Negotiable"
+                st.markdown(f"`{charge}`")
+            else:
+                charge = st.text_input(f"Charge for {transport_type}", key=f"transport_{i}", label_visibility="collapsed")
+            transport_inputs.append({
+                "Delivery or Collection type": transport_type,
+                "Charge (£)": charge
+            })
 
-    # Create a list of booleans: True if the row should be disabled, False otherwise
-    disabled_charge_column = [t == "Powered Access" for t in transport_types]
+    # Create a DataFrame from the inputs
+    transport_df = pd.DataFrame(transport_inputs)
 
-    edited_transport_df = st.data_editor(
-        transport_df,
-        column_config={
-            "Charge (£)": st.column_config.TextColumn("Charge (£)", help="Enter charge in £")
-        },
-        disabled={
-            "Delivery or Collection type": True,
-            "Charge (£)": disabled_charge_column
-        },
-        hide_index=True,
-        use_container_width=True
-    )
+    # Display the table
+    st.markdown("### Transport Charges Summary")
+    st.dataframe(transport_df, use_container_width=True)
+
 
 
 

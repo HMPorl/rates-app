@@ -282,19 +282,24 @@ if uploaded_file and header_pdf_file:
     # -------------------------------
     header_data = read_pdf_header(header_pdf_file)
     header_pdf = fitz.open(stream=header_data, filetype="pdf")
-    page = header_pdf[0]
 
+    # Ensure there are at least 3 pages
+    while len(header_pdf) < 3:
+        header_pdf.new_page()
+
+    # Add customer name and logo to the first page
+    page1 = header_pdf[0]
     if customer_name:
         font_size = 22
         font_color = (0 / 255, 45 / 255, 86 / 255)
         font_name = "helv"
-        page_width = page.rect.width
-        page_height = page.rect.height
+        page_width = page1.rect.width
+        page_height = page1.rect.height
         text_y = page_height / 3
         font = fitz.Font(fontname=font_name)
         text_width = font.text_length(customer_name, fontsize=font_size)
         text_x = (page_width - text_width) / 2
-        page.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+        page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
 
         if logo_file:
             logo_image = Image.open(logo_file)
@@ -306,8 +311,28 @@ if uploaded_file and header_pdf_file:
             logo_x = (page_width - logo_width) / 2
             logo_y = text_y + font_size + 20
             rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
-            page.insert_image(rect_logo, stream=logo_bytes.read())
+            page1.insert_image(rect_logo, stream=logo_bytes.read())
 
+    # Draw Transport Charges table on page 3
+    page3 = header_pdf[2]
+    margin = 50
+    table_top = page3.rect.height - 200  # Adjust this to move the table up/down
+    line_height = 18
+
+    # Draw table header
+    page3.insert_text((margin, table_top), "Transport Charges", fontsize=14, fontname="helv", fill=(0, 0, 0))
+    y = table_top + 25
+    page3.insert_text((margin, y), "Delivery or Collection type", fontsize=11, fontname="helv-bold")
+    page3.insert_text((margin + 300, y), "Charge (£)", fontsize=11, fontname="helv-bold")
+    y += line_height
+
+    # Draw table rows
+    for row in transport_df.itertuples(index=False):
+        page3.insert_text((margin, y), str(row[0]), fontsize=10, fontname="helv")
+        page3.insert_text((margin + 300, y), str(row[1]), fontsize=10, fontname="helv")
+        y += line_height
+
+    # Merge with generated PDF
     modified_header = io.BytesIO()
     header_pdf.save(modified_header)
     header_pdf.close()
@@ -319,14 +344,13 @@ if uploaded_file and header_pdf_file:
     merged_pdf.save(merged_output)
     merged_pdf.close()
 
-    # -------------------------------
     # PDF Download Button
-    # -------------------------------
     st.download_button(
         label="Download as PDF",
         data=merged_output.getvalue(),
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+
 
 

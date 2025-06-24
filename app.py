@@ -178,7 +178,7 @@ if uploaded_file and header_pdf_file:
         "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
 
-    # Default values: "Negotiable" for Powered Access, blank for others
+    # Default values
     transport_data = {
         "Delivery or Collection type": transport_types,
         "Charge (£)": ["Negotiable" if t == "Powered Access" else "" for t in transport_types]
@@ -186,8 +186,8 @@ if uploaded_file and header_pdf_file:
 
     transport_df = pd.DataFrame(transport_data)
 
-    # Disable only the Powered Access row
-    disabled_rows = [i == transport_types.index("Powered Access") for i in range(len(transport_types))]
+    # Create a list of booleans: True if the row should be disabled, False otherwise
+    disabled_charge_column = [t == "Powered Access" for t in transport_types]
 
     edited_transport_df = st.data_editor(
         transport_df,
@@ -196,11 +196,12 @@ if uploaded_file and header_pdf_file:
         },
         disabled={
             "Delivery or Collection type": True,
-            "Charge (£)": disabled_rows
+            "Charge (£)": disabled_charge_column
         },
         hide_index=True,
         use_container_width=True
     )
+
 
 
     # -------------------------------

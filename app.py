@@ -170,6 +170,26 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+    
+    # -------------------------------
+    # Display Only Custom Prices Entered
+    # -------------------------------
+    st.markdown("### Custom Prices Entered")
+
+    custom_prices_df = df[df["CustomPrice"] != df["HireRateWeekly"]].copy()
+
+    if not custom_prices_df.empty:
+        st.dataframe(custom_prices_df[[
+            "ItemCategory", "EquipmentName", "HireRateWeekly",
+            "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
+        ]], use_container_width=True)
+    else:
+        st.info("No custom prices have been entered yet.")
+
+
+    
+
+
     # -------------------------------
     # PDF Generation
     # -------------------------------

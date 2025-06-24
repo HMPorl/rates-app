@@ -129,6 +129,20 @@ if uploaded_file and header_pdf_file:
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]], use_container_width=True)
 
+
+    # -------------------------------
+    # Additional Table: All Custom Prices Entered
+    # -------------------------------
+    st.markdown("### Summary of Custom Prices Entered")
+
+    custom_prices_summary = df[[
+        "ItemCategory", "EquipmentName", "HireRateWeekly",
+        "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
+    ]].copy()
+
+    st.dataframe(custom_prices_summary, use_container_width=True)
+
+
     # -------------------------------
     # Transport Charges Section
     # -------------------------------
@@ -169,26 +183,6 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
-    
-    # -------------------------------
-    # Display Only Custom Prices Entered
-    # -------------------------------
-    st.markdown("### Custom Prices Entered")
-
-    custom_prices_df = df[df["CustomPrice"] != df["HireRateWeekly"]].copy()
-
-    if not custom_prices_df.empty:
-        st.dataframe(custom_prices_df[[
-            "ItemCategory", "EquipmentName", "HireRateWeekly",
-            "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
-        ]], use_container_width=True)
-    else:
-        st.info("No custom prices have been entered yet.")
-
-
-    
-
 
     # -------------------------------
     # PDF Generation

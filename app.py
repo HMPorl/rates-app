@@ -257,25 +257,12 @@ if uploaded_file and header_pdf_file:
         elements.append(table)
         elements.append(Spacer(1, 12))
 
-    elements.append(PageBreak())
-    elements.append(Paragraph("Transport Charges", styles['Heading2']))
-    elements.append(Spacer(1, 12))
-    transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
-    for idx, row in transport_df.iterrows():
-        transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
-    transport_table = Table(transport_pdf_data, colWidths=[250, 100])
-    transport_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(transport_table)
+    # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
+    # We skip adding it here to avoid duplication.
 
     doc.build(elements)
     pdf_buffer.seek(0)
+
 
     # -------------------------------
     # Merge Header PDF with Generated PDF doc

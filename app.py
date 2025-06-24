@@ -337,7 +337,7 @@ if uploaded_file and header_pdf_file:
             x0 = margin_x + sum(col_widths[:col_index])
             x1 = x0 + col_widths[col_index]
             y_text = margin_y + row_height * (row_index + 1) + text_offset_y
-            y_rect = margin_y + row_height * (row_index + 1) - 4  # Move rectangle up
+            y_rect = margin_y + row_height * (row_index + 1) - 10  # Move rectangle up
             page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
             page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
 

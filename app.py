@@ -309,7 +309,7 @@ if uploaded_file and header_pdf_file:
     col_widths = [300, 100]
     font_size = 10
     text_padding_x = 6
-    text_offset_y = -10  # Move text up by ~5 pixels
+    text_offset_y = -15  # Move text up by ~5 pixels
 
     # Calculate horizontal centering
     table_width = sum(col_widths)

@@ -131,16 +131,36 @@ if uploaded_file and header_pdf_file:
 
 
     # -------------------------------
-    # Additional Table: All Custom Prices Entered
+    # Additional Table: Manually Entered Custom Prices
     # -------------------------------
-    st.markdown("### Summary of Custom Prices Entered")
+    st.markdown("### Manually Entered Custom Prices")
 
-    custom_prices_summary = df[[
-        "ItemCategory", "EquipmentName", "HireRateWeekly",
-        "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
-    ]].copy()
+    # Collect rows where a custom price was manually entered
+    manual_custom_prices = []
 
-    st.dataframe(custom_prices_summary, use_container_width=True)
+    for idx, row in df.iterrows():
+        price_key = f"price_{idx}"
+        if price_key in st.session_state and st.session_state[price_key]:
+            try:
+                entered_price = float(st.session_state[price_key])
+                manual_custom_prices.append({
+                    "ItemCategory": row["ItemCategory"],
+                    "EquipmentName": row["EquipmentName"],
+                    "HireRateWeekly": row["HireRateWeekly"],
+                    "CustomPrice": entered_price,
+                    "DiscountPercent": calculate_discount_percent(row["HireRateWeekly"], entered_price),
+                    "GroupName": row["GroupName"],
+                    "Sub Section": row["Sub Section"]
+                })
+            except ValueError:
+                continue  # Skip invalid entries
+
+    if manual_custom_prices:
+        manual_df = pd.DataFrame(manual_custom_prices)
+        st.dataframe(manual_df, use_container_width=True)
+    else:
+        st.info("No manual custom prices have been entered.")
+
 
 
     # -------------------------------

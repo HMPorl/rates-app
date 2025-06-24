@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import io
@@ -8,11 +9,10 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
-# -------------------- Streamlit Setup --------------------
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# -------------------- Clear Session State --------------------
+# Clear session state button
 if st.button("🔄 Clear All Inputs"):
     for key in list(st.session_state.keys()):
         del st.session_state[key]
@@ -21,7 +21,6 @@ if st.button("🔄 Clear All Inputs"):
     except Exception:
         st.warning("Please manually refresh the page to complete reset.")
 
-# -------------------- File Loaders --------------------
 @st.cache_data
 def load_excel(file):
     return pd.read_excel(file, engine='openpyxl')
@@ -30,113 +29,6 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-# -------------------- Helper Functions --------------------
-def get_discounted_price(row, global_discount):
-    key = f"{row['GroupName']}_{row['Sub Section']}_discount"
-    discount = st.session_state.get(key, global_discount)
-    return row["HireRateWeekly"] * (1 - discount / 100)
-
-def initialize_price_input(idx, discounted_price):
-    key = f"price_{idx}"
-    if key not in st.session_state:
-        st.session_state[key] = f"{discounted_price:.2f}"
-
-def render_price_input(idx):
-    key = f"price_{idx}"
-    return st.text_input("", key=key, label_visibility="collapsed")
-
-def calculate_discount_percent(original, custom):
-    try:
-        return ((original - custom) / original) * 100
-    except ZeroDivisionError:
-        return 0.0
-
-def build_price_table(df, global_discount):
-    st.markdown("### Adjust Prices by Group and Sub Section")
-    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        with st.expander(f"{group} - {subsection}", expanded=False):
-            for idx, row in group_df.iterrows():
-                col1, col2, col3, col4 = st.columns([2, 4, 3, 3])
-                with col1:
-                    st.write(row["ItemCategory"])
-                with col2:
-                    st.write(row["EquipmentName"])
-                with col3:
-                    discounted_price = get_discounted_price(row, global_discount)
-                    initialize_price_input(idx, discounted_price)
-                    render_price_input(idx)
-                with col4:
-                    try:
-                        custom_price = float(st.session_state[f"price_{idx}"])
-                    except:
-                        custom_price = row["HireRateWeekly"]
-                    discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
-                    st.markdown(f"**Discount: {discount_percent:.1f}%**")
-
-def update_dataframe_with_prices(df):
-    for idx in df.index:
-        price_key = f"price_{idx}"
-        try:
-            df.at[idx, "CustomPrice"] = float(st.session_state[price_key])
-        except:
-            df.at[idx, "CustomPrice"] = df.at[idx, "HireRateWeekly"]
-    df["DiscountPercent"] = df.apply(lambda row: calculate_discount_percent(row["HireRateWeekly"], row["CustomPrice"]), axis=1)
-    return df
-
-def generate_pdf(df, transport_df):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    elements.append(Paragraph("Custom Price List", styles['Title']))
-    elements.append(Spacer(1, 12))
-
-    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
-        elements.append(Spacer(1, 6))
-        table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
-        for _, row in group_df.iterrows():
-            table_data.append([
-                row["ItemCategory"],
-                Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}",
-                f"{row['DiscountPercent']:.1f}%"
-            ])
-        table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ]))
-        elements.append(table)
-        elements.append(Spacer(1, 12))
-
-    elements.append(PageBreak())
-    elements.append(Paragraph("Transport Charges", styles['Heading2']))
-    elements.append(Spacer(1, 12))
-    transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
-    for idx, row in transport_df.iterrows():
-        transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
-    transport_table = Table(transport_pdf_data, colWidths=[250, 100])
-    transport_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-    ]))
-    elements.append(transport_table)
-
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-# -------------------- Main App --------------------
 customer_name = st.text_input("Enter Customer Name")
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
@@ -160,8 +52,10 @@ if uploaded_file and header_pdf_file:
     global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
     st.markdown("### Group-Level Discounts")
+    group_discount_keys = {}
     for (group, subsection), _ in df.groupby(["GroupName", "Sub Section"]):
         key = f"{group}_{subsection}_discount"
+        group_discount_keys[(group, subsection)] = key
         st.number_input(
             f"Discount for {group} - {subsection} (%)",
             min_value=0.0,
@@ -171,8 +65,48 @@ if uploaded_file and header_pdf_file:
             key=key
         )
 
-    build_price_table(df, global_discount)
-    df = update_dataframe_with_prices(df)
+    def get_discounted_price(row):
+        key = f"{row['GroupName']}_{row['Sub Section']}_discount"
+        discount = st.session_state.get(key, global_discount)
+        return row["HireRateWeekly"] * (1 - discount / 100)
+
+    def calculate_discount_percent(original, custom):
+        return ((original - custom) / original) * 100 if original else 0
+
+    st.markdown("### Adjust Prices by Group and Sub Section")
+    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+        with st.expander(f"{group} - {subsection}", expanded=False):
+            for idx, row in group_df.iterrows():
+                col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 3, 3])
+                with col1:
+                    st.write(row["ItemCategory"])
+                with col2:
+                    st.write(row["EquipmentName"])
+                with col3:
+                    discounted_price = get_discounted_price(row)
+                    st.write(f"£{discounted_price:.2f}")
+                with col4:
+                    price_key = f"price_{idx}"
+                    st.text_input("", key=price_key, label_visibility="collapsed")
+                with col5:
+                    user_input = st.session_state.get(price_key, "")
+                    try:
+                        custom_price = float(user_input) if user_input else discounted_price
+                    except ValueError:
+                        custom_price = discounted_price
+                    discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
+                    st.markdown(f"**{discount_percent:.1f}%**")
+
+    for idx, row in df.iterrows():
+        price_key = f"price_{idx}"
+        discounted_price = get_discounted_price(row)
+        user_input = st.session_state.get(price_key, "")
+        try:
+            df.at[idx, "CustomPrice"] = float(user_input) if user_input else discounted_price
+        except ValueError:
+            df.at[idx, "CustomPrice"] = discounted_price
+
+    df["DiscountPercent"] = df.apply(lambda row: calculate_discount_percent(row["HireRateWeekly"], row["CustomPrice"]), axis=1)
 
     st.markdown("### Final Price List")
     st.dataframe(df[[
@@ -215,7 +149,56 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    pdf_buffer = generate_pdf(df, edited_transport_df)
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph("Custom Price List", styles['Title']))
+    elements.append(Spacer(1, 12))
+
+    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+        elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
+        elements.append(Spacer(1, 6))
+        table_data = [["Category", "Equipment", "Price (£)", "Discount (%)"]]
+        for _, row in group_df.iterrows():
+            table_data.append([
+                row["ItemCategory"],
+                Paragraph(row["EquipmentName"], styles['BodyText']),
+                f"£{row['CustomPrice']:.2f}",
+                f"{row['DiscountPercent']:.1f}%"
+            ])
+        table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ]))
+        elements.append(table)
+        elements.append(Spacer(1, 12))
+
+    elements.append(PageBreak())
+    elements.append(Paragraph("Transport Charges", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+    transport_pdf_data = [["Delivery or Collection type", "Charge (£)"]]
+    for idx, row in edited_transport_df.iterrows():
+        transport_pdf_data.append([row["Delivery or Collection type"], row["Charge (£)"]])
+    transport_table = Table(transport_pdf_data, colWidths=[250, 100])
+    transport_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+    ]))
+    elements.append(transport_table)
+
+    doc.build(elements)
+    pdf_buffer.seek(0)
 
     header_data = read_pdf_header(header_pdf_file)
     header_pdf = fitz.open(stream=header_data, filetype="pdf")
@@ -262,5 +245,6 @@ if uploaded_file and header_pdf_file:
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+
 
     

@@ -1,4 +1,4 @@
-
+# Import necessary libraries
 import streamlit as st
 import pandas as pd
 import io
@@ -9,18 +9,15 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 
+# -------------------------------
+# Streamlit Page Configuration
+# -------------------------------
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-# Clear session state button
-if st.button("🔄 Clear All Inputs"):
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
-    try:
-        st.experimental_rerun()
-    except Exception:
-        st.warning("Please manually refresh the page to complete reset.")
-
+# -------------------------------
+# File Uploads and Inputs
+# -------------------------------
 @st.cache_data
 def load_excel(file):
     return pd.read_excel(file, engine='openpyxl')
@@ -34,6 +31,9 @@ logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
+# -------------------------------
+# Process Excel File
+# -------------------------------
 if uploaded_file and header_pdf_file:
     try:
         df = load_excel(uploaded_file)
@@ -46,9 +46,13 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
+    # Filter and sort data
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
+    # -------------------------------
+    # Discount Inputs
+    # -------------------------------
     global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
 
     st.markdown("### Group-Level Discounts")
@@ -65,7 +69,10 @@ if uploaded_file and header_pdf_file:
             key=key
         )
 
-    def get_discounted_price(row):
+    # -------------------------------
+    # Helper Functions
+    # -------------------------------
+    def get_discounted_price(row, global_discount):
         key = f"{row['GroupName']}_{row['Sub Section']}_discount"
         discount = st.session_state.get(key, global_discount)
         return row["HireRateWeekly"] * (1 - discount / 100)
@@ -73,47 +80,50 @@ if uploaded_file and header_pdf_file:
     def calculate_discount_percent(original, custom):
         return ((original - custom) / original) * 100 if original else 0
 
+    # -------------------------------
+    # Adjust Prices by Group/Subsection
+    # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():
+                discounted_price = get_discounted_price(row, global_discount)
+                price_key = f"price_{idx}"
+
                 col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 3, 3])
                 with col1:
                     st.write(row["ItemCategory"])
                 with col2:
                     st.write(row["EquipmentName"])
                 with col3:
-                    discounted_price = get_discounted_price(row)
                     st.write(f"£{discounted_price:.2f}")
                 with col4:
-                    price_key = f"price_{idx}"
                     st.text_input("", key=price_key, label_visibility="collapsed")
                 with col5:
-                    user_input = st.session_state.get(price_key, "")
                     try:
-                        custom_price = float(user_input) if user_input else discounted_price
-                    except ValueError:
+                        custom_price = float(st.session_state[price_key]) if st.session_state[price_key] else discounted_price
+                    except:
                         custom_price = discounted_price
                     discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
                     st.markdown(f"**{discount_percent:.1f}%**")
+                    if discount_percent > row["Max Discount"]:
+                        st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
 
-    for idx, row in df.iterrows():
-        price_key = f"price_{idx}"
-        discounted_price = get_discounted_price(row)
-        user_input = st.session_state.get(price_key, "")
-        try:
-            df.at[idx, "CustomPrice"] = float(user_input) if user_input else discounted_price
-        except ValueError:
-            df.at[idx, "CustomPrice"] = discounted_price
+                df.at[idx, "CustomPrice"] = custom_price
+                df.at[idx, "DiscountPercent"] = discount_percent
 
-    df["DiscountPercent"] = df.apply(lambda row: calculate_discount_percent(row["HireRateWeekly"], row["CustomPrice"]), axis=1)
-
+    # -------------------------------
+    # Final Price List Display
+    # -------------------------------
     st.markdown("### Final Price List")
     st.dataframe(df[[
         "ItemCategory", "EquipmentName", "HireRateWeekly",
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]], use_container_width=True)
 
+    # -------------------------------
+    # Transport Charges Section
+    # -------------------------------
     st.markdown("### Transport Charges")
     transport_types = [
         "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
@@ -139,6 +149,9 @@ if uploaded_file and header_pdf_file:
         use_container_width=True
     )
 
+    # -------------------------------
+    # Export to Excel
+    # -------------------------------
     output_excel = io.BytesIO()
     with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
         df.to_excel(writer, index=False)
@@ -149,6 +162,9 @@ if uploaded_file and header_pdf_file:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+    # -------------------------------
+    # Generate PDF Content
+    # -------------------------------
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -200,6 +216,9 @@ if uploaded_file and header_pdf_file:
     doc.build(elements)
     pdf_buffer.seek(0)
 
+    # -------------------------------
+    # Merge Header PDF with Generated PDF
+    # -------------------------------
     header_data = read_pdf_header(header_pdf_file)
     header_pdf = fitz.open(stream=header_data, filetype="pdf")
     page = header_pdf[0]
@@ -239,6 +258,9 @@ if uploaded_file and header_pdf_file:
     merged_pdf.save(merged_output)
     merged_pdf.close()
 
+    # -------------------------------
+    # Download Final PDF
+    # -------------------------------
     st.download_button(
         label="Download as PDF",
         data=merged_output.getvalue(),
@@ -246,5 +268,3 @@ if uploaded_file and header_pdf_file:
         mime="application/pdf"
     )
 
-
-    

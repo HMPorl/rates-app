@@ -304,9 +304,11 @@ if uploaded_file and header_pdf_file:
     page3 = header_pdf[2]
     margin_x = 50
     margin_y = page3.rect.height - 200  # Position near bottom
-    row_height = 20
+    row_height = 22
     col_widths = [300, 100]
-    num_cols = len(col_widths)
+    font_size = 10
+    text_padding_x = 6
+    text_padding_y = 6
 
     # Table header
     headers = ["Delivery or Collection type", "Charge (£)"]
@@ -319,7 +321,12 @@ if uploaded_file and header_pdf_file:
         x1 = x0 + col_widths[col_index]
         y1 = y0 + row_height
         page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7), fill=(0.9, 0.9, 0.9))
-        page3.insert_text((x0 + 5, y0 + 5), header, fontsize=10, fontname="helv")
+        page3.insert_text(
+            (x0 + text_padding_x, y0 + text_padding_y),
+            header,
+            fontsize=font_size,
+            fontname="helv"
+        )
 
     # Draw data rows
     for row_index, row in enumerate(data_rows):
@@ -329,7 +336,13 @@ if uploaded_file and header_pdf_file:
             x1 = x0 + col_widths[col_index]
             y1 = y0 + row_height
             page3.draw_rect(fitz.Rect(x0, y0, x1, y1), color=(0.7, 0.7, 0.7))
-            page3.insert_text((x0 + 5, y0 + 5), str(cell), fontsize=10, fontname="helv")
+            page3.insert_text(
+                (x0 + text_padding_x, y0 + text_padding_y),
+                str(cell),
+                fontsize=font_size,
+                fontname="helv"
+            )
+
 
 
     # Merge with generated PDF

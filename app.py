@@ -65,7 +65,7 @@ if uploaded_file and header_pdf_file:
 
 
     # Split group_keys into 3 vertical columns
-    num_columns = 3
+    num_columns = 5
     num_rows = math.ceil(len(group_keys) / num_columns)
     columns = st.columns(num_columns)
 

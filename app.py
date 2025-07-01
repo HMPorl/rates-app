@@ -18,52 +18,21 @@ st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
 # -------------------------------
-# File Uploads and Inputs
+# Save or Load Session Section
 # -------------------------------
-@st.cache_data
-def load_excel(file):
-    return pd.read_excel(file, engine='openpyxl')
+st.markdown("## 💾 Save or Load Session")
 
-@st.cache_data
-def read_pdf_header(file):
-    return file.read()
-
-# Initialize session state defaults
-if "customer_name" not in st.session_state:
-    st.session_state["customer_name"] = ""
-if "global_discount" not in st.session_state:
-    st.session_state["global_discount"] = 0.0
-
-# Customer name input
-customer_name = st.text_input("Enter Customer Name", value=st.session_state["customer_name"])
-st.session_state["customer_name"] = customer_name
-
-# Logo and file uploads
-logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
-header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
-
-# -------------------------------
-# Save or Load Session
-# -------------------------------
-st.markdown("## Save or Load Session")
-
-# Define which keys to export
-session_keys_to_export = [
-    "customer_name",
-    "global_discount"
-]
-
-# Dynamically include group-level discounts, custom prices, and transport charges
-for key in st.session_state.keys():
-    if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
-        session_keys_to_export.append(key)
-
-# --- Export Section ---
-st.markdown("### Export Session")
+# Export
 export_filename = st.text_input("Enter a name for your session file (without extension)", value="my_session")
 
-if st.button("Export Session"):
+if st.button("📤 Export Session"):
+    session_keys_to_export = [
+        "customer_name",
+        "global_discount"
+    ]
+    for key in st.session_state.keys():
+        if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
+            session_keys_to_export.append(key)
     export_data = {key: st.session_state[key] for key in session_keys_to_export if key in st.session_state}
     export_json = json.dumps(export_data, indent=2)
     export_bytes = io.BytesIO(export_json.encode("utf-8"))
@@ -74,10 +43,8 @@ if st.button("Export Session"):
         mime="application/json"
     )
 
-# --- Import Section ---
-st.markdown("### Import Session")
-import_file = st.file_uploader("Upload a previously saved session file", type=["json"])
-
+# Import
+import_file = st.file_uploader("📥 Upload a previously saved session file", type=["json"], key="import_json")
 if import_file:
     try:
         imported_data = json.load(import_file)
@@ -88,8 +55,23 @@ if import_file:
         st.error(f"Failed to load session: {e}")
 
 # -------------------------------
-# Load and Validate Excel File
+# File Uploads and Inputs
 # -------------------------------
+@st.cache_data
+def load_excel(file):
+    return pd.read_excel(file, engine='openpyxl')
+
+@st.cache_data
+def read_pdf_header(file):
+    return file.read()
+
+customer_name = st.text_input("Enter Customer Name", value=st.session_state.get("customer_name", ""))
+st.session_state["customer_name"] = customer_name
+
+logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
+
 if uploaded_file and header_pdf_file:
     try:
         df = load_excel(uploaded_file)
@@ -105,7 +87,7 @@ if uploaded_file and header_pdf_file:
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
-    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=st.session_state["global_discount"], step=0.5)
+    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=st.session_state.get("global_discount", 0.0), step=0.5)
     st.session_state["global_discount"] = global_discount
 
     st.markdown("### Group-Level Discounts")
@@ -114,14 +96,12 @@ if uploaded_file and header_pdf_file:
     for i, (group, subsection) in enumerate(group_keys):
         col = cols[i % 3]
         key = f"{group}_{subsection}_discount"
-        if key not in st.session_state:
-            st.session_state[key] = global_discount
         with col:
-            st.session_state[key] = st.number_input(
+            val = st.number_input(
                 f"{group} - {subsection} (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=st.session_state[key],
+                value=st.session_state.get(key, global_discount),
                 step=0.5,
                 key=key
             )
@@ -140,9 +120,7 @@ if uploaded_file and header_pdf_file:
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
-                if price_key not in st.session_state:
-                    st.session_state[price_key] = ""
-
+                default_val = st.session_state.get(price_key, "")
                 col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 3, 3])
                 with col1:
                     st.write(row["ItemCategory"])
@@ -151,17 +129,16 @@ if uploaded_file and header_pdf_file:
                 with col3:
                     st.write(f"£{discounted_price:.2f}")
                 with col4:
-                    st.session_state[price_key] = st.text_input("", value=st.session_state[price_key], key=price_key, label_visibility="collapsed")
+                    user_input = st.text_input("", value=default_val, key=price_key, label_visibility="collapsed")
                 with col5:
                     try:
-                        custom_price = float(st.session_state[price_key]) if st.session_state[price_key] else discounted_price
+                        custom_price = float(user_input) if user_input else discounted_price
                     except:
                         custom_price = discounted_price
                     discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
                     st.markdown(f"**{discount_percent:.1f}%**")
                     if discount_percent > row["Max Discount"]:
                         st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
-
                 df.at[idx, "CustomPrice"] = custom_price
                 df.at[idx, "DiscountPercent"] = discount_percent
 
@@ -204,29 +181,35 @@ if uploaded_file and header_pdf_file:
     ]
     default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
     transport_inputs = []
-
     for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
-        key = f"transport_{i}"
-        if key not in st.session_state:
-            st.session_state[key] = default_value
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown(f"**{transport_type}**")
         with col2:
-            st.session_state[key] = st.text_input(
+            charge = st.text_input(
                 f"Charge for {transport_type}",
-                value=st.session_state[key],
-                key=key,
+                value=st.session_state.get(f"transport_{i}", default_value),
+                key=f"transport_{i}",
                 label_visibility="collapsed"
             )
             transport_inputs.append({
                 "Delivery or Collection type": transport_type,
-                "Charge (£)": st.session_state[key]
+                "Charge (£)": charge
             })
 
     transport_df = pd.DataFrame(transport_inputs)
     st.markdown("### Transport Charges Summary")
     st.dataframe(transport_df, use_container_width=True)
+
+    output_excel = io.BytesIO()
+    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False)
+    st.download_button(
+        label="Download as Excel",
+        data=output_excel.getvalue(),
+        file_name="custom_price_list.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 

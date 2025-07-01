@@ -10,12 +10,17 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import json
+import os
 
 # -------------------------------
 # Streamlit Page Configuration
 # -------------------------------
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
+
+# Ensure progress_saves folder exists
+if not os.path.exists("progress_saves"):
+    os.makedirs("progress_saves")
 
 # -------------------------------
 # NEW Load Progress from JSON
@@ -145,9 +150,12 @@ if uploaded_file and header_pdf_file:
                 df.at[idx, "DiscountPercent"] = discount_percent
 
     # -------------------------------
-    # NEW Save Progress Button
+    # Save Progress Button
     # -------------------------------
     if st.button("Save Progress"):
+        # Sanitize customer name for filename
+        safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
+        filename = f"progress_saves/{safe_customer_name}_progress.json"
         save_data = {
             "customer_name": customer_name,
             "global_discount": global_discount,
@@ -167,12 +175,16 @@ if uploaded_file and header_pdf_file:
                 if key.startswith("transport_")
             }
         }
-
         json_data = json.dumps(save_data, indent=2)
+        with open(filename, "w") as f:
+            f.write(json_data)
+        st.success(f"Progress saved to {filename}")
+
+        # Also offer download
         st.download_button(
             label="Download Progress as JSON",
             data=json_data,
-            file_name="net_rates_progress.json",
+            file_name=os.path.basename(filename),
             mime="application/json"
         )
 

@@ -69,7 +69,7 @@ if uploaded_file and header_pdf_file:
         col = col1 if i % 2 == 0 else col2
         with col:
             st.number_input(
-                f"Discount for {group} - {subsection} (%)",
+                f"{group} - {subsection} (%)",
                 min_value=0.0,
                 max_value=100.0,
                 value=global_discount,

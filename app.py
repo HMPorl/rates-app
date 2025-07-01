@@ -63,7 +63,20 @@ customer_name = st.text_input("Enter Customer Name", value=st.session_state.get(
 st.session_state["customer_name"] = customer_name
 
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+
+# Old uploader
+#uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+excel_path = r"P:\Marketing\Net Rates WebApp\Net rates Webapp.xlsx"
+
+if st.button("📂 Load New Excel File"):
+    try:
+        uploaded_file = open(excel_path, "rb")
+        df = load_excel(uploaded_file)
+        st.success("Excel file loaded successfully.")
+    except Exception as e:
+        st.error(f"Failed to load Excel file: {e}")
+        st.stop()
+
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 # -------------------------------

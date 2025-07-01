@@ -62,11 +62,9 @@ if uploaded_file and header_pdf_file:
     group_discount_keys = {}
     group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
 
-    col1, col2 = st.columns(2)
+    cols = st.columns(3)
     for i, (group, subsection) in enumerate(group_keys):
-        key = f"{group}_{subsection}_discount"
-        group_discount_keys[(group, subsection)] = key
-        col = col1 if i % 2 == 0 else col2
+        col = cols[i % 3]  # Fill down each column
         with col:
             st.number_input(
                 f"{group} - {subsection} (%)",
@@ -74,8 +72,9 @@ if uploaded_file and header_pdf_file:
                 max_value=100.0,
                 value=global_discount,
                 step=0.5,
-                key=key
+                key=f"{group}_{subsection}_discount"
             )
+
 
     # -------------------------------
     # Helper Functions

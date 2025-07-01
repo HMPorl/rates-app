@@ -1,4 +1,4 @@
-# net_rates_calculator_group_discount_2col.py
+# net_rates_calculator_with_session_save.py
 
 import streamlit as st
 import pandas as pd
@@ -6,9 +6,10 @@ import io
 import fitz  # PyMuPDF
 from PIL import Image
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
+import json
 
 # -------------------------------
 # Streamlit Page Configuration
@@ -27,10 +28,64 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-customer_name = st.text_input("Enter Customer Name")
+# Initialize session state defaults
+if "customer_name" not in st.session_state:
+    st.session_state["customer_name"] = ""
+if "global_discount" not in st.session_state:
+    st.session_state["global_discount"] = 0.0
+
+# Customer name input
+customer_name = st.text_input("Enter Customer Name", value=st.session_state["customer_name"])
+st.session_state["customer_name"] = customer_name
+
+# Logo and file uploads
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
 uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
+
+# -------------------------------
+# Save or Load Session
+# -------------------------------
+st.markdown("## Save or Load Session")
+
+# Define which keys to export
+session_keys_to_export = [
+    "customer_name",
+    "global_discount"
+]
+
+# Dynamically include group-level discounts, custom prices, and transport charges
+for key in st.session_state.keys():
+    if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
+        session_keys_to_export.append(key)
+
+# --- Export Section ---
+st.markdown("### Export Session")
+export_filename = st.text_input("Enter a name for your session file (without extension)", value="my_session")
+
+if st.button("Export Session"):
+    export_data = {key: st.session_state[key] for key in session_keys_to_export if key in st.session_state}
+    export_json = json.dumps(export_data, indent=2)
+    export_bytes = io.BytesIO(export_json.encode("utf-8"))
+    st.download_button(
+        label="Download Session File",
+        data=export_bytes,
+        file_name=f"{export_filename}.json",
+        mime="application/json"
+    )
+
+# --- Import Section ---
+st.markdown("### Import Session")
+import_file = st.file_uploader("Upload a previously saved session file", type=["json"])
+
+if import_file:
+    try:
+        imported_data = json.load(import_file)
+        for key, value in imported_data.items():
+            st.session_state[key] = value
+        st.success("Session restored successfully! You may need to refresh the page to see all changes.")
+    except Exception as e:
+        st.error(f"Failed to load session: {e}")
 
 # -------------------------------
 # Load and Validate Excel File
@@ -47,38 +102,30 @@ if uploaded_file and header_pdf_file:
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")
         st.stop()
 
-    # -------------------------------
-    # Filter and Sort Data
-    # -------------------------------
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
-    # -------------------------------
-    # Global and Group-Level Discounts
-    # -------------------------------
-    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
+    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=st.session_state["global_discount"], step=0.5)
+    st.session_state["global_discount"] = global_discount
 
     st.markdown("### Group-Level Discounts")
-    group_discount_keys = {}
     group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-
     cols = st.columns(3)
     for i, (group, subsection) in enumerate(group_keys):
-        col = cols[i % 3]  # Fill down each column
+        col = cols[i % 3]
+        key = f"{group}_{subsection}_discount"
+        if key not in st.session_state:
+            st.session_state[key] = global_discount
         with col:
-            st.number_input(
+            st.session_state[key] = st.number_input(
                 f"{group} - {subsection} (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=global_discount,
+                value=st.session_state[key],
                 step=0.5,
-                key=f"{group}_{subsection}_discount"
+                key=key
             )
 
-
-    # -------------------------------
-    # Helper Functions
-    # -------------------------------
     def get_discounted_price(row):
         key = f"{row['GroupName']}_{row['Sub Section']}_discount"
         discount = st.session_state.get(key, global_discount)
@@ -87,15 +134,14 @@ if uploaded_file and header_pdf_file:
     def calculate_discount_percent(original, custom):
         return ((original - custom) / original) * 100 if original else 0
 
-    # -------------------------------
-    # Adjust Prices by Group and Sub Section
-    # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
+                if price_key not in st.session_state:
+                    st.session_state[price_key] = ""
 
                 col1, col2, col3, col4, col5 = st.columns([2, 4, 2, 3, 3])
                 with col1:
@@ -105,7 +151,7 @@ if uploaded_file and header_pdf_file:
                 with col3:
                     st.write(f"£{discounted_price:.2f}")
                 with col4:
-                    st.text_input("", key=price_key, label_visibility="collapsed")
+                    st.session_state[price_key] = st.text_input("", value=st.session_state[price_key], key=price_key, label_visibility="collapsed")
                 with col5:
                     try:
                         custom_price = float(st.session_state[price_key]) if st.session_state[price_key] else discounted_price
@@ -119,28 +165,17 @@ if uploaded_file and header_pdf_file:
                 df.at[idx, "CustomPrice"] = custom_price
                 df.at[idx, "DiscountPercent"] = discount_percent
 
-    # -------------------------------
-    # Final Price List Display
-    # -------------------------------
     st.markdown("### Final Price List")
     st.dataframe(df[[
         "ItemCategory", "EquipmentName", "HireRateWeekly",
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]], use_container_width=True)
 
-
-    # -------------------------------
-    # Additional Table: Manually Entered Custom Prices
-    # -------------------------------
     st.markdown("### Manually Entered Custom Prices")
-
     manual_entries = []
-
     for idx, row in df.iterrows():
         price_key = f"price_{idx}"
         user_input = st.session_state.get(price_key, "").strip()
-
-        # Only include if the user typed something in the box
         if user_input:
             try:
                 entered_price = float(user_input)
@@ -154,7 +189,7 @@ if uploaded_file and header_pdf_file:
                     "Sub Section": row["Sub Section"]
                 })
             except ValueError:
-                continue  # Skip invalid entries
+                continue
 
     if manual_entries:
         manual_df = pd.DataFrame(manual_entries)
@@ -162,216 +197,37 @@ if uploaded_file and header_pdf_file:
     else:
         st.info("No manual custom prices have been entered.")
 
-
-
-
-
-
-    # -------------------------------
-    # Transport Charges Section (with default values)
-    # -------------------------------
     st.markdown("### Transport Charges")
-
     transport_types = [
         "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
         "Tower", "Powered Access", "Low-level Access", "Long Distance"
     ]
-
-    # Default values in the same order
     default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
-
     transport_inputs = []
 
     for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+        key = f"transport_{i}"
+        if key not in st.session_state:
+            st.session_state[key] = default_value
         col1, col2 = st.columns([3, 2])
         with col1:
             st.markdown(f"**{transport_type}**")
         with col2:
-            charge = st.text_input(
+            st.session_state[key] = st.text_input(
                 f"Charge for {transport_type}",
-                value=default_value,
-                key=f"transport_{i}",
+                value=st.session_state[key],
+                key=key,
                 label_visibility="collapsed"
             )
             transport_inputs.append({
                 "Delivery or Collection type": transport_type,
-                "Charge (£)": charge
+                "Charge (£)": st.session_state[key]
             })
 
-    # Create a DataFrame from the inputs
     transport_df = pd.DataFrame(transport_inputs)
-
-    # Display the table
     st.markdown("### Transport Charges Summary")
     st.dataframe(transport_df, use_container_width=True)
 
-
-
-
-
-    # -------------------------------
-    # Excel Export
-    # -------------------------------
-    output_excel = io.BytesIO()
-    with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False)
-    st.download_button(
-        label="Download as Excel",
-        data=output_excel.getvalue(),
-        file_name="custom_price_list.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-    # -------------------------------
-    # PDF Generation
-    # -------------------------------
-    pdf_buffer = io.BytesIO()
-    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    elements.append(Paragraph("Custom Price List", styles['Title']))
-    elements.append(Spacer(1, 12))
-
-    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-       # elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
-        elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
-        elements.append(Spacer(1, 6))
-        table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
-        for _, row in group_df.iterrows():
-            table_data.append([
-                row["ItemCategory"],
-                Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}",
-                f"{row['DiscountPercent']:.1f}%"
-            ])
-        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
-        table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ]))
-        elements.append(table)
-        elements.append(Spacer(1, 12))
-
-    # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
-    # We skip adding it here to avoid duplication.
-
-    doc.build(elements)
-    pdf_buffer.seek(0)
-
-
-    # -------------------------------
-    # Merge Header PDF with Generated PDF doc
-    # -------------------------------
-    header_data = read_pdf_header(header_pdf_file)
-    header_pdf = fitz.open(stream=header_data, filetype="pdf")
-
-    # Ensure there are at least 3 pages
-    while len(header_pdf) < 3:
-        header_pdf.new_page()
-
-    # Add customer name and logo to the first page
-    page1 = header_pdf[0]
-    if customer_name:
-        font_size = 22
-        font_color = (0 / 255, 45 / 255, 86 / 255)
-        font_name = "helv"
-        page_width = page1.rect.width
-        page_height = page1.rect.height
-        text_y = page_height / 3
-        font = fitz.Font(fontname=font_name)
-        text_width = font.text_length(customer_name, fontsize=font_size)
-        text_x = (page_width - text_width) / 2
-        page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
-
-        if logo_file:
-            logo_image = Image.open(logo_file)
-            logo_bytes = io.BytesIO()
-            logo_image.save(logo_bytes, format="PNG")
-            logo_bytes.seek(0)
-            logo_width = 100
-            logo_height = logo_image.height * (logo_width / logo_image.width)
-            logo_x = (page_width - logo_width) / 2
-            logo_y = text_y + font_size + 20
-            rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
-            page1.insert_image(rect_logo, stream=logo_bytes.read())
-
-
-    # Draw Transport Charges table as a grid on page 3
-    page3 = header_pdf[2]
-    page_width = page3.rect.width
-    page_height = page3.rect.height
-
-    row_height = 22
-    col_widths = [300, 100]
-    font_size = 10
-    text_padding_x = 6
-    text_offset_y = 2  # Adjust text vertical alignment
-
-    # Calculate total table height
-    num_rows = len(transport_df) + 1  # +1 for header
-    table_height = num_rows * row_height
-
-    # Position table so its bottom is ~1 cm (28.35 pts) from bottom of page
-    bottom_margin_cm = 28.35
-    margin_y = bottom_margin_cm + table_height
-
-    # Center table horizontally
-    table_width = sum(col_widths)
-    margin_x = (page_width - table_width) / 2
-
-    # Header color: #7DA6DB → RGB
-    header_fill_color = (125 / 255, 166 / 255, 219 / 255)
-
-    # Table header
-    headers = ["Delivery or Collection type", "Charge (£)"]
-    data_rows = transport_df.values.tolist()
-
-    # Draw header row
-    for col_index, header in enumerate(headers):
-        x0 = margin_x + sum(col_widths[:col_index])
-        x1 = x0 + col_widths[col_index]
-        y_text = page_height - margin_y + text_offset_y
-        y_rect = page_height - margin_y - 14 #height
-        page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
-        page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
-
-    # Draw data rows
-    for row_index, row in enumerate(data_rows):
-        for col_index, cell in enumerate(row):
-            x0 = margin_x + sum(col_widths[:col_index])
-            x1 = x0 + col_widths[col_index]
-            y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
-            y_rect = page_height - margin_y + row_height * (row_index + 1) - 14 #height
-            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
-            page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
-
-
-
-
-    # Merge with generated PDF
-    modified_header = io.BytesIO()
-    header_pdf.save(modified_header)
-    header_pdf.close()
-
-    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
-    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
-    merged_pdf.insert_pdf(generated_pdf)
-    merged_output = io.BytesIO()
-    merged_pdf.save(merged_output)
-    merged_pdf.close()
-
-    # PDF Download Button
-    st.download_button(
-        label="Download as PDF",
-        data=merged_output.getvalue(),
-        file_name="custom_price_list.pdf",
-        mime="application/pdf"
-    )
 
 
 

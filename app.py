@@ -20,25 +20,25 @@ st.title("Net Rates Calculator")
 # -------------------------------
 # NEW Load Progress from JSON
 # -------------------------------
-loaded_json = st.file_uploader("Load Progress from JSON", type=["json"])
+loaded_json = st.file_uploader("Select a Progress JSON to Load", type=["json"])
 if loaded_json:
-    try:
-        loaded_data = json.load(loaded_json)
-        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+    if st.button("Load Progress"):
+        try:
+            loaded_data = json.load(loaded_json)
+            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
 
-        for key, value in loaded_data.get("group_discounts", {}).items():
-            st.session_state[key] = value
-        for key, value in loaded_data.get("custom_prices", {}).items():
-            st.session_state[key] = value
-        for key, value in loaded_data.get("transport_charges", {}).items():
-            st.session_state[key] = value
+            for key, value in loaded_data.get("group_discounts", {}).items():
+                st.session_state[key] = value
+            for key, value in loaded_data.get("custom_prices", {}).items():
+                st.session_state[key] = value
+            for key, value in loaded_data.get("transport_charges", {}).items():
+                st.session_state[key] = value
 
-        st.success("Progress loaded successfully!")
-    except Exception as e:
-        st.error(f"Failed to load progress: {e}")
-
-
+            st.success("Progress loaded successfully!")
+            st.experimental_rerun()
+        except Exception as e:
+            st.error(f"Failed to load progress: {e}")
 
 
 # -------------------------------

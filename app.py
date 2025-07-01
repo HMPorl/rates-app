@@ -77,14 +77,16 @@ if uploaded_file and header_pdf_file:
                     group, subsection = group_keys[i]
                     key = f"{group}_{subsection}_discount"
                     group_discount_keys[(group, subsection)] = key
-                    st.number_input(
-                        f"{group} - {subsection} (%)",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=global_discount,
-                        step=0.5,
-                        key=key
-                    )
+                st.number_input(
+                    f"{group} - {subsection} (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    value=global_discount,
+                    step=1.0,
+                    format="%.0f",
+                    key=key
+                )
+
 
 
 

@@ -1,4 +1,4 @@
-# net_rates_calculator_group_discount_2col.py
+# net_rates_calculator_group_discount_SaveFunc.py
 
 import streamlit as st
 import pandas as pd
@@ -9,12 +9,37 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
+import json
 
 # -------------------------------
 # Streamlit Page Configuration
 # -------------------------------
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
+
+# -------------------------------
+# NEW Load Progress from JSON
+# -------------------------------
+loaded_json = st.file_uploader("Load Progress from JSON", type=["json"])
+if loaded_json:
+    try:
+        loaded_data = json.load(loaded_json)
+        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+
+        for key, value in loaded_data.get("group_discounts", {}).items():
+            st.session_state[key] = value
+        for key, value in loaded_data.get("custom_prices", {}).items():
+            st.session_state[key] = value
+        for key, value in loaded_data.get("transport_charges", {}).items():
+            st.session_state[key] = value
+
+        st.success("Progress loaded successfully!")
+    except Exception as e:
+        st.error(f"Failed to load progress: {e}")
+
+
+
 
 # -------------------------------
 # File Uploads and Inputs
@@ -118,6 +143,39 @@ if uploaded_file and header_pdf_file:
 
                 df.at[idx, "CustomPrice"] = custom_price
                 df.at[idx, "DiscountPercent"] = discount_percent
+
+    # -------------------------------
+    # NEW Save Progress Button
+    # -------------------------------
+    if st.button("Save Progress"):
+        save_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": {
+                key: st.session_state[key]
+                for key in st.session_state
+                if key.endswith("_discount")
+            },
+            "custom_prices": {
+                key: st.session_state[key]
+                for key in st.session_state
+                if key.startswith("price_")
+            },
+            "transport_charges": {
+                key: st.session_state[key]
+                for key in st.session_state
+                if key.startswith("transport_")
+            }
+        }
+
+        json_data = json.dumps(save_data, indent=2)
+        st.download_button(
+            label="Download Progress as JSON",
+            data=json_data,
+            file_name="net_rates_progress.json",
+            mime="application/json"
+        )
+
 
     # -------------------------------
     # Final Price List Display

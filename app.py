@@ -245,7 +245,7 @@ if uploaded_file and header_pdf_file:
                 f"£{row['CustomPrice']:.2f}",
                 f"{row['DiscountPercent']:.1f}%"
             ])
-        table = Table(table_data, colWidths=[100, 200, 80, 80], repeatRows=1)
+        table = Table(table_data, colWidths=[50, 300, 60, 40], repeatRows=1)
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

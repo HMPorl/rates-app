@@ -235,7 +235,8 @@ if uploaded_file and header_pdf_file:
     elements.append(Spacer(1, 12))
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
+       # elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
+        elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
         elements.append(Spacer(1, 6))
         table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
         for _, row in group_df.iterrows():

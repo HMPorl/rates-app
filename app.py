@@ -4,8 +4,6 @@ import streamlit as st
 import pandas as pd
 import io
 import fitz  # PyMuPDF
-import math
-import re
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -64,50 +62,18 @@ if uploaded_file and header_pdf_file:
     group_discount_keys = {}
     group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
 
-
-
-
-    import math
-    import re
-
-    # Helper to sanitize keys
-    def sanitize_key(text):
-        return re.sub(r'\W+', '_', str(text))  # Replace non-alphanumeric characters with underscores
-
-    st.markdown("### Group-Level Discounts")
-    group_discount_keys = {}
-    group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-
-    # Create 3 vertical columns
-    num_columns = 3
-    num_rows = math.ceil(len(group_keys) / num_columns)
-    columns = st.columns(num_columns)
-
-    for col_index in range(num_columns):
-        with columns[col_index]:
-            for row_index in range(num_rows):
-                i = col_index * num_rows + row_index
-                if i < len(group_keys):
-                    group, subsection = group_keys[i]
-                    safe_group = sanitize_key(group)
-                    safe_subsection = sanitize_key(subsection)
-                    key = f"{safe_group}_{safe_subsection}_discount_{i}"  # ✅ Add index to ensure uniqueness
-                    group_discount_keys[(group, subsection)] = key
-
-                    st.number_input(
-                        f"{group} - {subsection} (%)",
-                        min_value=0.0,
-                        max_value=100.0,
-                        value=global_discount,
-                        step=1.0,
-                        format="%.0f",
-                        key=key
-                    )
-
-
-
-
-
+    cols = st.columns(3)
+    for i, (group, subsection) in enumerate(group_keys):
+        col = cols[i % 3]  # Fill down each column
+        with col:
+            st.number_input(
+                f"{group} - {subsection} (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=global_discount,
+                step=0.5,
+                key=f"{group}_{subsection}_discount"
+            )
 
 
     # -------------------------------

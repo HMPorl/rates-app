@@ -33,7 +33,7 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-EXCEL_PATH = r"P:\Marketing\Net Rates WebApp\Net rates Webapp.xlsx"
+EXCEL_PATH = r"\\vs-fs02\Commercial$\Marketing\Net Rates WebApp\Net rates Webapp.xlsx"
 
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 customer_name = st.text_input("Enter Customer Name")

@@ -30,6 +30,8 @@ if not os.path.exists("progress_saves"):
 # -------------------------------
 # File Uploads and Inputs
 # -------------------------------
+DEFAULT_EXCEL_PATH = "default_data.xlsx"  # Change this to your actual default file name
+
 @st.cache_data
 def load_excel(file):
     return pd.read_excel(file, engine='openpyxl')
@@ -40,19 +42,33 @@ def read_pdf_header(file):
 
 customer_name = st.text_input("Enter Customer Name")
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("1 Upload your Excel file (optional)", type=["xlsx"])
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 # -------------------------------
 # Load and Validate Excel File
 # -------------------------------
-if uploaded_file and header_pdf_file:
+df = None
+excel_source = None
+
+if uploaded_file:
     try:
         df = load_excel(uploaded_file)
+        excel_source = "uploaded"
+        st.success("Excel file uploaded and loaded.")
     except Exception as e:
-        st.error(f"Error reading Excel file: {e}")
+        st.error(f"Error reading uploaded Excel file: {e}")
+        st.stop()
+elif os.path.exists(DEFAULT_EXCEL_PATH):
+    try:
+        df = load_excel(DEFAULT_EXCEL_PATH)
+        excel_source = "default"
+        st.info(f"Loaded default Excel data from {DEFAULT_EXCEL_PATH}")
+    except Exception as e:
+        st.error(f"Failed to load default Excel: {e}")
         st.stop()
 
+if df is not None and header_pdf_file:
     required_columns = {"ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "Max Discount", "Include", "Order"}
     if not required_columns.issubset(df.columns):
         st.error(f"Excel file must contain the following columns: {', '.join(required_columns)}")

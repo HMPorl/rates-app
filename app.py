@@ -23,6 +23,30 @@ if not os.path.exists("progress_saves"):
     os.makedirs("progress_saves")
 
 # -------------------------------
+# NEW Load Progress from JSON
+# -------------------------------
+loaded_json = st.file_uploader("Select a Progress JSON to Load", type=["json"])
+if loaded_json:
+    if st.button("Load Progress"):
+        try:
+            loaded_data = json.load(loaded_json)
+            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+
+            for key, value in loaded_data.get("group_discounts", {}).items():
+                st.session_state[key] = value
+            for key, value in loaded_data.get("custom_prices", {}).items():
+                st.session_state[key] = value
+            for key, value in loaded_data.get("transport_charges", {}).items():
+                st.session_state[key] = value
+
+            st.success("Progress loaded successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed to load progress: {e}")
+
+
+# -------------------------------
 # File Uploads and Inputs
 # -------------------------------
 @st.cache_data
@@ -54,36 +78,10 @@ if uploaded_file and header_pdf_file:
         st.stop()
 
     # -------------------------------
-    # Load Selected Progress from Files
+    # Filter and Sort Data
     # -------------------------------
-    st.markdown("### Load Progress from Saved Files")
-
-    # List all JSON files in the progress_saves directory
-    progress_files = [f for f in os.listdir("progress_saves") if f.endswith(".json")]
-    selected_progress = st.selectbox("Select a progress file", options=[""] + progress_files)
-
-    if selected_progress and st.button("Load Selected Progress"):
-        try:
-            with open(os.path.join("progress_saves", selected_progress), "r") as f:
-                loaded_data = json.load(f)
-            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
-            for key, value in loaded_data.get("group_discounts", {}).items():
-                st.session_state[key] = value
-            # Restore custom prices using ItemCategory as key
-            custom_prices = loaded_data.get("custom_prices", {})
-            for idx, row in df.iterrows():
-                item_key = str(row["ItemCategory"])
-                price_key = f"price_{idx}"
-                if item_key in custom_prices:
-                    st.session_state[price_key] = custom_prices[item_key]
-            for key, value in loaded_data.get("transport_charges", {}).items():
-                st.session_state[key] = value
-            st.success(f"Progress loaded from {selected_progress}!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed to load progress: {e}")
-
+    df = df[df["Include"] == True].copy()
+    df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
 
     # -------------------------------
     # Global and Group-Level Discounts
@@ -449,7 +447,46 @@ if uploaded_file and header_pdf_file:
         mime="application/pdf"
     )
 
-st.info("Please browse to P:\\Marketing\\Net Rates WebApp and select your Excel file.")
+# -------------------------------
+# Load Selected Progress from Files
+# -------------------------------
+st.markdown("### Load Progress from Saved Files")
+
+# List all JSON files in the progress_saves directory
+progress_files = [f for f in os.listdir("progress_saves") if f.endswith(".json")]
+selected_progress = st.selectbox("Select a progress file", options=[""] + progress_files)
+
+if selected_progress and st.button("Load Selected Progress"):
+    try:
+        with open(os.path.join("progress_saves", selected_progress), "r") as f:
+            loaded_data = json.load(f)
+        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+        for key, value in loaded_data.get("group_discounts", {}).items():
+            st.session_state[key] = value
+        # Restore custom prices using ItemCategory as key
+        custom_prices = loaded_data.get("custom_prices", {})
+        for idx, row in df.iterrows():
+            item_key = str(row["ItemCategory"])
+            price_key = f"price_{idx}"
+            if item_key in custom_prices:
+                st.session_state[price_key] = custom_prices[item_key]
+        for key, value in loaded_data.get("transport_charges", {}).items():
+            st.session_state[key] = value
+        st.success(f"Progress loaded from {selected_progress}!")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Failed to load progress: {e}")
+
+
+
+
+
+
+
+
+
+
 
 
 

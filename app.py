@@ -445,17 +445,24 @@ if uploaded_file and header_pdf_file:
     )
 
 # -------------------------------
-# Load Selected Progress from Files (Improved)
+# Load Progress from Saved Files or Upload
 # -------------------------------
-st.markdown("### Load Progress from Saved Files")
+st.markdown("### Load Progress from Saved Files or Upload")
 
 progress_files = [f for f in os.listdir("progress_saves") if f.endswith(".json")]
-selected_progress = st.selectbox("Select a progress file", options=[""] + progress_files)
+selected_progress = st.selectbox("Select a saved progress file", options=[""] + progress_files)
+uploaded_progress = st.file_uploader("Or upload a Progress JSON", type=["json"], key="progress_json_upload")
 
-if selected_progress and st.button("Load Selected Progress"):
+if (selected_progress or uploaded_progress) and st.button("Load Progress"):
     try:
-        with open(os.path.join("progress_saves", selected_progress), "r") as f:
-            loaded_data = json.load(f)
+        if uploaded_progress:
+            loaded_data = json.load(uploaded_progress)
+            source = "uploaded file"
+        else:
+            with open(os.path.join("progress_saves", selected_progress), "r") as f:
+                loaded_data = json.load(f)
+            source = f"saved file: {selected_progress}"
+
         # Clear relevant session state keys
         for key in list(st.session_state.keys()):
             if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
@@ -475,7 +482,7 @@ if selected_progress and st.button("Load Selected Progress"):
                 found_count += 1
         for key, value in loaded_data.get("transport_charges", {}).items():
             st.session_state[key] = value
-        st.success(f"Progress loaded from {selected_progress}! {found_count} custom prices restored.")
+        st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
         st.rerun()
     except Exception as e:
         st.error(f"Failed to load progress: {e}")

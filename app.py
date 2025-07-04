@@ -41,7 +41,7 @@ if loaded_json:
                 st.session_state[key] = value
 
             st.success("Progress loaded successfully!")
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.error(f"Failed to load progress: {e}")
 
@@ -474,7 +474,7 @@ if selected_progress and st.button("Load Selected Progress"):
         for key, value in loaded_data.get("transport_charges", {}).items():
             st.session_state[key] = value
         st.success(f"Progress loaded from {selected_progress}!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error(f"Failed to load progress: {e}")
 

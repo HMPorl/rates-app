@@ -33,12 +33,10 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-EXCEL_PATH = r"\\vs-fs02\Commercial$\Marketing\Net Rates WebApp\Net rates Webapp.xlsx"
-
 header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 customer_name = st.text_input("Enter Customer Name")
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
 
 # -------------------------------
 # Reload Excel Data Button
@@ -46,14 +44,10 @@ uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
 if st.button("Reload Excel Data"):
     st.session_state["reload_excel"] = True
 
-# Only load if header PDF is uploaded
-if header_pdf_file and (st.session_state.get("reload_excel") or "excel_loaded" not in st.session_state):
+# Only load if header PDF and Excel are uploaded
+if uploaded_file and header_pdf_file and (st.session_state.get("reload_excel") or "excel_loaded" not in st.session_state):
     try:
-        if not os.path.exists(EXCEL_PATH):
-            st.error(f"Excel file not found at: {EXCEL_PATH}")
-            st.stop()
-        else:
-            df = load_excel(EXCEL_PATH)
+        df = load_excel(uploaded_file)
         st.session_state["excel_loaded"] = True
         st.session_state["reload_excel"] = False
     except Exception as e:
@@ -460,6 +454,8 @@ if header_pdf_file and (st.session_state.get("reload_excel") or "excel_loaded" n
         file_name="custom_price_list.pdf",
         mime="application/pdf"
     )
+
+st.info("Please browse to P:\\Marketing\\Net Rates WebApp and select your Excel file.")
 
 
 

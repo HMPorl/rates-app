@@ -19,32 +19,12 @@ import datetime
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
+if st.button("📂 Go to Load Progress Section"):
+    st.session_state["scroll_to_load"] = True
+
 # Ensure progress_saves folder exists
 if not os.path.exists("progress_saves"):
     os.makedirs("progress_saves")
-
-# -------------------------------
-# NEW Load Progress from JSON
-# -------------------------------
-loaded_json = st.file_uploader("Select a Progress JSON to Load", type=["json"])
-if loaded_json:
-    if st.button("Load Progress"):
-        try:
-            loaded_data = json.load(loaded_json)
-            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
-
-            for key, value in loaded_data.get("group_discounts", {}).items():
-                st.session_state[key] = value
-            for key, value in loaded_data.get("custom_prices", {}).items():
-                st.session_state[key] = value
-            for key, value in loaded_data.get("transport_charges", {}).items():
-                st.session_state[key] = value
-
-            st.success("Progress loaded successfully!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed to load progress: {e}")
 
 
 # -------------------------------
@@ -486,6 +466,10 @@ if (selected_progress or uploaded_progress) and st.button("Load Progress"):
         st.rerun()
     except Exception as e:
         st.error(f"Failed to load progress: {e}")
+
+if st.session_state.get("scroll_to_load"):
+    st.markdown("## <span style='color:#1976d2'>⬇️ <b>Load Progress Section</b></span>", unsafe_allow_html=True)
+    st.session_state["scroll_to_load"] = False
 
 
 

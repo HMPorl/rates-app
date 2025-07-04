@@ -471,6 +471,46 @@ if st.session_state.get("scroll_to_load"):
     st.markdown("## <span style='color:#1976d2'>⬇️ <b>Load Progress Section</b></span>", unsafe_allow_html=True)
     st.session_state["scroll_to_load"] = False
 
+# -------------------------------
+# Load Progress from Uploaded JSON Only
+# -------------------------------
+if st.session_state.get("scroll_to_load"):
+    st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
+    st.session_state["scroll_to_load"] = False
+
+st.markdown("### Load Progress from a Progress JSON File")
+
+uploaded_progress = st.file_uploader("Upload a Progress JSON", type=["json"], key="progress_json_upload")
+
+if uploaded_progress and st.button("Load Progress"):
+    try:
+        loaded_data = json.load(uploaded_progress)
+        source = "uploaded file"
+
+        # Clear relevant session state keys
+        for key in list(st.session_state.keys()):
+            if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
+                del st.session_state[key]
+        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+        for key, value in loaded_data.get("group_discounts", {}).items():
+            st.session_state[key] = value
+        # Restore custom prices using ItemCategory as key
+        custom_prices = loaded_data.get("custom_prices", {})
+        found_count = 0
+        for idx, row in df.iterrows():
+            item_key = str(row["ItemCategory"])
+            price_key = f"price_{idx}"
+            if item_key in custom_prices:
+                st.session_state[price_key] = custom_prices[item_key]
+                found_count += 1
+        for key, value in loaded_data.get("transport_charges", {}).items():
+            st.session_state[key] = value
+        st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+        st.rerun()
+    except Exception as e:
+        st.error(f"Failed to load progress: {e}")
+
 
 
 

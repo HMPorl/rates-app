@@ -33,23 +33,17 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 customer_name = st.text_input("Enter Customer Name")
 logo_file = st.file_uploader("Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+uploaded_file = st.file_uploader("1 Upload your Excel file", type=["xlsx"])
+header_pdf_file = st.file_uploader("Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 # -------------------------------
-# Reload Excel Data Button
+# Load and Validate Excel File
 # -------------------------------
-if st.button("Reload Excel Data"):
-    st.session_state["reload_excel"] = True
-
-# Only load if header PDF and Excel are uploaded
-if uploaded_file and header_pdf_file and (st.session_state.get("reload_excel") or "excel_loaded" not in st.session_state):
+if uploaded_file and header_pdf_file:
     try:
         df = load_excel(uploaded_file)
-        st.session_state["excel_loaded"] = True
-        st.session_state["reload_excel"] = False
     except Exception as e:
         st.error(f"Error reading Excel file: {e}")
         st.stop()

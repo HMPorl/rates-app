@@ -11,6 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import json
 import os
+import datetime
 
 # -------------------------------
 # Streamlit Page Configuration
@@ -150,12 +151,13 @@ if uploaded_file and header_pdf_file:
                 df.at[idx, "DiscountPercent"] = discount_percent
 
     # -------------------------------
-    # Save Progress Button
+    # Save Progress Button (with timestamp and download)
     # -------------------------------
     if st.button("Save Progress"):
         # Sanitize customer name for filename
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        filename = f"progress_saves/{safe_customer_name}_progress.json"
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{safe_customer_name}_progress_{timestamp}.json"
 
         # Use ItemCategory as key for custom prices
         custom_prices = {}
@@ -180,15 +182,18 @@ if uploaded_file and header_pdf_file:
             }
         }
         json_data = json.dumps(save_data, indent=2)
-        with open(filename, "w") as f:
-            f.write(json_data)
-        st.success(f"Progress saved to {filename}")
 
-        # Also offer download
+        # Save to server (optional, can be removed if you only want user download)
+        server_path = os.path.join("progress_saves", filename)
+        with open(server_path, "w") as f:
+            f.write(json_data)
+        st.success(f"Progress saved to {server_path}")
+
+        # Offer download so user can choose where to save
         st.download_button(
             label="Download Progress as JSON",
             data=json_data,
-            file_name=os.path.basename(filename),
+            file_name=filename,
             mime="application/json"
         )
 

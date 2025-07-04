@@ -443,9 +443,9 @@ if df is not None and header_pdf_file:
 # -------------------------------
 # Load Progress from Uploaded JSON Only
 # -------------------------------
-if st.session_state.get("scroll_to_load"):
-    st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
-    st.session_state["scroll_to_load"] = False
+#if st.session_state.get("scroll_to_load"):
+ #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
+ #   st.session_state["scroll_to_load"] = False
 
 st.markdown("### Load Progress from a Progress JSON File")
 

@@ -433,7 +433,9 @@ if st.session_state.get("scroll_to_load"):
 
 st.markdown("### Load Progress from a Progress JSON File")
 
-uploaded_progress = st.file_uploader("Upload a Progress JSON", type=["json"], key="progress_json_upload")
+uploaded_progress = st.file_uploader(
+    "Upload a Progress JSON", type=["json"], key="progress_json_upload"
+)
 
 if uploaded_progress and st.button("Load Progress"):
     try:

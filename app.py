@@ -19,8 +19,8 @@ import datetime
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
 st.title("Net Rates Calculator")
 
-if st.button("📂 Go to Load Progress Section"):
-    st.session_state["scroll_to_load"] = True
+#if st.button("📂 Go to Load Progress Section"):
+#    st.session_state["scroll_to_load"] = True
 
 # Ensure progress_saves folder exists
 if not os.path.exists("progress_saves"):

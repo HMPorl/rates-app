@@ -49,7 +49,11 @@ if st.button("Reload Excel Data"):
 # Only load if header PDF is uploaded
 if header_pdf_file and (st.session_state.get("reload_excel") or "excel_loaded" not in st.session_state):
     try:
-        df = load_excel(EXCEL_PATH)
+        if not os.path.exists(EXCEL_PATH):
+            st.error(f"Excel file not found at: {EXCEL_PATH}")
+            st.stop()
+        else:
+            df = load_excel(EXCEL_PATH)
         st.session_state["excel_loaded"] = True
         st.session_state["reload_excel"] = False
     except Exception as e:

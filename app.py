@@ -154,12 +154,11 @@ if uploaded_file and header_pdf_file:
     # Save Progress Button (with timestamp and download)
     # -------------------------------
     if st.button("Save Progress"):
-        # Sanitize customer name for filename
+        import datetime
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
 
-        # Use ItemCategory as key for custom prices
         custom_prices = {}
         for idx, row in df.iterrows():
             price_key = f"price_{idx}"
@@ -183,13 +182,6 @@ if uploaded_file and header_pdf_file:
         }
         json_data = json.dumps(save_data, indent=2)
 
-        # Save to server (optional, can be removed if you only want user download)
-        server_path = os.path.join("progress_saves", filename)
-        with open(server_path, "w") as f:
-            f.write(json_data)
-        st.success(f"Progress saved to {server_path}")
-
-        # Offer download so user can choose where to save
         st.download_button(
             label="Download Progress as JSON",
             data=json_data,

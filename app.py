@@ -448,11 +448,10 @@ if uploaded_file and header_pdf_file:
     )
 
 # -------------------------------
-# Load Selected Progress from Files
+# Load Selected Progress from Files (Improved)
 # -------------------------------
 st.markdown("### Load Progress from Saved Files")
 
-# List all JSON files in the progress_saves directory
 progress_files = [f for f in os.listdir("progress_saves") if f.endswith(".json")]
 selected_progress = st.selectbox("Select a progress file", options=[""] + progress_files)
 
@@ -460,20 +459,26 @@ if selected_progress and st.button("Load Selected Progress"):
     try:
         with open(os.path.join("progress_saves", selected_progress), "r") as f:
             loaded_data = json.load(f)
+        # Clear relevant session state keys
+        for key in list(st.session_state.keys()):
+            if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
+                del st.session_state[key]
         st.session_state["customer_name"] = loaded_data.get("customer_name", "")
         st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
         for key, value in loaded_data.get("group_discounts", {}).items():
             st.session_state[key] = value
         # Restore custom prices using ItemCategory as key
         custom_prices = loaded_data.get("custom_prices", {})
+        found_count = 0
         for idx, row in df.iterrows():
             item_key = str(row["ItemCategory"])
             price_key = f"price_{idx}"
             if item_key in custom_prices:
                 st.session_state[price_key] = custom_prices[item_key]
+                found_count += 1
         for key, value in loaded_data.get("transport_charges", {}).items():
             st.session_state[key] = value
-        st.success(f"Progress loaded from {selected_progress}!")
+        st.success(f"Progress loaded from {selected_progress}! {found_count} custom prices restored.")
         st.rerun()
     except Exception as e:
         st.error(f"Failed to load progress: {e}")

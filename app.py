@@ -30,7 +30,7 @@ if not os.path.exists("progress_saves"):
 # -------------------------------
 # File Uploads and Inputs
 # -------------------------------
-DEFAULT_EXCEL_PATH = "default_data.xlsx"  # Change this to your actual default file name
+DEFAULT_EXCEL_PATH = "Net rates Webapp.xlsx"  # Change this to your actual default file name
 
 @st.cache_data
 def load_excel(file):

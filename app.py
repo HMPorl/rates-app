@@ -354,6 +354,10 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # PDF Generation
     # -------------------------------
+
+    # Add a checkbox for including the custom price table
+    include_custom_table = st.checkbox("Include table of products with custom prices at top of PDF", value=True)
+
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -361,6 +365,43 @@ if df is not None and header_pdf_file:
 
     elements.append(Paragraph("Custom Price List", styles['Title']))
     elements.append(Spacer(1, 12))
+
+    # --- Custom Price Products Table at the Top (optional) ---
+    if include_custom_table:
+        custom_price_rows = []
+        for idx, row in df.iterrows():
+            price_key = f"price_{idx}"
+            user_input = str(st.session_state.get(price_key, "")).strip()
+            if user_input:
+                try:
+                    entered_price = float(user_input)
+                    custom_price_rows.append([
+                        row["ItemCategory"],
+                        Paragraph(row["EquipmentName"], styles['BodyText']),
+                        f"£{entered_price:.2f}",
+                        f"{calculate_discount_percent(row['HireRateWeekly'], entered_price):.1f}%"
+                    ])
+                except ValueError:
+                    continue
+
+        if custom_price_rows:
+            elements.append(Paragraph("Products with Custom Prices", styles['Heading2']))
+            elements.append(Spacer(1, 6))
+            table_data = [["Category", "Equipment", "Custom Price (£)", "Disc."]]
+            table_data.extend(custom_price_rows)
+            row_styles = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.yellow),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ]
+            table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+            table.setStyle(TableStyle(row_styles))
+            elements.append(table)
+            elements.append(Spacer(1, 12))
+    # --- End Custom Price Products Table ---
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))

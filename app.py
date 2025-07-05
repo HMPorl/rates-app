@@ -363,26 +363,33 @@ if df is not None and header_pdf_file:
     elements.append(Spacer(1, 12))
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-       # elements.append(Paragraph(f"Group: {group} - Sub Section: {subsection}", styles['Heading2']))
         elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
         elements.append(Spacer(1, 6))
         table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
-        for _, row in group_df.iterrows():
-            table_data.append([
-                row["ItemCategory"],
-                Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}",
-                f"{row['DiscountPercent']:.1f}%"
-            ])
-        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
-        table.setStyle(TableStyle([
+        row_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ]))
+        ]
+        for row_idx, (_, row) in enumerate(group_df.iterrows(), start=1):
+            table_data.append([
+                row["ItemCategory"],
+                Paragraph(row["EquipmentName"], styles['BodyText']),
+                f"£{row['CustomPrice']:.2f}",
+                f"{row['DiscountPercent']:.1f}%"
+            ])
+            # Highlight if custom price is set (not just discounted)
+            price_key = f"price_{row.name}"
+            user_input = str(st.session_state.get(price_key, "")).strip()
+            if user_input:  # Only highlight if user entered a custom price
+                row_styles.append(
+                    ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow)
+                )
+        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+        table.setStyle(TableStyle(row_styles))
         elements.append(table)
         elements.append(Spacer(1, 12))
 

@@ -13,27 +13,33 @@ import json
 import os
 import datetime
 import requests
+from datetime import datetime
 
 # -------------------------------
-# Weather Report (Open-Meteo API, London Example)
+# Weather Forecast (Open-Meteo API, London Example)
 # -------------------------------
-def get_weather(lat, lon):
+def get_hourly_forecast(lat, lon):
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}&current_weather=true"
+        f"latitude={lat}&longitude={lon}&hourly=temperature_2m,weathercode&timezone=Europe/London"
     )
     try:
         resp = requests.get(url, timeout=5)
         data = resp.json()
-        weather = data["current_weather"]
-        return weather["temperature"], weather["windspeed"], weather["weathercode"]
+        times = data["hourly"]["time"]
+        temps = data["hourly"]["temperature_2m"]
+        codes = data["hourly"]["weathercode"]
+        return times, temps, codes
     except Exception:
-        return None, None, None
+        return [], [], []
 
 city = "London"
 lat, lon = 51.5074, -0.1278
 
-temp, wind, code = get_weather(lat, lon)
+# Get today's date in YYYY-MM-DD
+today = datetime.now().strftime("%Y-%m-%d")
+times, temps, codes = get_hourly_forecast(lat, lon)
+
 weather_icons = {
     0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
     51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
@@ -42,14 +48,22 @@ weather_icons = {
     81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
     96: "⛈️", 99: "⛈️"
 }
-icon = weather_icons.get(code, "❓")
 
-if temp is not None:
-    st.markdown(
-        f"### {icon} Weather in {city}: {temp}°C, Wind {wind} km/h"
-    )
+# Filter for today's hours only
+forecast = []
+for t, temp, code in zip(times, temps, codes):
+    if t.startswith(today):
+        hour = t[11:16]  # "HH:MM"
+        icon = weather_icons.get(code, "❓")
+        forecast.append({"Time": hour, "Temp (°C)": temp, "Icon": icon})
+
+if forecast:
+    st.markdown(f"### {city} Weather Forecast for Today")
+    forecast_df = pd.DataFrame(forecast)
+    # Show as a horizontal table with icons
+    st.dataframe(forecast_df, use_container_width=True)
 else:
-    st.markdown("### 🌦️ Weather: Unable to fetch data")
+    st.markdown("### 🌦️ Weather forecast: Unable to fetch data")
 
 
 

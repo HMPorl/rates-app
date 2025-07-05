@@ -30,7 +30,6 @@ def get_weather(lat, lon):
     except Exception:
         return None, None, None
 
-# Example: London (change lat/lon for your city)
 city = "London"
 lat, lon = 51.5074, -0.1278
 

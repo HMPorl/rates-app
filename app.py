@@ -12,6 +12,47 @@ from reportlab.lib import colors
 import json
 import os
 import datetime
+import requests
+
+# -------------------------------
+# Weather Report (Open-Meteo API, London Example)
+# -------------------------------
+def get_weather(lat, lon):
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}&current_weather=true"
+    )
+    try:
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        weather = data["current_weather"]
+        return weather["temperature"], weather["windspeed"], weather["weathercode"]
+    except Exception:
+        return None, None, None
+
+# Example: London (change lat/lon for your city)
+city = "London"
+lat, lon = 51.5074, -0.1278
+
+temp, wind, code = get_weather(lat, lon)
+weather_icons = {
+    0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
+    51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
+    61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
+    71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
+    81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
+    96: "⛈️", 99: "⛈️"
+}
+icon = weather_icons.get(code, "❓")
+
+if temp is not None:
+    st.markdown(
+        f"### {icon} Weather in {city}: {temp}°C, Wind {wind} km/h"
+    )
+else:
+    st.markdown("### 🌦️ Weather: Unable to fetch data")
+
+
 
 # -------------------------------
 # Streamlit Page Configuration

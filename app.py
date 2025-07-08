@@ -465,15 +465,16 @@ if df is not None and header_pdf_file:
         # Only create head_table if there are rows to show
         if min_rows > 0:
             head_table = Table(table_data[:min_rows], colWidths=[60, 300, 60, 40])
-            # Only apply as many styles as there are rows
+            # Only apply as many styles as there are rows in head_table
             head_table.setStyle(TableStyle(row_styles[:min_rows]))
             group_elements.append(KeepTogether([head_table]))
 
         # Only create rest_table if there are more rows
-        if len(table_data) > min_rows:
-            rest_table = Table(table_data[min_rows:], colWidths=[60, 300, 60, 40])
-            # Only apply as many styles as there are rows in this part
-            rest_table.setStyle(TableStyle(row_styles[min_rows:min_rows + len(table_data[min_rows:])]))
+        rest_table_data = table_data[min_rows:]
+        rest_row_styles = row_styles[min_rows:min_rows + len(rest_table_data)]
+        if len(rest_table_data) > 0 and len(rest_row_styles) == len(rest_table_data):
+            rest_table = Table(rest_table_data, colWidths=[60, 300, 60, 40])
+            rest_table.setStyle(TableStyle(rest_row_styles))
             group_elements.append(rest_table)
 
         group_elements.append(Spacer(1, 12))

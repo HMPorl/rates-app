@@ -420,8 +420,6 @@ if df is not None and header_pdf_file:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ]
-
-        last_subsection = None
         row_idx = 1  # Start after header row
 
         for subsection, sub_df in group_df.groupby("Sub Section"):
@@ -459,10 +457,22 @@ if df is not None and header_pdf_file:
                 row_idx += 1
 
         table = Table(table_data, colWidths=[60, 300, 60, 40])
-        table.setStyle(TableStyle(row_styles))
-        group_elements.append(table)
+
+        # Instead of KeepTogether(group_elements), do:
+        # 1. Keep header + table header + first 2 rows together
+        min_rows = min(3, len(table_data))  # header + 2 rows or less if not enough
+        head_table = Table(table_data[:min_rows], colWidths=[60, 300, 60, 40])
+        head_table.setStyle(TableStyle(row_styles[:min_rows]))
+        group_elements.append(KeepTogether([head_table]))
+
+        # 2. Add the rest of the table (if any)
+        if len(table_data) > min_rows:
+            rest_table = Table(table_data[min_rows:], colWidths=[60, 300, 60, 40])
+            rest_table.setStyle(TableStyle(row_styles[min_rows:]))
+            group_elements.append(rest_table)
+
         group_elements.append(Spacer(1, 12))
-        elements.append(KeepTogether(group_elements))
+        elements.extend(group_elements)
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
     # We skip adding it here to avoid duplication.

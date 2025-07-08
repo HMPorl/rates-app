@@ -436,21 +436,11 @@ if df is not None and header_pdf_file:
                 "", "", ""
             ])
             # Style for the subsection row (light grey background, italic, blue text, centered)
-            row_styles.append(
-                ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke)
-            )
-            row_styles.append(
-                ('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Oblique')
-            )
-            row_styles.append(
-                ('SPAN', (0, row_idx), (3, row_idx))  # Span all columns for the subsection title
-            )
-            row_styles.append(
-                ('TEXTCOLOR', (0, row_idx), (3, row_idx), colors.HexColor("#002D56"))
-            )
-            row_styles.append(
-                ('ALIGN', (0, row_idx), (3, row_idx), 'CENTER')
-            )
+            row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke))
+            row_styles.append(('FONTNAME', (0, row_idx), (0, row_idx), 'Helvetica-Oblique'))
+            row_styles.append(('SPAN', (0, row_idx), (3, row_idx)))
+            row_styles.append(('TEXTCOLOR', (0, row_idx), (0, row_idx), colors.HexColor("#002D56")))
+            row_styles.append(('ALIGN', (0, row_idx), (3, row_idx), 'CENTER'))
             row_idx += 1
 
             for _, row in sub_df.iterrows():

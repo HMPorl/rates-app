@@ -403,26 +403,14 @@ if df is not None and header_pdf_file:
             elements.append(Spacer(1, 12))
     # --- End Custom Price Products Table ---
 
-    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+    for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Group header (keep as Heading2)
+        # Group header (Heading2) ONCE per group
         group_elements.append(Paragraph(f"{group}", styles['Heading2']))
         group_elements.append(Spacer(1, 6))
 
-        # Subsection line (subtle)
-        group_elements.append(
-            Table(
-                [[""]],  # Single empty cell
-                colWidths=[460],  # Adjust width as needed
-                style=TableStyle([
-                    ("LINEABOVE", (0, 0), (-1, 0), 0.75, colors.grey),
-                ])
-            )
-        )
-        group_elements.append(Paragraph(f"{subsection}", styles['Normal']))
-        group_elements.append(Spacer(1, 4))
-
+        # Table header ONCE per group
         table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
         row_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -432,6 +420,8 @@ if df is not None and header_pdf_file:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ]
+
+        # Add all items for this group (including all its subsections)
         for row_idx, (_, row) in enumerate(group_df.iterrows(), start=1):
             table_data.append([
                 row["ItemCategory"],
@@ -445,7 +435,8 @@ if df is not None and header_pdf_file:
                 row_styles.append(
                     ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow)
                 )
-        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+
+        table = Table(table_data, colWidths=[60, 300, 60, 40])
         table.setStyle(TableStyle(row_styles))
         group_elements.append(table)
         group_elements.append(Spacer(1, 12))

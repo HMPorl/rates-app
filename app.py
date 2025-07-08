@@ -421,20 +421,42 @@ if df is not None and header_pdf_file:
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ]
 
-        # Add all items for this group (including all its subsections)
-        for row_idx, (_, row) in enumerate(group_df.iterrows(), start=1):
+        last_subsection = None
+        row_idx = 1  # Start after header row
+
+        for subsection, sub_df in group_df.groupby("Sub Section"):
+            # Insert a subtle subsection row
             table_data.append([
-                row["ItemCategory"],
-                Paragraph(row["EquipmentName"], styles['BodyText']),
-                f"£{row['CustomPrice']:.2f}",
-                f"{row['DiscountPercent']:.1f}%"
+                "",  # Category column empty
+                Paragraph(f"<i>{subsection}</i>", styles['BodyText']),
+                "", ""
             ])
-            price_key = f"price_{row.name}"
-            user_input = str(st.session_state.get(price_key, "")).strip()
-            if user_input:
-                row_styles.append(
-                    ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow)
-                )
+            # Style for the subsection row (light grey background, italic)
+            row_styles.append(
+                ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke)
+            )
+            row_styles.append(
+                ('FONTNAME', (0, row_idx), (-1, row_idx), 'Helvetica-Oblique')
+            )
+            row_styles.append(
+                ('SPAN', (0, row_idx), (3, row_idx))  # Span all columns for the subsection title
+            )
+            row_idx += 1
+
+            for _, row in sub_df.iterrows():
+                table_data.append([
+                    row["ItemCategory"],
+                    Paragraph(row["EquipmentName"], styles['BodyText']),
+                    f"£{row['CustomPrice']:.2f}",
+                    f"{row['DiscountPercent']:.1f}%"
+                ])
+                price_key = f"price_{row.name}"
+                user_input = str(st.session_state.get(price_key, "")).strip()
+                if user_input:
+                    row_styles.append(
+                        ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow)
+                    )
+                row_idx += 1
 
         table = Table(table_data, colWidths=[60, 300, 60, 40])
         table.setStyle(TableStyle(row_styles))

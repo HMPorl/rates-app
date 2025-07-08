@@ -425,7 +425,12 @@ if df is not None and header_pdf_file:
         row_idx = 1  # Start after header row
 
         for subsection, sub_df in group_df.groupby("Sub Section"):
-            subsection_title = str(subsection) if pd.notnull(subsection) else "Untitled"
+            # Ensure subsection title is always a visible string
+            if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
+                subsection_title = "Untitled"
+            else:
+                subsection_title = str(subsection)
+
             table_data.append([
                 "",  # Category column empty
                 Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),

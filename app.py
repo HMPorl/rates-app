@@ -435,7 +435,7 @@ if df is not None and header_pdf_file:
                 Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
                 "", "", ""
             ])
-            # Style for the subsection row (light grey background, italic)
+            # Style for the subsection row (light grey background, italic, blue text)
             row_styles.append(
                 ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke)
             )
@@ -444,6 +444,9 @@ if df is not None and header_pdf_file:
             )
             row_styles.append(
                 ('SPAN', (0, row_idx), (3, row_idx))  # Span all columns for the subsection title
+            )
+            row_styles.append(
+                ('TEXTCOLOR', (0, row_idx), (3, row_idx), colors.HexColor("#002D56"))
             )
             row_idx += 1
 

@@ -6,7 +6,7 @@ import io
 import fitz  # PyMuPDF
 from PIL import Image
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import json
@@ -404,8 +404,9 @@ if df is not None and header_pdf_file:
     # --- End Custom Price Products Table ---
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
-        elements.append(Spacer(1, 6))
+        group_elements = []
+        group_elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
+        group_elements.append(Spacer(1, 6))
         table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
         row_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -422,17 +423,17 @@ if df is not None and header_pdf_file:
                 f"£{row['CustomPrice']:.2f}",
                 f"{row['DiscountPercent']:.1f}%"
             ])
-            # Highlight if custom price is set (not just discounted)
             price_key = f"price_{row.name}"
             user_input = str(st.session_state.get(price_key, "")).strip()
-            if user_input:  # Only highlight if user entered a custom price
+            if user_input:
                 row_styles.append(
                     ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow)
                 )
         table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
         table.setStyle(TableStyle(row_styles))
-        elements.append(table)
-        elements.append(Spacer(1, 12))
+        group_elements.append(table)
+        group_elements.append(Spacer(1, 12))
+        elements.append(KeepTogether(group_elements))
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
     # We skip adding it here to avoid duplication.

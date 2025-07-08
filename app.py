@@ -461,14 +461,19 @@ if df is not None and header_pdf_file:
         # Instead of KeepTogether(group_elements), do:
         # 1. Keep header + table header + first 2 rows together
         min_rows = min(3, len(table_data))  # header + 2 rows or less if not enough
-        head_table = Table(table_data[:min_rows], colWidths=[60, 300, 60, 40])
-        head_table.setStyle(TableStyle(row_styles[:min_rows]))
-        group_elements.append(KeepTogether([head_table]))
 
-        # 2. Add the rest of the table (if any)
+        # Only create head_table if there are rows to show
+        if min_rows > 0:
+            head_table = Table(table_data[:min_rows], colWidths=[60, 300, 60, 40])
+            # Only apply as many styles as there are rows
+            head_table.setStyle(TableStyle(row_styles[:min_rows]))
+            group_elements.append(KeepTogether([head_table]))
+
+        # Only create rest_table if there are more rows
         if len(table_data) > min_rows:
             rest_table = Table(table_data[min_rows:], colWidths=[60, 300, 60, 40])
-            rest_table.setStyle(TableStyle(row_styles[min_rows:]))
+            # Only apply as many styles as there are rows in this part
+            rest_table.setStyle(TableStyle(row_styles[min_rows:min_rows + len(table_data[min_rows:])]))
             group_elements.append(rest_table)
 
         group_elements.append(Spacer(1, 12))

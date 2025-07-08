@@ -432,9 +432,8 @@ if df is not None and header_pdf_file:
                 subsection_title = str(subsection)
 
             table_data.append([
-                "",  # Category column empty
                 Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
-                "", ""
+                "", "", ""
             ])
             # Style for the subsection row (light grey background, italic)
             row_styles.append(

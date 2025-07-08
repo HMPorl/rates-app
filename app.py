@@ -425,10 +425,10 @@ if df is not None and header_pdf_file:
         row_idx = 1  # Start after header row
 
         for subsection, sub_df in group_df.groupby("Sub Section"):
-            # Insert a subtle subsection row
+            subsection_title = str(subsection) if pd.notnull(subsection) else "Untitled"
             table_data.append([
                 "",  # Category column empty
-                Paragraph(f"<i>{subsection}</i>", styles['BodyText']),
+                Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
                 "", ""
             ])
             # Style for the subsection row (light grey background, italic)

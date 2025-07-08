@@ -405,8 +405,24 @@ if df is not None and header_pdf_file:
 
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         group_elements = []
-        group_elements.append(Paragraph(f"{group} - {subsection}", styles['Heading2']))
+
+        # Group header (keep as Heading2)
+        group_elements.append(Paragraph(f"{group}", styles['Heading2']))
         group_elements.append(Spacer(1, 6))
+
+        # Subsection line (subtle)
+        group_elements.append(
+            Table(
+                [[""]],  # Single empty cell
+                colWidths=[460],  # Adjust width as needed
+                style=TableStyle([
+                    ("LINEABOVE", (0, 0), (-1, 0), 0.75, colors.grey),
+                ])
+            )
+        )
+        group_elements.append(Paragraph(f"{subsection}", styles['Normal']))
+        group_elements.append(Spacer(1, 4))
+
         table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
         row_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),

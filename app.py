@@ -440,7 +440,6 @@ if df is not None and header_pdf_file:
             row_styles.append(('SPAN', (0, row_idx), (2, row_idx)))
             row_styles.append(('TEXTCOLOR', (0, row_idx), (0, row_idx), colors.HexColor("#002D56")))
             row_styles.append(('ALIGN', (0, row_idx), (2, row_idx), 'CENTER'))
-            subsection_start_idx = row_idx
             row_idx += 1
 
             # Product rows
@@ -455,37 +454,6 @@ if df is not None and header_pdf_file:
                 if user_input:
                     row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow))
                 row_idx += 1
-
-            # KeepTogether: subsection header + at least 2 products
-            n_products = len(sub_df)
-            keep_rows = 1 + min(2, n_products)
-            if keep_rows > 0:
-                mini_table_data = table_data[subsection_start_idx:subsection_start_idx+keep_rows]
-                mini_row_styles = []
-                mini_table_rows = len(mini_table_data)
-                for style in row_styles[subsection_start_idx:subsection_start_idx+keep_rows]:
-                    # Always set SPAN to row 0 for mini-table
-                    if style[0] == 'SPAN':
-                        mini_row_styles.append(('SPAN', (0, 0), (2, 0)))
-                    else:
-                        s = list(style)
-                        # Adjust row indices for mini-table
-                        if isinstance(s[1], tuple):
-                            s[1] = (s[1][0], s[1][1] - subsection_start_idx)
-                        if isinstance(s[2], tuple):
-                            s[2] = (s[2][0], s[2][1] - subsection_start_idx)
-                        # Only add style if row indices are valid for mini-table
-                        if (
-                            isinstance(s[1], tuple) and 0 <= s[1][1] < mini_table_rows and
-                            isinstance(s[2], tuple) and 0 <= s[2][1] < mini_table_rows
-                        ):
-                            mini_row_styles.append(tuple(s))
-                mini_table = Table(
-                    mini_table_data,
-                    colWidths=[60, 380, 60]
-                )
-                mini_table.setStyle(TableStyle(mini_row_styles))
-                group_elements.append(KeepTogether([mini_table]))
 
         # Build the full table for the group (with repeatRows=1 for accessibility)
         table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)

@@ -475,13 +475,14 @@ if df is not None and header_pdf_file:
                         if isinstance(s[2], tuple):
                             s[2] = (s[2][0], s[2][1] - subsection_start_idx)
                         mini_row_styles.append(tuple(s))
+                # --- FIX: Create table, set style, then wrap in KeepTogether ---
+                mini_table = Table(
+                    mini_table_data,
+                    colWidths=[60, 380, 60]
+                )
+                mini_table.setStyle(TableStyle(mini_row_styles))
                 group_elements.append(
-                    KeepTogether([
-                        Table(
-                            mini_table_data,
-                            colWidths=[60, 380, 60]
-                        ).setStyle(TableStyle(mini_row_styles))
-                    ])
+                    KeepTogether([mini_table])
                 )
 
         # Build the full table for the group (with repeatRows=1 for accessibility)

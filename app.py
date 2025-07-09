@@ -461,25 +461,36 @@ if df is not None and header_pdf_file:
             keep_rows = 1 + min(2, n_products)  # header + up to 2 products
             if keep_rows > 0:
                 # Build a mini-table for the subsection header + up to 2 products
-                mini_table_data = table_data[subsection_start_idx:subsection_start_idx+keep_rows]
+                mini_table_data = []
+                # Subsection header row (spans all columns)
+                mini_table_data.append([
+                    Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
+                    "",
+                    ""
+                ])
+                # Up to 2 product rows
+                for i, (_, row) in enumerate(sub_df.head(2).iterrows()):
+                    mini_table_data.append([
+                        row["ItemCategory"],
+                        Paragraph(row["EquipmentName"], styles['BodyText']),
+                        f"£{row['CustomPrice']:.2f}"
+                    ])
+                # Build styles for mini-table
                 mini_row_styles = [
-                    # Subsection header row
                     ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
                     ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Oblique'),
                     ('SPAN', (0, 0), (2, 0)),
                     ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor("#002D56")),
                     ('ALIGN', (0, 0), (2, 0), 'CENTER'),
-                    # Grid for all rows
                     ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    # Font and alignment for product rows
                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                     ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
                 ]
                 # Highlight yellow if custom price entered
-                for i, row in enumerate(mini_table_data[1:], start=1):
-                    # row[0] is ItemCategory, row[1] is EquipmentName, row[2] is price
-                    price_val = row[2] if len(row) > 2 else ""
-                    if price_val and "£" in price_val and "yellow" in str(row_styles):
+                for i, (_, row) in enumerate(sub_df.head(2).iterrows(), start=1):
+                    price_key = f"price_{row.name}"
+                    user_input = str(st.session_state.get(price_key, "")).strip()
+                    if user_input:
                         mini_row_styles.append(('BACKGROUND', (0, i), (-1, i), colors.yellow))
                 mini_table = Table(
                     mini_table_data,

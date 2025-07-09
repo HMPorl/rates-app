@@ -363,9 +363,6 @@ if df is not None and header_pdf_file:
     elements = []
     styles = getSampleStyleSheet()
 
-    elements.append(Paragraph("Custom Price List", styles['Title']))
-    elements.append(Spacer(1, 12))
-
     # --- Custom Price Products Table at the Top (optional) ---
     if include_custom_table:
         custom_price_rows = []
@@ -378,16 +375,19 @@ if df is not None and header_pdf_file:
                     custom_price_rows.append([
                         row["ItemCategory"],
                         Paragraph(row["EquipmentName"], styles['BodyText']),
-                        f"£{entered_price:.2f}",
-                        f"{calculate_discount_percent(row['HireRateWeekly'], entered_price):.1f}%"
+                        f"£{entered_price:.2f}"
                     ])
                 except ValueError:
                     continue
 
         if custom_price_rows:
-            elements.append(Paragraph("Products with Custom Prices", styles['Heading2']))
+            # Title: Net Rates for (customer name)
+            customer_title = customer_name if customer_name else "Customer"
+            elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+            elements.append(Spacer(1, 12))
+            elements.append(Paragraph("Special Rates", styles['Heading2']))
             elements.append(Spacer(1, 6))
-            table_data = [["Category", "Equipment", "Custom Price (£)", "Disc."]]
+            table_data = [["Category", "Equipment", "Special (£)"]]
             table_data.extend(custom_price_rows)
             row_styles = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.yellow),
@@ -397,19 +397,24 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]
-            table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+            table = Table(table_data, colWidths=[60, 380, 60])
             table.setStyle(TableStyle(row_styles))
             elements.append(table)
             elements.append(Spacer(1, 12))
-    # --- End Custom Price Products Table ---
+    else:
+        # If not including custom table, still show the main title
+        customer_title = customer_name if customer_name else "Customer"
+        elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+        elements.append(Spacer(1, 12))
 
+    # --- Main Price List Tables ---
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
         group_elements.append(Paragraph(f"{group}", styles['Heading2']))
         group_elements.append(Spacer(1, 6))
 
         # Build all rows for this group
-        table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
+        table_data = [["Category", "Equipment", "Price (£)"]]
         row_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -428,13 +433,13 @@ if df is not None and header_pdf_file:
                 subsection_title = str(subsection)
             table_data.append([
                 Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
-                "", "", ""
+                "", ""
             ])
             row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke))
             row_styles.append(('FONTNAME', (0, row_idx), (0, row_idx), 'Helvetica-Oblique'))
-            row_styles.append(('SPAN', (0, row_idx), (3, row_idx)))
+            row_styles.append(('SPAN', (0, row_idx), (2, row_idx)))
             row_styles.append(('TEXTCOLOR', (0, row_idx), (0, row_idx), colors.HexColor("#002D56")))
-            row_styles.append(('ALIGN', (0, row_idx), (3, row_idx), 'CENTER'))
+            row_styles.append(('ALIGN', (0, row_idx), (2, row_idx), 'CENTER'))
             subsection_start_idx = row_idx
             row_idx += 1
 
@@ -443,8 +448,7 @@ if df is not None and header_pdf_file:
                 table_data.append([
                     row["ItemCategory"],
                     Paragraph(row["EquipmentName"], styles['BodyText']),
-                    f"£{row['CustomPrice']:.2f}",
-                    f"{row['DiscountPercent']:.1f}%"
+                    f"£{row['CustomPrice']:.2f}"
                 ])
                 price_key = f"price_{row.name}"
                 user_input = str(st.session_state.get(price_key, "")).strip()
@@ -460,13 +464,13 @@ if df is not None and header_pdf_file:
                     KeepTogether([
                         Table(
                             table_data[subsection_start_idx:subsection_start_idx+keep_rows],
-                            colWidths=[60, 300, 60, 40]
+                            colWidths=[60, 380, 60]
                         ).setStyle(TableStyle(row_styles[subsection_start_idx:subsection_start_idx+keep_rows]))
                     ])
                 )
 
         # Build the full table for the group (with repeatRows=1 for accessibility)
-        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+        table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)
         table.setStyle(TableStyle(row_styles))
         group_elements.append(table)
         group_elements.append(Spacer(1, 12))

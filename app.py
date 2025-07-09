@@ -456,50 +456,29 @@ if df is not None and header_pdf_file:
                     row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow))
                 row_idx += 1
 
-            # Accessibility: Keep subsection header + at least 2 products together
+            # KeepTogether: subsection header + at least 2 products
             n_products = len(sub_df)
-            keep_rows = 1 + min(2, n_products)  # header + up to 2 products
+            keep_rows = 1 + min(2, n_products)
             if keep_rows > 0:
-                # Build a mini-table for the subsection header + up to 2 products
-                mini_table_data = []
-                # Subsection header row (spans all columns)
-                mini_table_data.append([
-                    Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
-                    "",
-                    ""
-                ])
-                # Up to 2 product rows
-                for i, (_, row) in enumerate(sub_df.head(2).iterrows()):
-                    mini_table_data.append([
-                        row["ItemCategory"],
-                        Paragraph(row["EquipmentName"], styles['BodyText']),
-                        f"£{row['CustomPrice']:.2f}"
-                    ])
-                # Build styles for mini-table
-                mini_row_styles = [
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Oblique'),
-                    ('SPAN', (0, 0), (2, 0)),
-                    ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor("#002D56")),
-                    ('ALIGN', (0, 0), (2, 0), 'CENTER'),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                    ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-                ]
-                # Highlight yellow if custom price entered
-                for i, (_, row) in enumerate(sub_df.head(2).iterrows(), start=1):
-                    price_key = f"price_{row.name}"
-                    user_input = str(st.session_state.get(price_key, "")).strip()
-                    if user_input:
-                        mini_row_styles.append(('BACKGROUND', (0, i), (-1, i), colors.yellow))
+                mini_table_data = table_data[subsection_start_idx:subsection_start_idx+keep_rows]
+                mini_row_styles = []
+                for style in row_styles[subsection_start_idx:subsection_start_idx+keep_rows]:
+                    # Always set SPAN to row 0 for mini-table
+                    if style[0] == 'SPAN':
+                        mini_row_styles.append(('SPAN', (0, 0), (2, 0)))
+                    else:
+                        s = list(style)
+                        if isinstance(s[1], tuple):
+                            s[1] = (s[1][0], s[1][1] - subsection_start_idx)
+                        if isinstance(s[2], tuple):
+                            s[2] = (s[2][0], s[2][1] - subsection_start_idx)
+                        mini_row_styles.append(tuple(s))
                 mini_table = Table(
                     mini_table_data,
                     colWidths=[60, 380, 60]
                 )
                 mini_table.setStyle(TableStyle(mini_row_styles))
-                group_elements.append(
-                    KeepTogether([mini_table])
-                )
+                group_elements.append(KeepTogether([mini_table]))
 
         # Build the full table for the group (with repeatRows=1 for accessibility)
         table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)

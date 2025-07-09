@@ -408,9 +408,9 @@ if df is not None and header_pdf_file:
         group_elements.append(Paragraph(f"{group}", styles['Heading2']))
         group_elements.append(Spacer(1, 6))
 
-        # Build the table data for the whole group
-        table_data = [["Category", "Equipment", "Price (£)", "Disc."]]
-        row_styles = [
+        # Table header ONCE per group
+        table_header = [["Category", "Equipment", "Price (£)", "Disc."]]
+        header_styles = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
@@ -418,28 +418,30 @@ if df is not None and header_pdf_file:
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
         ]
-        row_idx = 1  # Start after header
 
+        first_subsection = True
         for subsection, sub_df in group_df.groupby("Sub Section"):
             # Subsection title row
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            table_data.append([
-                Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
-                "", "", ""
-            ])
-            # Apply SPAN and styling to this row
-            row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke))
-            row_styles.append(('FONTNAME', (0, row_idx), (0, row_idx), 'Helvetica-Oblique'))
-            row_styles.append(('SPAN', (0, row_idx), (3, row_idx)))
-            row_styles.append(('TEXTCOLOR', (0, row_idx), (0, row_idx), colors.HexColor("#002D56")))
-            row_styles.append(('ALIGN', (0, row_idx), (3, row_idx), 'CENTER'))
-            row_idx += 1
+            subsection_row = [
+                [Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']), "", "", ""]
+            ]
+            subsection_style = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Oblique'),
+                ('SPAN', (0, 0), (3, 0)),
+                ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor("#002D56")),
+                ('ALIGN', (0, 0), (3, 0), 'CENTER')
+            ]
 
-            for _, row in sub_df.iterrows():
-                table_data.append([
+            # Product rows for this subsection
+            product_rows = []
+            product_styles = []
+            for i, (_, row) in enumerate(sub_df.iterrows()):
+                product_rows.append([
                     row["ItemCategory"],
                     Paragraph(row["EquipmentName"], styles['BodyText']),
                     f"£{row['CustomPrice']:.2f}",
@@ -448,12 +450,51 @@ if df is not None and header_pdf_file:
                 price_key = f"price_{row.name}"
                 user_input = str(st.session_state.get(price_key, "")).strip()
                 if user_input:
-                    row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow))
-                row_idx += 1
+                    product_styles.append(('BACKGROUND', (0, i), (-1, i), colors.yellow))
 
-        table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
-        table.setStyle(TableStyle(row_styles))
-        group_elements.append(table)
+            # Minimum rows to keep together (subsection header + 2 products)
+            min_rows = 2
+            together_rows = subsection_row + product_rows[:min_rows]
+            together_styles = subsection_style + [
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ] + [
+                ('BACKGROUND', (0, i+1), (-1, i+1), colors.yellow)
+                for i, (_, row) in enumerate(sub_df.iloc[:min_rows].iterrows())
+                if str(st.session_state.get(f"price_{row.name}", "")).strip()
+            ]
+
+            # Add table header before the first subsection only
+            if first_subsection:
+                table_data = table_header + together_rows
+                table_styles = header_styles + [
+                    (s[0], (s[1][0], s[1][1]+1), (s[2][0], s[2][1]+1), *s[3:]) if len(s) > 3 else s
+                    for s in together_styles
+                ]
+                first_subsection = False
+            else:
+                table_data = together_rows
+                table_styles = together_styles
+
+            table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
+            table.setStyle(TableStyle(table_styles))
+            group_elements.append(KeepTogether([table]))
+
+            # Add remaining product rows (not kept together)
+            if len(product_rows) > min_rows:
+                remaining_rows = product_rows[min_rows:]
+                remaining_styles = [
+                    ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ] + [
+                    ('BACKGROUND', (0, i), (-1, i), colors.yellow)
+                    for i, (_, row) in enumerate(sub_df.iloc[min_rows:].iterrows())
+                    if str(st.session_state.get(f"price_{row.name}", "")).strip()
+                ]
+                table = Table(remaining_rows, colWidths=[60, 300, 60, 40])
+                table.setStyle(TableStyle(remaining_styles))
+                group_elements.append(table)
+
         group_elements.append(Spacer(1, 12))
         elements.extend(group_elements)
 

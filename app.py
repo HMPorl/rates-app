@@ -410,8 +410,11 @@ if df is not None and header_pdf_file:
     # --- Main Price List Tables ---
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
-        group_elements.append(Paragraph(f"{group}", styles['Heading2']))
-        group_elements.append(Spacer(1, 6))
+
+        # Wrap group header and its content in KeepTogether
+        group_header = Paragraph(f"{group}", styles['Heading2'])
+        group_spacer = Spacer(1, 6)
+        group_subsection_blocks = []
 
         for subsection, sub_df in group_df.groupby("Sub Section"):
             # Add subsection header as a Paragraph, not a table row
@@ -439,8 +442,8 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]))
-            # Wrap header, spacer, and table in KeepTogether
-            group_elements.append(
+            # Wrap subsection header, spacer, and table in KeepTogether
+            group_subsection_blocks.append(
                 KeepTogether([
                     subsection_header,
                     subsection_spacer,
@@ -448,6 +451,15 @@ if df is not None and header_pdf_file:
                     Spacer(1, 12)
                 ])
             )
+
+        # Now wrap the group header, spacer, and all subsections in KeepTogether
+        group_elements.append(
+            KeepTogether([
+                group_header,
+                group_spacer,
+                *group_subsection_blocks
+            ])
+        )
         elements.extend(group_elements)
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.

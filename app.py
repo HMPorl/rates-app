@@ -462,23 +462,25 @@ if df is not None and header_pdf_file:
             if keep_rows > 0:
                 # Build a mini-table for the subsection header + up to 2 products
                 mini_table_data = table_data[subsection_start_idx:subsection_start_idx+keep_rows]
-                mini_row_styles = []
-                mini_table_row_count = len(mini_table_data)
-                for style in row_styles[subsection_start_idx:subsection_start_idx+keep_rows]:
-                    # Only add style if it references a valid row in the mini-table
-                    # For SPAN, always set to row 0
-                    if style[0] == 'SPAN':
-                        mini_row_styles.append(('SPAN', (0, 0), (2, 0)))
-                    else:
-                        s = list(style)
-                        # Adjust row indices for mini-table
-                        if isinstance(s[1], tuple):
-                            s[1] = (s[1][0], max(0, min(s[1][1] - subsection_start_idx, mini_table_row_count - 1)))
-                        if isinstance(s[2], tuple):
-                            s[2] = (s[2][0], max(0, min(s[2][1] - subsection_start_idx, mini_table_row_count - 1)))
-                        # Only add if the row index is in range
-                        if 0 <= s[1][1] < mini_table_row_count and 0 <= s[2][1] < mini_table_row_count:
-                            mini_row_styles.append(tuple(s))
+                mini_row_styles = [
+                    # Subsection header row
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Oblique'),
+                    ('SPAN', (0, 0), (2, 0)),
+                    ('TEXTCOLOR', (0, 0), (0, 0), colors.HexColor("#002D56")),
+                    ('ALIGN', (0, 0), (2, 0), 'CENTER'),
+                    # Grid for all rows
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    # Font and alignment for product rows
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                ]
+                # Highlight yellow if custom price entered
+                for i, row in enumerate(mini_table_data[1:], start=1):
+                    # row[0] is ItemCategory, row[1] is EquipmentName, row[2] is price
+                    price_val = row[2] if len(row) > 2 else ""
+                    if price_val and "£" in price_val and "yellow" in str(row_styles):
+                        mini_row_styles.append(('BACKGROUND', (0, i), (-1, i), colors.yellow))
                 mini_table = Table(
                     mini_table_data,
                     colWidths=[60, 380, 60]

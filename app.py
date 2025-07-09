@@ -419,8 +419,8 @@ if df is not None and header_pdf_file:
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            group_elements.append(Paragraph(f"<i>{subsection_title}</i>", styles['Heading3']))
-            group_elements.append(Spacer(1, 2))
+            subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['Heading3'])
+            subsection_spacer = Spacer(1, 2)
 
             # Table for just this subsection
             table_data = [["Category", "Equipment", "Price (£)"]]
@@ -439,8 +439,15 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]))
-            group_elements.append(table)
-            group_elements.append(Spacer(1, 12))
+            # Wrap header, spacer, and table in KeepTogether
+            group_elements.append(
+                KeepTogether([
+                    subsection_header,
+                    subsection_spacer,
+                    table,
+                    Spacer(1, 12)
+                ])
+            )
         elements.extend(group_elements)
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.

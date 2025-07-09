@@ -459,9 +459,9 @@ if df is not None and header_pdf_file:
         # Build the table in one go (no splitting)
         table = Table(table_data, colWidths=[60, 300, 60, 40], repeatRows=1)
         table.setStyle(TableStyle(row_styles))
-        group_elements.append(table)
-        group_elements.append(Spacer(1, 12))
-        elements.extend(group_elements)
+        # Use KeepTogether for header + table to avoid orphaned headers and large white space
+        elements.append(KeepTogether(group_elements + [table]))
+        elements.append(Spacer(1, 12))
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
     # We skip adding it here to avoid duplication.

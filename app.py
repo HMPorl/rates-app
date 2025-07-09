@@ -413,53 +413,34 @@ if df is not None and header_pdf_file:
         group_elements.append(Paragraph(f"{group}", styles['Heading2']))
         group_elements.append(Spacer(1, 6))
 
-        # Table header (always present)
-        table_data = [["Category", "Equipment", "Price (£)"]]
-        row_styles = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ]
-        row_idx = 1  # Start after header
-
         for subsection, sub_df in group_df.groupby("Sub Section"):
-            # Subsection header row (always span all columns)
+            # Add subsection header as a Paragraph, not a table row
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            table_data.append([
-                Paragraph(f"<i>{subsection_title}</i>", styles['BodyText']),
-                "", ""
-            ])
-            row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.whitesmoke))
-            row_styles.append(('FONTNAME', (0, row_idx), (0, row_idx), 'Helvetica-Oblique'))
-            row_styles.append(('SPAN', (0, row_idx), (2, row_idx)))
-            row_styles.append(('TEXTCOLOR', (0, row_idx), (0, row_idx), colors.HexColor("#002D56")))
-            row_styles.append(('ALIGN', (0, row_idx), (2, row_idx), 'CENTER'))
-            row_idx += 1
+            group_elements.append(Paragraph(f"<i>{subsection_title}</i>", styles['Heading3']))
+            group_elements.append(Spacer(1, 2))
 
-            # Product rows
+            # Table for just this subsection
+            table_data = [["Category", "Equipment", "Price (£)"]]
             for _, row in sub_df.iterrows():
                 table_data.append([
                     row["ItemCategory"],
                     Paragraph(row["EquipmentName"], styles['BodyText']),
                     f"£{row['CustomPrice']:.2f}"
                 ])
-                price_key = f"price_{row.name}"
-                user_input = str(st.session_state.get(price_key, "")).strip()
-                if user_input:
-                    row_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), colors.yellow))
-                row_idx += 1
-
-        # Build the full table for the group (with repeatRows=1 for accessibility)
-        table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)
-        table.setStyle(TableStyle(row_styles))
-        group_elements.append(table)
-        group_elements.append(Spacer(1, 12))
+            table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ]))
+            group_elements.append(table)
+            group_elements.append(Spacer(1, 12))
         elements.extend(group_elements)
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.

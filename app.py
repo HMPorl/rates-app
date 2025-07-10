@@ -363,6 +363,25 @@ if df is not None and header_pdf_file:
     elements = []
     styles = getSampleStyleSheet()
 
+    # Add these custom styles after styles = getSampleStyleSheet()
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.lib.styles import ParagraphStyle
+
+    styles.add(ParagraphStyle(
+        name='LeftHeading2',
+        parent=styles['Heading2'],
+        alignment=TA_LEFT,
+        spaceBefore=6,
+        spaceAfter=6
+    ))
+    styles.add(ParagraphStyle(
+        name='LeftHeading3',
+        parent=styles['Heading3'],
+        alignment=TA_LEFT,
+        spaceBefore=2,
+        spaceAfter=4
+    ))
+
     # --- Custom Price Products Table at the Top (optional) ---
     if include_custom_table:
         custom_price_rows = []
@@ -411,19 +430,19 @@ if df is not None and header_pdf_file:
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Wrap group header and its content in KeepTogether
-        group_header = Paragraph(f"{group}", styles['Heading2'])
-        group_spacer = Spacer(1, 6)
+        # Use the new left-aligned style for group header
+        group_header = Paragraph(f"{group}", styles['LeftHeading2'])
+        group_spacer = Spacer(1, 2)  # Reduce space above group header if desired
         group_subsection_blocks = []
 
         for subsection, sub_df in group_df.groupby("Sub Section"):
-            # Add subsection header as a Paragraph, not a table row
+            # Use the new left-aligned style for subsection header
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['Heading3'])
-            subsection_spacer = Spacer(1, 2)
+            subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])
+            subsection_spacer = Spacer(1, 2)  # Reduce this value for less space above the table
 
             # Table for just this subsection
             table_data = [["Category", "Equipment", "Price (£)"]]
@@ -442,7 +461,6 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]))
-            # Wrap subsection header, spacer, and table in KeepTogether
             group_subsection_blocks.append(
                 KeepTogether([
                     subsection_header,
@@ -452,7 +470,6 @@ if df is not None and header_pdf_file:
                 ])
             )
 
-        # Now wrap the group header, spacer, and all subsections in KeepTogether
         group_elements.append(
             KeepTogether([
                 group_header,

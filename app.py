@@ -358,6 +358,9 @@ if df is not None and header_pdf_file:
     # Add a checkbox for including the custom price table
     include_custom_table = st.checkbox("Include table of products with custom prices at top of PDF", value=True)
 
+    # Add a checkbox for page break after special rates
+    special_rates_pagebreak = st.checkbox("Start Special Rates table on a new page", value=False)
+
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
     elements = []
@@ -400,7 +403,6 @@ if df is not None and header_pdf_file:
                     continue
 
         if custom_price_rows:
-            # Title: Net Rates for (customer name)
             customer_title = customer_name if customer_name else "Customer"
             elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
             elements.append(Spacer(1, 12))
@@ -420,6 +422,10 @@ if df is not None and header_pdf_file:
             table.setStyle(TableStyle(row_styles))
             elements.append(table)
             elements.append(Spacer(1, 12))
+            # Insert a page break if the user wants the special rates table on its own page
+            if special_rates_pagebreak:
+                from reportlab.platypus import PageBreak
+                elements.append(PageBreak())
     else:
         # If not including custom table, still show the main title
         customer_title = customer_name if customer_name else "Customer"

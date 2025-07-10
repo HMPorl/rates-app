@@ -146,7 +146,7 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Global and Group-Level Discounts
     # -------------------------------
-    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=0.0, step=0.5)
+    global_discount = st.number_input("Global Discount (%)", min_value=0, max_value=100, value=0, step=1)
 
     st.markdown("### Group-Level Discounts")
     group_discount_keys = {}
@@ -158,10 +158,10 @@ if df is not None and header_pdf_file:
         with col:
             st.number_input(
                 f"{group} - {subsection} (%)",
-                min_value=0.0,
-                max_value=100.0,
+                min_value=0,
+                max_value=100,
                 value=global_discount,
-                step=0.5,
+                step=1,
                 key=f"{group}_{subsection}_discount"
             )
 
@@ -202,7 +202,7 @@ if df is not None and header_pdf_file:
                     except:
                         custom_price = discounted_price
                     discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
-                    st.markdown(f"**{discount_percent:.1f}%**")
+                    st.markdown(f"**{discount_percent:.0f}%**")
                     if discount_percent > row["Max Discount"]:
                         st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
 

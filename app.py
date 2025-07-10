@@ -527,7 +527,7 @@ if df is not None and header_pdf_file:
         # Add bespoke email address below customer name if provided
         if bespoke_email.strip():
             email_font_size = 13
-            email_font_color = (0.2, 0.2, 0.2)  # Less dominant grey
+            email_font_color = (0 / 255, 45 / 255, 86 / 255)  # #002D56
             email_text_y = text_y + font_size + 6  # Slightly below customer name
             email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
             email_text_x = (page_width - email_text_width) / 2

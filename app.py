@@ -356,10 +356,10 @@ if df is not None and header_pdf_file:
     # -------------------------------
 
     # Add a checkbox for including the custom price table
-    include_custom_table = st.checkbox("Include table of products with custom prices at top of PDF", value=True)
+    include_custom_table = st.checkbox("Include Speical Rates at top of PDF", value=True)
 
     # Add a checkbox for page break after special rates
-    special_rates_pagebreak = st.checkbox("Start Special Rates table on a new page", value=False)
+    special_rates_pagebreak = st.checkbox("Seperate Special Rates on their own page", value=False)
 
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -615,7 +615,7 @@ if df is not None and header_pdf_file:
  #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
  #   st.session_state["scroll_to_load"] = False
 
-st.markdown("### Load Progress from a Progress JSON File")
+st.markdown("### 💾Load Progress from a Progress JSON File")
 
 uploaded_progress = st.file_uploader(
     "Upload a Progress JSON", type=["json"], key="progress_json_upload"

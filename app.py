@@ -103,8 +103,9 @@ def read_pdf_header(file):
     return file.read()
 
 customer_name = st.text_input("⭐Enter Customer Name")
+bespoke_email = st.text_input("✉️ Bespoke email address (optional)")
 logo_file = st.file_uploader("🖼️Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("💹Upload your Excel file (optional)", type=["xlsx"])
+uploaded_file = st.file_uploader("💹Upload your Excel file (Admin Only❗)", type=["xlsx"])
 header_pdf_file = st.file_uploader("🧑‍🦲Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
 
 # -------------------------------
@@ -523,17 +524,36 @@ if df is not None and header_pdf_file:
         text_x = (page_width - text_width) / 2
         page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
 
-        if logo_file:
-            logo_image = Image.open(logo_file)
-            logo_bytes = io.BytesIO()
-            logo_image.save(logo_bytes, format="PNG")
-            logo_bytes.seek(0)
-            logo_width = 100
-            logo_height = logo_image.height * (logo_width / logo_image.width)
-            logo_x = (page_width - logo_width) / 2
+        # Add bespoke email address below customer name if provided
+        if bespoke_email.strip():
+            email_font_size = 13
+            email_font_color = (0.2, 0.2, 0.2)  # Less dominant grey
+            email_text_y = text_y + font_size + 6  # Slightly below customer name
+            email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+            email_text_x = (page_width - email_text_width) / 2
+            page1.insert_text(
+                (email_text_x, email_text_y),
+                bespoke_email,
+                fontsize=email_font_size,
+                fontname=font_name,
+                fill=email_font_color
+            )
+
+    if logo_file:
+        logo_image = Image.open(logo_file)
+        logo_bytes = io.BytesIO()
+        logo_image.save(logo_bytes, format="PNG")
+        logo_bytes.seek(0)
+        logo_width = 100
+        logo_height = logo_image.height * (logo_width / logo_image.width)
+        logo_x = (page_width - logo_width) / 2
+        # Place logo below the email if present, otherwise below the name
+        if bespoke_email.strip():
+            logo_y = email_text_y + email_font_size + 20
+        else:
             logo_y = text_y + font_size + 20
-            rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
-            page1.insert_image(rect_logo, stream=logo_bytes.read())
+        rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+        page1.insert_image(rect_logo, stream=logo_bytes.read())
 
 
     # Draw Transport Charges table as a grid on page 3
@@ -615,7 +635,7 @@ if df is not None and header_pdf_file:
  #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
  #   st.session_state["scroll_to_load"] = False
 
-st.markdown("### 💾Load Progress from a Progress JSON File")
+st.markdown("### Load Progress from a Progress JSON File")
 
 uploaded_progress = st.file_uploader(
     "Upload a Progress JSON", type=["json"], key="progress_json_upload"

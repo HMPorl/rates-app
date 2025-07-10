@@ -432,19 +432,18 @@ if df is not None and header_pdf_file:
 
         # Use the new left-aligned style for group header
         group_header = Paragraph(f"{group}", styles['LeftHeading2'])
-        group_spacer = Spacer(1, 2)  # Reduce space above group header if desired
+        group_spacer = Spacer(1, 2)
         group_subsection_blocks = []
 
+        # Build all subsection blocks first
         for subsection, sub_df in group_df.groupby("Sub Section"):
-            # Use the new left-aligned style for subsection header
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
             subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])
-            subsection_spacer = Spacer(1, 2)  # Reduce this value for less space above the table
+            subsection_spacer = Spacer(1, 2)
 
-            # Table for just this subsection
             table_data = [["Category", "Equipment", "Price (£)"]]
             for _, row in sub_df.iterrows():
                 table_data.append([
@@ -462,25 +461,21 @@ if df is not None and header_pdf_file:
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]))
             group_subsection_blocks.append(
-                KeepTogether([
-                    subsection_header,
-                    subsection_spacer,
-                    table,
-                    Spacer(1, 12)
-                ])
+                [subsection_header, subsection_spacer, table, Spacer(1, 12)]
             )
 
-        # Keep group header and first subsection header together
+        # Now, for the first subsection, wrap group header + first subsection in KeepTogether
         if group_subsection_blocks:
             group_elements.append(
                 KeepTogether([
                     group_header,
                     group_spacer,
-                    group_subsection_blocks[0]
+                    *group_subsection_blocks[0]
                 ])
             )
-            # Add the rest of the subsections as normal
-            group_elements.extend(group_subsection_blocks[1:])
+            # Add the rest of the subsections as normal (each in their own KeepTogether)
+            for block in group_subsection_blocks[1:]:
+                group_elements.append(KeepTogether(block))
         else:
             group_elements.append(
                 KeepTogether([

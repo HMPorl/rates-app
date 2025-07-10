@@ -14,6 +14,7 @@ import os
 import datetime
 import requests
 from datetime import datetime
+import glob
 
 # --- Weather: Current + Daily Summary ---
 def get_weather_and_forecast(lat, lon):
@@ -106,7 +107,11 @@ customer_name = st.text_input("⭐Enter Customer Name")
 bespoke_email = st.text_input("✉️ Bespoke email address (optional)")
 logo_file = st.file_uploader("🖼️Upload Company Logo", type=["png", "jpg", "jpeg"])
 uploaded_file = st.file_uploader("💹Upload your Excel file (Admin Only❗)", type=["xlsx"])
-header_pdf_file = st.file_uploader("🧑‍🦲Upload PDF Header (e.g., NRHeader.pdf)", type=["pdf"])
+header_pdf_choice = st.selectbox(
+    "Choose a PDF Header Sheet from the app folder, or upload your own:",
+    ["(Upload a PDF header below)"] + glob.glob("*.pdf")
+)
+uploaded_header_pdf = st.file_uploader("Or upload a PDF Header (overrides selection above)", type=["pdf"], key="header_pdf_upload")
 
 # -------------------------------
 # Load and Validate Excel File
@@ -130,6 +135,15 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
     except Exception as e:
         st.error(f"Failed to load default Excel: {e}")
         st.stop()
+
+header_pdf_file = None
+if uploaded_header_pdf is not None:
+    # Use uploaded file (takes priority)
+    header_pdf_file = uploaded_header_pdf
+elif header_pdf_choice != "(Upload a PDF header below)":
+    # Use selected file from folder
+    with open(header_pdf_choice, "rb") as f:
+        header_pdf_file = io.BytesIO(f.read())
 
 if df is not None and header_pdf_file:
     required_columns = {"ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "Max Discount", "Include", "Order"}

@@ -470,13 +470,25 @@ if df is not None and header_pdf_file:
                 ])
             )
 
-        group_elements.append(
-            KeepTogether([
-                group_header,
-                group_spacer,
-                *group_subsection_blocks
-            ])
-        )
+        # Keep group header and first subsection header together
+        if group_subsection_blocks:
+            group_elements.append(
+                KeepTogether([
+                    group_header,
+                    group_spacer,
+                    group_subsection_blocks[0]
+                ])
+            )
+            # Add the rest of the subsections as normal
+            group_elements.extend(group_subsection_blocks[1:])
+        else:
+            group_elements.append(
+                KeepTogether([
+                    group_header,
+                    group_spacer
+                ])
+            )
+
         elements.extend(group_elements)
 
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.

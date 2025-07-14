@@ -521,8 +521,15 @@ if df is not None and header_pdf_file:
             else:
                 subsection_title = str(subsection)
 
+            # Subsection header row (spans all columns, no "continues...")
+            header_row = [
+                Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),
+                '',  # Empty cell for Equipment column
+                ''   # Empty cell for Price column
+            ]
+
             # Table data (no header, no grid)
-            table_data = []
+            table_data = [header_row]
             for _, row in sub_df.iterrows():
                 table_data.append([
                     row["ItemCategory"],
@@ -530,11 +537,9 @@ if df is not None and header_pdf_file:
                     f"£{row['CustomPrice']:.2f}"
                 ])
 
-            # Use "continues..." in the repeated header row for all pages
-            header_text = f"<i>{subsection_title} continues...</i>"
             table_with_repeat_header = Table(
-                [[Paragraph(header_text, styles['LeftHeading3'])]] + table_data,
-                colWidths=[bar_width] if len(table_col_widths) == 1 else table_col_widths,
+                table_data,
+                colWidths=table_col_widths,
                 repeatRows=1
             )
             table_with_repeat_header.setStyle(TableStyle([
@@ -553,7 +558,6 @@ if df is not None and header_pdf_file:
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
             ]))
 
-            # Do NOT wrap in KeepTogether, so the table can break across pages and repeat the header
             group_subsection_blocks.append(
                 [table_with_repeat_header, Spacer(1, 12)]
             )

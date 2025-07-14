@@ -504,8 +504,8 @@ if df is not None and header_pdf_file:
         bar_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
             ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Set to 0 for perfect alignment
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Set to 8 for both bars
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -513,7 +513,7 @@ if df is not None and header_pdf_file:
         group_spacer = Spacer(1, 2)
         group_subsection_blocks = []
 
-        # Subsection header bar (light blue) - ensure same width as group bar
+        # Subsection header bar (light blue) - ensure same width and padding as group bar
         for subsection, sub_df in group_df.groupby("Sub Section"):
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
@@ -521,13 +521,13 @@ if df is not None and header_pdf_file:
                 subsection_title = str(subsection)
             subsection_bar = Table(
                 [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
-                colWidths=[bar_width]  # <-- Ensure this matches bar_table
+                colWidths=[bar_width]
             )
             subsection_bar.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
                 ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Match the header bar's padding
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),  # Add right padding to match both ends
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Match header bar
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
                 ('TOPPADDING', (0, 0), (-1, -1), 4),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),

@@ -15,6 +15,7 @@ import datetime
 import requests
 from datetime import datetime
 import glob
+from reportlab.lib.utils import ImageReader
 
 # --- Weather: Current + Daily Summary ---
 def get_weather_and_forecast(lat, lon):
@@ -510,7 +511,7 @@ if df is not None and header_pdf_file:
     # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
     # We skip adding it here to avoid duplication.
 
-    doc.build(elements)
+    doc.build(elements, onFirstPage=add_footer_logo, onLaterPages=add_footer_logo)
     pdf_buffer.seek(0)
 
 

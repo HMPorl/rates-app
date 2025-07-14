@@ -519,16 +519,18 @@ if df is not None and header_pdf_file:
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            # Subsection header left-aligned, same width as table
-            subsection_table = Table(
+            # Subsection header as a single-cell table, same width as data table
+            subsection_bar = Table(
                 [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
-                colWidths=table_col_widths
+                colWidths=[bar_width]
             )
-            subsection_table.setStyle(TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 6),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
-                ('TOPPADDING', (0, 0), (-1, -1), 2),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            subsection_bar.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),  # Light blue, or pick your color
+                ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ]))
             subsection_spacer = Spacer(1, 2)
@@ -550,7 +552,7 @@ if df is not None and header_pdf_file:
                 # No grid or header styling
             ]))
             group_subsection_blocks.append(
-                [subsection_table, subsection_spacer, table, Spacer(1, 12)]
+                [subsection_bar, subsection_spacer, table, Spacer(1, 12)]
             )
 
         # Now, for the first subsection, wrap group bar + first subsection in KeepTogether

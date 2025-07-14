@@ -488,21 +488,22 @@ if df is not None and header_pdf_file:
             subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])
             subsection_spacer = Spacer(1, 2)
 
-            table_data = [["Category", "Equipment", "Price (£)"]]
+            # Remove header row and grid
+            table_data = []
             for _, row in sub_df.iterrows():
                 table_data.append([
                     row["ItemCategory"],
                     Paragraph(row["EquipmentName"], styles['BodyText']),
                     f"£{row['CustomPrice']:.2f}"
                 ])
-            table = Table(table_data, colWidths=[60, 380, 60], repeatRows=1)
+            table = Table(table_data, colWidths=[60, 380, 60], repeatRows=0)
             table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                # No grid, no header styling
+                # You can add row padding or font if you want, e.g.:
+                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ]))
             group_subsection_blocks.append(
                 [subsection_header, subsection_spacer, table, Spacer(1, 12)]

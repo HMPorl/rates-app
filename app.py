@@ -526,8 +526,8 @@ if df is not None and header_pdf_file:
             subsection_bar.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
                 ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),  # Set to 0 for perfect alignment
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Match the header bar's padding
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),  # Add right padding to match both ends
                 ('TOPPADDING', (0, 0), (-1, -1), 4),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),

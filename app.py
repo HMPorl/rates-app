@@ -499,7 +499,7 @@ if df is not None and header_pdf_file:
 
         # Group header bar (dark blue)
         bar_table = Table(
-            [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],  # Capitalise here
+            [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],
             colWidths=[bar_width]
         )
         bar_table.setStyle(TableStyle([
@@ -521,35 +521,6 @@ if df is not None and header_pdf_file:
             else:
                 subsection_title = str(subsection)
 
-            # Prepare both header variants
-            header_normal = Table(
-                [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
-                colWidths=[bar_width]
-            )
-            header_normal.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
-                ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ]))
-
-            header_continues = Table(
-                [[Paragraph(f"<i>{subsection_title} continues...</i>", styles['LeftHeading3'])]],
-                colWidths=[bar_width]
-            )
-            header_continues.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
-                ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ]))
-
             # Table data (no header, no grid)
             table_data = []
             for _, row in sub_df.iterrows():
@@ -559,7 +530,7 @@ if df is not None and header_pdf_file:
                     f"£{row['CustomPrice']:.2f}"
                 ])
 
-            # Use "continues..." in the repeated header row
+            # Use "continues..." in the repeated header row for all pages
             header_text = f"<i>{subsection_title} continues...</i>"
             table_with_repeat_header = Table(
                 [[Paragraph(header_text, styles['LeftHeading3'])]] + table_data,
@@ -582,7 +553,7 @@ if df is not None and header_pdf_file:
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
             ]))
 
-            # Add the table to the group_subsection_blocks
+            # Do NOT wrap in KeepTogether, so the table can break across pages and repeat the header
             group_subsection_blocks.append(
                 [table_with_repeat_header, Spacer(1, 12)]
             )

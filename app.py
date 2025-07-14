@@ -490,13 +490,13 @@ if df is not None and header_pdf_file:
         elements.append(Spacer(1, 12))
 
     # --- Main Price List Tables ---
-    table_col_widths = [60, 380, 60]  # Use this for both tables and bars
-    bar_width = sum(table_col_widths)  # 500 in your case
+    table_col_widths = [60, 380, 60]
+    bar_width = sum(table_col_widths)
 
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Use a Table with a single cell as wide as the data table
+        # Group header bar (dark blue)
         bar_table = Table(
             [[Paragraph(f"{group}", styles['BarHeading2'])]],
             colWidths=[bar_width]
@@ -504,7 +504,7 @@ if df is not None and header_pdf_file:
         bar_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
             ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Small padding for neatness
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
@@ -513,19 +513,18 @@ if df is not None and header_pdf_file:
         group_spacer = Spacer(1, 2)
         group_subsection_blocks = []
 
-        # Build all subsection blocks first
+        # Subsection header bar (light blue) - ensure same width as group bar
         for subsection, sub_df in group_df.groupby("Sub Section"):
             if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            # Subsection header as a single-cell table, same width as data table
             subsection_bar = Table(
                 [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
-                colWidths=[bar_width]
+                colWidths=[bar_width]  # <-- Ensure this matches bar_table
             )
             subsection_bar.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),  # Light blue, or pick your color
+                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
                 ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 8),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
@@ -549,7 +548,6 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                # No grid or header styling
             ]))
             group_subsection_blocks.append(
                 [subsection_bar, subsection_spacer, table, Spacer(1, 12)]

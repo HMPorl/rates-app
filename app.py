@@ -520,20 +520,35 @@ if df is not None and header_pdf_file:
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            subsection_bar = Table(
+
+            # Prepare both header variants
+            header_normal = Table(
                 [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
                 colWidths=[bar_width]
             )
-            subsection_bar.setStyle(TableStyle([
+            header_normal.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
                 ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
-                ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Match header bar
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 8),
                 ('TOPPADDING', (0, 0), (-1, -1), 4),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ]))
-            subsection_spacer = Spacer(1, 2)
+
+            header_continues = Table(
+                [[Paragraph(f"<i>{subsection_title} continues...</i>", styles['LeftHeading3'])]],
+                colWidths=[bar_width]
+            )
+            header_continues.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), '#e6eef7'),
+                ('TEXTCOLOR', (0, 0), (-1, -1), '#002D56'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ]))
 
             # Table data (no header, no grid)
             table_data = []
@@ -543,15 +558,33 @@ if df is not None and header_pdf_file:
                     Paragraph(row["EquipmentName"], styles['BodyText']),
                     f"£{row['CustomPrice']:.2f}"
                 ])
-            table = Table(table_data, colWidths=table_col_widths, repeatRows=0)
-            table.setStyle(TableStyle([
-                ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                ('FONTSIZE', (0, 0), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+
+            # Combine the two headers for repeatRows
+            # Only the first row (header_normal) will show on the first page, header_continues will repeat on subsequent pages
+            table_with_repeat_header = Table(
+                [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]] + table_data,
+                colWidths=[bar_width] if len(table_col_widths) == 1 else table_col_widths,
+                repeatRows=1
+            )
+            table_with_repeat_header.setStyle(TableStyle([
+                # Style for the header row
+                ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
+                ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
+                ('LEFTPADDING', (0, 0), (-1, 0), 8),
+                ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+                ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                # Style for the rest of the table
+                ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
             ]))
+
+            # Add the table to the group_subsection_blocks
             group_subsection_blocks.append(
-                [subsection_bar, subsection_spacer, table, Spacer(1, 12)]
+                [table_with_repeat_header, Spacer(1, 12)]
             )
 
         # Now, for the first subsection, wrap group bar + first subsection in KeepTogether

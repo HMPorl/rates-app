@@ -425,6 +425,21 @@ if df is not None and header_pdf_file:
         textColor='#002D56'  # Set font color
     ))
 
+    # Add this custom style for the group header (full-width bar)
+    styles.add(ParagraphStyle(
+        name='BarHeading2',
+        parent=styles['Heading2'],
+        alignment=TA_LEFT,
+        spaceBefore=12,
+        spaceAfter=6,
+        textColor='white',
+        fontSize=14,
+        leftIndent=0,
+        rightIndent=0,
+        backColor='#002D56',  # Bar background color
+        borderPadding=6,      # Padding inside the bar
+    ))
+
     # --- Custom Price Products Table at the Top (optional) ---
     if include_custom_table:
         custom_price_rows = []
@@ -476,8 +491,8 @@ if df is not None and header_pdf_file:
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Use the new left-aligned style for group header
-        group_header = Paragraph(f"{group}", styles['LeftHeading2'])
+        # Use the new bar style for group header
+        group_header = Paragraph(f"{group}", styles['BarHeading2'])
         group_spacer = Spacer(1, 2)
         group_subsection_blocks = []
 

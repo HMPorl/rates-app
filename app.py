@@ -19,12 +19,23 @@ from reportlab.lib.utils import ImageReader
 
 def add_footer_logo(canvas, doc):
     logo_path = "HMChev.png"  # Place your logo in the app root folder
-    logo_width = 60
-    logo_height = 30
-    x = (doc.pagesize[0] - logo_width) / 2  # Centered horizontally
+    page_width = doc.pagesize[0]
+    # Stretch logo to full page width, minus small margins
+    margin = 20  # points, adjust as needed
+    logo_width = page_width - 2 * margin
+    logo_height = 30  # or set to any desired height
+
+    x = margin
     y = 10  # 10 points from the bottom
+
     try:
-        canvas.drawImage(ImageReader(logo_path), x, y, width=logo_width, height=logo_height, mask='auto')
+        canvas.drawImage(
+            ImageReader(logo_path),
+            x, y,
+            width=logo_width,
+            height=logo_height,
+            mask='auto'
+        )
     except Exception:
         pass  # If logo not found, skip
 

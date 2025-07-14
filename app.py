@@ -404,23 +404,25 @@ if df is not None and header_pdf_file:
     elements = []
     styles = getSampleStyleSheet()
 
-    # Add these custom styles after styles = getSampleStyleSheet()
     from reportlab.lib.enums import TA_LEFT
     from reportlab.lib.styles import ParagraphStyle
 
+    # Add these custom styles after styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
         name='LeftHeading2',
         parent=styles['Heading2'],
         alignment=TA_LEFT,
         spaceBefore=6,
-        spaceAfter=6
+        spaceAfter=6,
+        textColor='#002D56'  # Set font color
     ))
     styles.add(ParagraphStyle(
         name='LeftHeading3',
         parent=styles['Heading3'],
         alignment=TA_LEFT,
         spaceBefore=2,
-        spaceAfter=4
+        spaceAfter=4,
+        textColor='#002D56'  # Set font color
     ))
 
     # --- Custom Price Products Table at the Top (optional) ---

@@ -503,8 +503,8 @@ if df is not None and header_pdf_file:
         bar_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
             ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),   # Set to 0 for flush left
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),  # Set to 0 for flush right
+            ('LEFTPADDING', (0, 0), (-1, -1), 1),   # Set to 0 for flush left
+            ('RIGHTPADDING', (0, 0), (-1, -1), 1),  # Set to 0 for flush right
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),

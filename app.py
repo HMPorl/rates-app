@@ -425,21 +425,22 @@ if df is not None and header_pdf_file:
         textColor='#002D56'  # Set font color
     ))
 
-    # Add this custom style for the group header (full-width bar)
+    # Update BarHeading2 style to use Helvetica-Bold
     styles.add(ParagraphStyle(
         name='BarHeading2',
         parent=styles['Heading2'],
+        fontName='Helvetica-Bold',  # Use Helvetica-Bold
         alignment=TA_LEFT,
         spaceBefore=12,
         spaceAfter=6,
         textColor='white',
         fontSize=14,
-        leftIndent=0,      # Remove left indent
-        rightIndent=0,     # Remove right indent
+        leftIndent=0,
+        rightIndent=0,
         backColor='#002D56',
-        borderPadding=8,   # More padding for a thicker bar
-        padding=0,         # No extra padding
-        leading=18,        # Line height
+        borderPadding=8,
+        padding=0,
+        leading=18,
     ))
 
     # --- Custom Price Products Table at the Top (optional) ---
@@ -498,13 +499,13 @@ if df is not None and header_pdf_file:
 
         # Group header bar (dark blue)
         bar_table = Table(
-            [[Paragraph(f"{group}", styles['BarHeading2'])]],
+            [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],  # Capitalise here
             colWidths=[bar_width]
         )
         bar_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
             ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Set to 8 for both bars
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
             ('RIGHTPADDING', (0, 0), (-1, -1), 8),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),

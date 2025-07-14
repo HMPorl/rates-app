@@ -434,10 +434,12 @@ if df is not None and header_pdf_file:
         spaceAfter=6,
         textColor='white',
         fontSize=14,
-        leftIndent=0,
-        rightIndent=0,
-        backColor='#002D56',  # Bar background color
-        borderPadding=6,      # Padding inside the bar
+        leftIndent=0,      # Remove left indent
+        rightIndent=0,     # Remove right indent
+        backColor='#002D56',
+        borderPadding=8,   # More padding for a thicker bar
+        padding=0,         # No extra padding
+        leading=18,        # Line height
     ))
 
     # --- Custom Price Products Table at the Top (optional) ---
@@ -488,11 +490,25 @@ if df is not None and header_pdf_file:
         elements.append(Spacer(1, 12))
 
     # --- Main Price List Tables ---
+    table_col_widths = [60, 380, 60]  # Use this for both tables and bars
+
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Use the new bar style for group header
-        group_header = Paragraph(f"{group}", styles['BarHeading2'])
+        # Use a Table to create a bar as wide as the data tables
+        bar_table = Table(
+            [[Paragraph(f"{group}", styles['BarHeading2'])]],
+            colWidths=table_col_widths
+        )
+        bar_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
         group_spacer = Spacer(1, 2)
         group_subsection_blocks = []
 
@@ -502,10 +518,21 @@ if df is not None and header_pdf_file:
                 subsection_title = "Untitled"
             else:
                 subsection_title = str(subsection)
-            subsection_header = Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])
+            # Subsection header left-aligned, same width as table
+            subsection_table = Table(
+                [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]],
+                colWidths=table_col_widths
+            )
+            subsection_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ]))
             subsection_spacer = Spacer(1, 2)
 
-            # Remove header row and grid
+            # Table data (no header, no grid)
             table_data = []
             for _, row in sub_df.iterrows():
                 table_data.append([
@@ -513,24 +540,23 @@ if df is not None and header_pdf_file:
                     Paragraph(row["EquipmentName"], styles['BodyText']),
                     f"£{row['CustomPrice']:.2f}"
                 ])
-            table = Table(table_data, colWidths=[60, 380, 60], repeatRows=0)
+            table = Table(table_data, colWidths=table_col_widths, repeatRows=0)
             table.setStyle(TableStyle([
-                # No grid, no header styling
-                # You can add row padding or font if you want, e.g.:
                 ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                # No grid or header styling
             ]))
             group_subsection_blocks.append(
-                [subsection_header, subsection_spacer, table, Spacer(1, 12)]
+                [subsection_table, subsection_spacer, table, Spacer(1, 12)]
             )
 
-        # Now, for the first subsection, wrap group header + first subsection in KeepTogether
+        # Now, for the first subsection, wrap group bar + first subsection in KeepTogether
         if group_subsection_blocks:
             group_elements.append(
                 KeepTogether([
-                    group_header,
+                    bar_table,
                     group_spacer,
                     *group_subsection_blocks[0]
                 ])
@@ -541,7 +567,7 @@ if df is not None and header_pdf_file:
         else:
             group_elements.append(
                 KeepTogether([
-                    group_header,
+                    bar_table,
                     group_spacer
                 ])
             )

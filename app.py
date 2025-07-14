@@ -17,6 +17,17 @@ from datetime import datetime
 import glob
 from reportlab.lib.utils import ImageReader
 
+def add_footer_logo(canvas, doc):
+    logo_path = "HMChev.png"  # Place your logo in the app root folder
+    logo_width = 60
+    logo_height = 30
+    x = (doc.pagesize[0] - logo_width) / 2  # Centered horizontally
+    y = 10  # 10 points from the bottom
+    try:
+        canvas.drawImage(ImageReader(logo_path), x, y, width=logo_width, height=logo_height, mask='auto')
+    except Exception:
+        pass  # If logo not found, skip
+
 # --- Weather: Current + Daily Summary ---
 def get_weather_and_forecast(lat, lon):
     url = (

@@ -521,10 +521,10 @@ if df is not None and header_pdf_file:
             else:
                 subsection_title = str(subsection)
 
-            # Subsection header row (spans all columns, no "continues...")
+            # Subsection header row (subtitle in the second/wide cell)
             header_row = [
-                Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),
-                '',  # Empty cell for Equipment column
+                '',  # Empty cell for ItemCategory (narrow)
+                Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),  # Subtitle in wide cell
                 ''   # Empty cell for Price column
             ]
 
@@ -550,7 +550,7 @@ if df is not None and header_pdf_file:
                 ('RIGHTPADDING', (0, 0), (-1, 0), 8),
                 ('TOPPADDING', (0, 0), (-1, 0), 4),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
-                ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Align subtitle left in the wide cell
                 # Style for the rest of the table
                 ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
                 ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),

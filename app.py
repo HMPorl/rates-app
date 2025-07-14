@@ -491,20 +491,21 @@ if df is not None and header_pdf_file:
 
     # --- Main Price List Tables ---
     table_col_widths = [60, 380, 60]  # Use this for both tables and bars
+    bar_width = sum(table_col_widths)  # 500 in your case
 
     for group, group_df in df.groupby("GroupName"):
         group_elements = []
 
-        # Use a Table to create a bar as wide as the data tables
+        # Use a Table with a single cell as wide as the data table
         bar_table = Table(
             [[Paragraph(f"{group}", styles['BarHeading2'])]],
-            colWidths=table_col_widths
+            colWidths=[bar_width]
         )
         bar_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
             ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 6),   # Set to 0 for flush left
-            ('RIGHTPADDING', (0, 0), (-1, -1), 6),  # Set to 0 for flush right
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),   # Small padding for neatness
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ('TOPPADDING', (0, 0), (-1, -1), 6),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),

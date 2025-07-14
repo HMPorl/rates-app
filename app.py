@@ -559,10 +559,10 @@ if df is not None and header_pdf_file:
                     f"£{row['CustomPrice']:.2f}"
                 ])
 
-            # Combine the two headers for repeatRows
-            # Only the first row (header_normal) will show on the first page, header_continues will repeat on subsequent pages
+            # Use "continues..." in the repeated header row
+            header_text = f"<i>{subsection_title} continues...</i>"
             table_with_repeat_header = Table(
-                [[Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3'])]] + table_data,
+                [[Paragraph(header_text, styles['LeftHeading3'])]] + table_data,
                 colWidths=[bar_width] if len(table_col_widths) == 1 else table_col_widths,
                 repeatRows=1
             )

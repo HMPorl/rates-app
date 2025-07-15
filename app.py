@@ -129,11 +129,13 @@ def read_pdf_header(file):
 customer_name = st.text_input("⭐Enter Customer Name")
 bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
+
+# --- Move PDF header selection ABOVE Excel upload ---
 header_pdf_choice = st.selectbox(
-    "Choose a PDF Header Sheet from the app folder, or upload your own:",
+    "⭐Choose a PDF Header Sheet from the app folder, or upload your own:",
     ["(Upload a PDF header below)"] + glob.glob("*.pdf")
 )
+uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
 uploaded_header_pdf = st.file_uploader("❗ADMIN Upload PDF Header (Admin Only❗)", type=["pdf"], key="header_pdf_upload")
 
 # -------------------------------

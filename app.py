@@ -127,14 +127,14 @@ def read_pdf_header(file):
     return file.read()
 
 customer_name = st.text_input("⭐Enter Customer Name")
-bespoke_email = st.text_input("✉️ Bespoke email address (optional)")
-logo_file = st.file_uploader("🖼️Upload Company Logo", type=["png", "jpg", "jpeg"])
-uploaded_file = st.file_uploader("💹Upload your Excel file (Admin Only❗)", type=["xlsx"])
+bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
+logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
 header_pdf_choice = st.selectbox(
     "Choose a PDF Header Sheet from the app folder, or upload your own:",
     ["(Upload a PDF header below)"] + glob.glob("*.pdf")
 )
-uploaded_header_pdf = st.file_uploader("Or upload a PDF Header (overrides selection above)", type=["pdf"], key="header_pdf_upload")
+uploaded_header_pdf = st.file_uploader("❗ADMIN Upload PDF Header (Admin Only❗)", type=["pdf"], key="header_pdf_upload")
 
 # -------------------------------
 # Load and Validate Excel File

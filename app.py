@@ -177,7 +177,7 @@ header_pdf_file = None
 if uploaded_header_pdf is not None:
     # Use uploaded file (takes priority)
     header_pdf_file = uploaded_header_pdf
-elif header_pdf_choice != "(Upload a PDF header below)":
+elif header_pdf_choice != "(Select Sales Person)":
     # Use selected file from folder
     with open(header_pdf_choice, "rb") as f:
         header_pdf_file = io.BytesIO(f.read())

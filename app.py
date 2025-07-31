@@ -726,10 +726,17 @@ if df is not None and header_pdf_file:
     merged_pdf.close()
 
     # PDF Download Button
+    # Generate filename: Price List for "Customer Name" Month Year.pdf
+    from datetime import datetime
+    now = datetime.now()
+    month_year = now.strftime("%B %Y")
+    safe_customer_name = customer_name.strip() if customer_name else "Customer"
+    filename = f'Price List for {safe_customer_name} {month_year}.pdf'
+
     st.download_button(
         label="Download as PDF",
         data=merged_output.getvalue(),
-        file_name="custom_price_list.pdf",
+        file_name=filename,
         mime="application/pdf"
     )
 

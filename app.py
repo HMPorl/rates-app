@@ -137,7 +137,7 @@ logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg
 # --- Move PDF header selection ABOVE Excel upload ---
 header_pdf_choice = st.selectbox(
     "⭐Select a PDF Header Sheet",
-    ["(Select a PDF header below)"] + glob.glob("*.pdf")
+    ["(Upload a PDF header below)"] + glob.glob("*.pdf")
 )
 uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
 uploaded_header_pdf = st.file_uploader("❗ADMIN Upload PDF Header (Admin Only❗)", type=["pdf"], key="header_pdf_upload")

@@ -776,7 +776,7 @@ if uploaded_progress and st.button("Load Progress"):
         st.error(f"Failed to load progress: {e}")
 
 import os
-st.write("Excel files in directory:", os.listdir())
+st.write("Current working directory:", os.getcwd())
 
 
 

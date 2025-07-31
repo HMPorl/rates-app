@@ -59,43 +59,47 @@ def get_weather_and_forecast(lat, lon):
     except Exception:
         return None, [], [], []
 
-city = "London"
-lat, lon = 51.5074, -0.1278
+# Add this toggle before the weather section
+show_weather = st.checkbox("Show weather information", value=False)
 
-current, times, temps, codes = get_weather_and_forecast(lat, lon)
+if show_weather:
+    city = "London"
+    lat, lon = 51.5074, -0.1278
 
-weather_icons = {
-    0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-    51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
-    61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
-    71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
-    81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
-    96: "⛈️", 99: "⛈️"
-}
+    current, times, temps, codes = get_weather_and_forecast(lat, lon)
 
-if current:
-    # Current weather
-    icon = weather_icons.get(current["weathercode"], "❓")
-    st.markdown(
-        f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
-    )
+    weather_icons = {
+        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
+        51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
+        61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
+        71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
+        81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
+        96: "⛈️", 99: "⛈️"
+    }
 
-    # Daily summary
-    today = datetime.now().strftime("%Y-%m-%d")
-    today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
-    today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
-    if today_temps:
-        min_temp = min(today_temps)
-        max_temp = max(today_temps)
-        # Most common weather code for the day
-        from collections import Counter
-        main_code = Counter(today_codes).most_common(1)[0][0]
-        main_icon = weather_icons.get(main_code, "❓")
+    if current:
+        # Current weather
+        icon = weather_icons.get(current["weathercode"], "❓")
         st.markdown(
-            f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
+            f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
         )
-else:
-    st.markdown("### 🌦️ Weather: Unable to fetch data")
+
+        # Daily summary
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
+        today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
+        if today_temps:
+            min_temp = min(today_temps)
+            max_temp = max(today_temps)
+            # Most common weather code for the day
+            from collections import Counter
+            main_code = Counter(today_codes).most_common(1)[0][0]
+            main_icon = weather_icons.get(main_code, "❓")
+            st.markdown(
+                f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
+            )
+    else:
+        st.markdown("### 🌦️ Weather: Unable to fetch data")
 
 
 
@@ -133,7 +137,7 @@ logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg
 # --- Move PDF header selection ABOVE Excel upload ---
 header_pdf_choice = st.selectbox(
     "⭐Select a PDF Header Sheet",
-    ["(Upload a PDF header below)"] + glob.glob("*.pdf")
+    ["(Select a PDF header below)"] + glob.glob("*.pdf")
 )
 uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
 uploaded_header_pdf = st.file_uploader("❗ADMIN Upload PDF Header (Admin Only❗)", type=["pdf"], key="header_pdf_upload")

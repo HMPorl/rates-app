@@ -775,6 +775,9 @@ if uploaded_progress and st.button("Load Progress"):
     except Exception as e:
         st.error(f"Failed to load progress: {e}")
 
+import os
+st.write("Excel files in directory:", os.listdir())
+
 
 
 

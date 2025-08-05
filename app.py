@@ -144,7 +144,7 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
         msg = MIMEMultipart()
         msg['From'] = sender_email or "noreply@company.com"
         msg['To'] = recipient_email
-        msg['Subject'] = f"Price List for {customer_name} - {datetime.datetime.now().strftime('%Y-%m-%d')}"
+        msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
         
         # Email body
         body = f"""
@@ -154,7 +154,7 @@ Please find attached the price list for customer: {customer_name}
 
 Summary:
 - Total Items: {len(admin_df)}
-- Date Created: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+- Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 - Created via: Net Rates Calculator
 
 The attached Excel file contains:
@@ -179,7 +179,7 @@ Net Rates Calculator System
             summary_data = {
                 'Customer': [customer_name],
                 'Total Items': [len(admin_df)],
-                'Date Created': [datetime.datetime.now().strftime("%Y-%m-%d %H:%M")],
+                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
                 'Created By': ['Net Rates Calculator']
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
@@ -190,7 +190,7 @@ Net Rates Calculator System
         encoders.encode_base64(part)
         part.add_header(
             'Content-Disposition',
-            f'attachment; filename= {customer_name}_pricelist_{datetime.datetime.now().strftime("%Y%m%d")}.xlsx'
+            f'attachment; filename= {customer_name}_pricelist_{datetime.now().strftime("%Y%m%d")}.xlsx'
         )
         msg.attach(part)
         
@@ -337,7 +337,7 @@ if df is not None and header_pdf_file:
     if st.button("💾Save Progress"):
         import datetime
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
 
         custom_prices = {}
@@ -596,7 +596,7 @@ if df is not None and header_pdf_file:
             share_data = {
                 "customer": customer_name,
                 "data": admin_df.to_dict('records'),
-                "timestamp": datetime.datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat()
             }
             # Encode data for demo purposes
             encoded_data = base64.b64encode(json.dumps(share_data).encode()).decode()[:50] + "..."
@@ -612,13 +612,13 @@ if df is not None and header_pdf_file:
 
 **Customer:** {customer_name}
 **Items:** {len(admin_df)} equipment items
-**Created:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
+**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
 **Created by:** Net Rates Calculator
 
 📊 **Action Required:** Please download and import the attached Excel file into our CRM system.
 
 📎 Files attached:
-- {customer_name}_admin_pricelist_{datetime.datetime.now().strftime('%Y%m%d')}.xlsx
+- {customer_name}_admin_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx
             """
             st.success("💬 Teams message template generated!")
             st.text_area("Copy this message to Teams:", teams_message, height=200)
@@ -631,7 +631,7 @@ if df is not None and header_pdf_file:
                 "headers": {"Content-Type": "application/json"},
                 "payload": {
                     "customer_name": customer_name,
-                    "created_date": datetime.datetime.now().isoformat(),
+                    "created_date": datetime.now().isoformat(),
                     "items": admin_df.head(3).to_dict('records'),  # Show first 3 as example
                     "total_items": len(admin_df)
                 }

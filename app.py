@@ -137,12 +137,12 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, sender_email=None, sender_password=None):
+def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None):
     """Send price list via email to admin team"""
     try:
         # Create the email
         msg = MIMEMultipart()
-        msg['From'] = sender_email or "noreply@company.com"
+        msg['From'] = smtp_config.get('from_email', 'noreply@thehireman.com') if smtp_config else 'noreply@thehireman.com'
         msg['To'] = recipient_email
         msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
         
@@ -190,16 +190,29 @@ Net Rates Calculator System
         encoders.encode_base64(part)
         part.add_header(
             'Content-Disposition',
-            f'attachment; filename= {customer_name}_pricelist_{datetime.now().strftime("%Y%m%d")}.xlsx'
+            f'attachment; filename={customer_name}_pricelist_{datetime.now().strftime("%Y%m%d")}.xlsx'
         )
         msg.attach(part)
         
-        # For demonstration - return email object (you'd configure SMTP for actual sending)
-        return msg
+        # Send email if SMTP is configured
+        if smtp_config and smtp_config.get('enabled', False):
+            try:
+                server = smtplib.SMTP(smtp_config['smtp_server'], smtp_config['smtp_port'])
+                if smtp_config.get('use_tls', True):
+                    server.starttls()
+                server.login(smtp_config['username'], smtp_config['password'])
+                text = msg.as_string()
+                server.sendmail(smtp_config['from_email'], recipient_email, text)
+                server.quit()
+                return {'status': 'sent', 'message': 'Email sent successfully!'}
+            except Exception as e:
+                return {'status': 'error', 'message': f'SMTP Error: {str(e)}'}
+        else:
+            # Return the email content for manual sending or configuration
+            return {'status': 'prepared', 'message': 'Email prepared (SMTP not configured)', 'email_obj': msg}
             
     except Exception as e:
-        st.error(f"Email preparation failed: {str(e)}")
-        return False
+        return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
 customer_name = st.text_input("⭐Enter Customer Name")
 bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
@@ -547,35 +560,183 @@ if df is not None and header_pdf_file:
     # -------------------------------
     st.markdown("### 📧 Email to Admin Team")
     
+    # SMTP Configuration Section
+    with st.expander("⚙️ SMTP Configuration (Click to configure email sending)"):
+        st.markdown("#### Choose Email Provider")
+        
+        email_provider = st.selectbox(
+            "Email Service",
+            ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"]
+        )
+        
+        if email_provider == "SendGrid":
+            st.info("📋 **SendGrid Setup Instructions:**")
+            st.markdown("""
+            1. Go to [SendGrid Console](https://app.sendgrid.com/)
+            2. Navigate to Settings → API Keys
+            3. Create a new API key with 'Mail Send' permissions
+            4. Copy the API key and paste below
+            """)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                sg_api_key = st.text_input("SendGrid API Key", type="password")
+                sg_from_email = st.text_input("From Email", value="noreply@thehireman.com")
+            with col2:
+                st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
+            
+            if sg_api_key:
+                smtp_config = {
+                    'enabled': True,
+                    'smtp_server': 'smtp.sendgrid.net',
+                    'smtp_port': 587,
+                    'username': 'apikey',
+                    'password': sg_api_key,
+                    'from_email': sg_from_email,
+                    'use_tls': True,
+                    'provider': 'SendGrid'
+                }
+            else:
+                smtp_config = {'enabled': False}
+                
+        elif email_provider == "Gmail":
+            st.warning("⚠️ **Gmail requires App Password** (not your regular password)")
+            st.markdown("""
+            1. Enable 2-Factor Authentication on your Google account
+            2. Go to Google Account → Security → App passwords
+            3. Generate an app password for 'Mail'
+            4. Use that 16-character password below
+            """)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                gmail_user = st.text_input("Gmail Address")
+                gmail_password = st.text_input("App Password", type="password")
+            with col2:
+                st.info("**Gmail Settings:**\n- Server: smtp.gmail.com\n- Port: 587\n- TLS: Enabled")
+            
+            if gmail_user and gmail_password:
+                smtp_config = {
+                    'enabled': True,
+                    'smtp_server': 'smtp.gmail.com',
+                    'smtp_port': 587,
+                    'username': gmail_user,
+                    'password': gmail_password,
+                    'from_email': gmail_user,
+                    'use_tls': True,
+                    'provider': 'Gmail'
+                }
+            else:
+                smtp_config = {'enabled': False}
+                
+        elif email_provider == "Outlook/Office365":
+            st.info("📋 **Office365/Outlook Setup:**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                o365_user = st.text_input("Office365 Email")
+                o365_password = st.text_input("Password", type="password")
+            with col2:
+                st.info("**Office365 Settings:**\n- Server: smtp.office365.com\n- Port: 587\n- TLS: Enabled")
+            
+            if o365_user and o365_password:
+                smtp_config = {
+                    'enabled': True,
+                    'smtp_server': 'smtp.office365.com',
+                    'smtp_port': 587,
+                    'username': o365_user,
+                    'password': o365_password,
+                    'from_email': o365_user,
+                    'use_tls': True,
+                    'provider': 'Office365'
+                }
+            else:
+                smtp_config = {'enabled': False}
+                
+        elif email_provider == "Custom SMTP":
+            st.info("🔧 **Custom SMTP Configuration:**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                custom_server = st.text_input("SMTP Server")
+                custom_port = st.number_input("SMTP Port", value=587)
+                custom_user = st.text_input("Username")
+            with col2:
+                custom_password = st.text_input("Password", type="password")
+                custom_from = st.text_input("From Email")
+                use_tls = st.checkbox("Use TLS", value=True)
+            
+            if custom_server and custom_user and custom_password:
+                smtp_config = {
+                    'enabled': True,
+                    'smtp_server': custom_server,
+                    'smtp_port': int(custom_port),
+                    'username': custom_user,
+                    'password': custom_password,
+                    'from_email': custom_from,
+                    'use_tls': use_tls,
+                    'provider': 'Custom'
+                }
+            else:
+                smtp_config = {'enabled': False}
+        else:
+            smtp_config = {'enabled': False}
+        
+        # Test Email Button
+        if smtp_config.get('enabled', False):
+            if st.button("🧪 Test Email Configuration"):
+                try:
+                    server = smtplib.SMTP(smtp_config['smtp_server'], smtp_config['smtp_port'])
+                    if smtp_config.get('use_tls', True):
+                        server.starttls()
+                    server.login(smtp_config['username'], smtp_config['password'])
+                    server.quit()
+                    st.success("✅ SMTP Configuration Test Successful!")
+                except Exception as e:
+                    st.error(f"❌ SMTP Test Failed: {str(e)}")
+    
+    # Email Form
     col1, col2 = st.columns(2)
     with col1:
         admin_email = st.text_input("Admin Team Email", placeholder="admin@company.com")
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
+    # Status indicator
+    if smtp_config.get('enabled', False):
+        st.success(f"✅ Email configured via {smtp_config.get('provider', 'SMTP')}")
+    else:
+        st.warning("⚠️ Email not configured - will prepare email only")
+    
     if st.button("📨 Send Email to Admin Team") and admin_email:
         if customer_name:
             try:
-                # Prepare the email
-                email_msg = send_email_with_pricelist(
+                # Prepare and send the email
+                result = send_email_with_pricelist(
                     customer_name, 
                     admin_df, 
                     transport_df if include_transport else pd.DataFrame(), 
-                    admin_email
+                    admin_email,
+                    smtp_config
                 )
                 
-                if email_msg:
+                if result['status'] == 'sent':
+                    st.success(f"✅ {result['message']}")
+                    st.balloons()
+                elif result['status'] == 'prepared':
                     st.success(f"✅ Email prepared successfully!")
-                    st.info("📝 **Note**: Email is prepared but requires SMTP configuration for automatic sending. Contact IT to set up email automation.")
+                    st.info("📝 **Note**: Configure SMTP above to enable automatic sending.")
                     
                     # Show email preview
                     with st.expander("📧 Email Preview"):
-                        st.text(f"To: {admin_email}")
-                        st.text(f"Subject: {email_msg['Subject']}")
-                        st.text("📎 Attached: Excel file with price list")
-                        
+                        email_obj = result.get('email_obj')
+                        if email_obj:
+                            st.text(f"To: {admin_email}")
+                            st.text(f"Subject: {email_obj['Subject']}")
+                            st.text("📎 Attached: Excel file with price list")
                 else:
-                    st.error("❌ Failed to prepare email")
+                    st.error(f"❌ {result['message']}")
+                    
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
         else:

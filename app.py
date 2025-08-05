@@ -142,7 +142,7 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
     try:
         # Create the email
         msg = MIMEMultipart()
-        msg['From'] = smtp_config.get('from_email', 'noreply@thehireman.com') if smtp_config else 'noreply@thehireman.com'
+        msg['From'] = smtp_config.get('from_email', 'noreply@thehireman.co.uk') if smtp_config else 'noreply@thehireman.co.uk'
         msg['To'] = recipient_email
         msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
         
@@ -576,14 +576,34 @@ if df is not None and header_pdf_file:
             2. Navigate to Settings → API Keys
             3. Create a new API key with 'Mail Send' permissions
             4. Copy the API key and paste below
+            5. **IMPORTANT**: Verify your sender email in Settings → Sender Authentication
             """)
             
             col1, col2 = st.columns(2)
             with col1:
                 sg_api_key = st.text_input("SendGrid API Key", type="password")
-                sg_from_email = st.text_input("From Email", value="noreply@thehireman.com")
+                sg_from_email = st.text_input("From Email", value="paul.scott@thehireman.co.uk", help="Must be a verified sender in SendGrid")
             with col2:
                 st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
+                st.warning("⚠️ **Important**: The 'From Email' must be verified in SendGrid → Settings → Sender Authentication")
+            
+            # Sender verification helper
+            if sg_from_email:
+                st.markdown("#### 🔍 **Sender Verification Check**")
+                st.markdown(f"""
+                **Your From Email:** `{sg_from_email}`
+                
+                **To verify this email in SendGrid:**
+                1. Go to [SendGrid Sender Authentication](https://app.sendgrid.com/settings/sender_auth)
+                2. Click **Single Sender Verification**
+                3. Add `{sg_from_email}` as a verified sender
+                4. Check your email and click the verification link
+                
+                **Alternative emails you could use:**
+                - Your work email: `paul.scott@thehireman.co.uk`
+                - Company no-reply: `noreply@thehireman.co.uk` (if domain is verified)
+                - Gmail: `your.name@gmail.com` (if you have one)
+                """)
             
             if sg_api_key:
                 smtp_config = {
@@ -1181,7 +1201,7 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
         st.markdown("#### Email Configuration")
         col1, col2 = st.columns(2)
         with col1:
-            default_admin_email = st.text_input("Default Admin Email", value="admin@thehireman.com")
+            default_admin_email = st.text_input("Default Admin Email", value="admin@thehireman.co.uk")
             cc_emails = st.text_input("CC Emails (comma separated)", placeholder="manager@company.com, crm@company.com")
         with col2:
             email_template = st.selectbox("Email Template", 

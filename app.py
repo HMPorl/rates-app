@@ -11,7 +11,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import json
 import os
-import datetime
 import requests
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -348,7 +347,6 @@ if df is not None and header_pdf_file:
     # Save Progress Button (with timestamp and download)
     # -------------------------------
     if st.button("💾Save Progress"):
-        import datetime
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"

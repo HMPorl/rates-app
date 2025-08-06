@@ -280,7 +280,9 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Global and Group-Level Discounts
     # -------------------------------
-    global_discount = st.number_input("Global Discount (%)", min_value=0, max_value=100, value=0, step=1)
+    # Get global discount from session state if available, otherwise use default
+    global_discount_value = st.session_state.get("global_discount", 0)
+    global_discount = st.number_input("Global Discount (%)", min_value=0, max_value=100, value=global_discount_value, step=1, key="global_discount")
 
     st.markdown("### Group-Level Discounts")
     group_discount_keys = {}
@@ -290,13 +292,16 @@ if df is not None and header_pdf_file:
     for i, (group, subsection) in enumerate(group_keys):
         col = cols[i % 3]  # Fill down each column
         with col:
+            discount_key = f"{group}_{subsection}_discount"
+            # Use session state value if available, otherwise use global discount
+            default_value = st.session_state.get(discount_key, global_discount)
             st.number_input(
                 f"{group} - {subsection} (%)",
                 min_value=0,
                 max_value=100,
-                value=global_discount,
+                value=default_value,
                 step=1,
-                key=f"{group}_{subsection}_discount"
+                key=discount_key
             )
 
 
@@ -1289,25 +1294,42 @@ if uploaded_progress and st.button("Load Progress"):
         loaded_data = json.load(uploaded_progress)
         source = "uploaded file"
 
-        # Clear relevant session state keys
-        for key in list(st.session_state.keys()):
-            if key.endswith("_discount") or key.startswith("price_") or key.startswith("transport_"):
-                del st.session_state[key]
+        # Clear ALL session state to avoid widget conflicts
+        keys_to_clear = []
+        for key in st.session_state.keys():
+            if (key.endswith("_discount") or 
+                key.startswith("price_") or 
+                key.startswith("transport_") or
+                key == "customer_name" or
+                key == "global_discount"):
+                keys_to_clear.append(key)
+        
+        for key in keys_to_clear:
+            del st.session_state[key]
+        
+        # Restore values to session state
         st.session_state["customer_name"] = loaded_data.get("customer_name", "")
         st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+        
+        # Restore group discounts
         for key, value in loaded_data.get("group_discounts", {}).items():
             st.session_state[key] = value
+            
         # Restore custom prices using ItemCategory as key
         custom_prices = loaded_data.get("custom_prices", {})
         found_count = 0
-        for idx, row in df.iterrows():
-            item_key = str(row["ItemCategory"])
-            price_key = f"price_{idx}"
-            if item_key in custom_prices:
-                st.session_state[price_key] = custom_prices[item_key]
-                found_count += 1
+        if df is not None:
+            for idx, row in df.iterrows():
+                item_key = str(row["ItemCategory"])
+                price_key = f"price_{idx}"
+                if item_key in custom_prices:
+                    st.session_state[price_key] = custom_prices[item_key]
+                    found_count += 1
+                    
+        # Restore transport charges
         for key, value in loaded_data.get("transport_charges", {}).items():
             st.session_state[key] = value
+            
         st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
         st.rerun()
     except Exception as e:

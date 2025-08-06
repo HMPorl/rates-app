@@ -96,7 +96,7 @@ def add_footer_logo(canvas, doc):
     except Exception:
         pass  # If logo not found, skip
 
-# --- Weather: Current + Daily Summary ---
+# --- Weather: Current + Daily Summary 1 ---
 def get_weather_and_forecast(lat, lon):
     url = (
         f"https://api.open-meteo.com/v1/forecast?"

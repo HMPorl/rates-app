@@ -23,6 +23,57 @@ from datetime import datetime
 import glob
 from reportlab.lib.utils import ImageReader
 
+# -------------------------------
+# Configuration Management
+# -------------------------------
+CONFIG_FILE = "config.json"
+
+def load_config():
+    """Load configuration from JSON file"""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        st.error(f"Error loading config: {e}")
+    
+    # Return default config if file doesn't exist or has errors
+    return {
+        "smtp_settings": {
+            "provider": "",
+            "sendgrid_api_key": "",
+            "sendgrid_from_email": "",
+            "gmail_user": "",
+            "gmail_password": "",
+            "o365_user": "",
+            "o365_password": "",
+            "custom_server": "",
+            "custom_port": 587,
+            "custom_user": "",
+            "custom_password": "",
+            "custom_from": "",
+            "custom_use_tls": True
+        },
+        "admin_settings": {
+            "default_admin_email": "admin@thehireman.co.uk",
+            "cc_emails": ""
+        }
+    }
+
+def save_config(config):
+    """Save configuration to JSON file"""
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Error saving config: {e}")
+        return False
+
+# Load configuration at startup
+if 'config' not in st.session_state:
+    st.session_state.config = load_config()
+
 def add_footer_logo(canvas, doc):
     logo_path = "HMChev.png"  # Place your logo in the app root folder
     page_width = doc.pagesize[0]
@@ -567,9 +618,14 @@ if df is not None and header_pdf_file:
     with st.expander("⚙️ SMTP Configuration (Click to configure email sending)"):
         st.markdown("#### Choose Email Provider")
         
+        # Load saved settings
+        config = st.session_state.config
+        smtp_settings = config.get("smtp_settings", {})
+        
         email_provider = st.selectbox(
             "Email Service",
-            ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"]
+            ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"],
+            index=["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"].index(smtp_settings.get("provider", "Not Configured")) if smtp_settings.get("provider", "Not Configured") in ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"] else 0
         )
         
         if email_provider == "SendGrid":
@@ -584,11 +640,30 @@ if df is not None and header_pdf_file:
             
             col1, col2 = st.columns(2)
             with col1:
-                sg_api_key = st.text_input("SendGrid API Key", type="password")
-                sg_from_email = st.text_input("From Email", value="paul.scott@thehireman.co.uk", help="Must be a verified sender in SendGrid")
+                sg_api_key = st.text_input(
+                    "SendGrid API Key", 
+                    type="password", 
+                    value=smtp_settings.get("sendgrid_api_key", ""),
+                    help="This will be saved securely to config.json"
+                )
+                sg_from_email = st.text_input(
+                    "From Email", 
+                    value=smtp_settings.get("sendgrid_from_email", "paul.scott@thehireman.co.uk"), 
+                    help="Must be a verified sender in SendGrid"
+                )
             with col2:
                 st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
                 st.warning("⚠️ **Important**: The 'From Email' must be verified in SendGrid → Settings → Sender Authentication")
+            
+            # Save settings button
+            if st.button("💾 Save SendGrid Settings"):
+                config["smtp_settings"]["provider"] = "SendGrid"
+                config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
+                config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
+                if save_config(config):
+                    st.session_state.config = config
+                    st.success("✅ SendGrid settings saved successfully!")
+                    st.rerun()
             
             # Sender verification helper
             if sg_from_email:
@@ -633,10 +708,20 @@ if df is not None and header_pdf_file:
             
             col1, col2 = st.columns(2)
             with col1:
-                gmail_user = st.text_input("Gmail Address")
-                gmail_password = st.text_input("App Password", type="password")
+                gmail_user = st.text_input("Gmail Address", value=smtp_settings.get("gmail_user", ""))
+                gmail_password = st.text_input("App Password", type="password", value=smtp_settings.get("gmail_password", ""))
             with col2:
                 st.info("**Gmail Settings:**\n- Server: smtp.gmail.com\n- Port: 587\n- TLS: Enabled")
+            
+            # Save settings button
+            if st.button("💾 Save Gmail Settings"):
+                config["smtp_settings"]["provider"] = "Gmail"
+                config["smtp_settings"]["gmail_user"] = gmail_user
+                config["smtp_settings"]["gmail_password"] = gmail_password
+                if save_config(config):
+                    st.session_state.config = config
+                    st.success("✅ Gmail settings saved successfully!")
+                    st.rerun()
             
             if gmail_user and gmail_password:
                 smtp_config = {
@@ -657,10 +742,20 @@ if df is not None and header_pdf_file:
             
             col1, col2 = st.columns(2)
             with col1:
-                o365_user = st.text_input("Office365 Email")
-                o365_password = st.text_input("Password", type="password")
+                o365_user = st.text_input("Office365 Email", value=smtp_settings.get("o365_user", ""))
+                o365_password = st.text_input("Password", type="password", value=smtp_settings.get("o365_password", ""))
             with col2:
                 st.info("**Office365 Settings:**\n- Server: smtp.office365.com\n- Port: 587\n- TLS: Enabled")
+            
+            # Save settings button
+            if st.button("💾 Save Office365 Settings"):
+                config["smtp_settings"]["provider"] = "Outlook/Office365"
+                config["smtp_settings"]["o365_user"] = o365_user
+                config["smtp_settings"]["o365_password"] = o365_password
+                if save_config(config):
+                    st.session_state.config = config
+                    st.success("✅ Office365 settings saved successfully!")
+                    st.rerun()
             
             if o365_user and o365_password:
                 smtp_config = {
@@ -681,13 +776,27 @@ if df is not None and header_pdf_file:
             
             col1, col2 = st.columns(2)
             with col1:
-                custom_server = st.text_input("SMTP Server")
-                custom_port = st.number_input("SMTP Port", value=587)
-                custom_user = st.text_input("Username")
+                custom_server = st.text_input("SMTP Server", value=smtp_settings.get("custom_server", ""))
+                custom_port = st.number_input("SMTP Port", value=smtp_settings.get("custom_port", 587))
+                custom_user = st.text_input("Username", value=smtp_settings.get("custom_user", ""))
             with col2:
-                custom_password = st.text_input("Password", type="password")
-                custom_from = st.text_input("From Email")
-                use_tls = st.checkbox("Use TLS", value=True)
+                custom_password = st.text_input("Password", type="password", value=smtp_settings.get("custom_password", ""))
+                custom_from = st.text_input("From Email", value=smtp_settings.get("custom_from", ""))
+                use_tls = st.checkbox("Use TLS", value=smtp_settings.get("custom_use_tls", True))
+            
+            # Save settings button
+            if st.button("💾 Save Custom SMTP Settings"):
+                config["smtp_settings"]["provider"] = "Custom SMTP"
+                config["smtp_settings"]["custom_server"] = custom_server
+                config["smtp_settings"]["custom_port"] = custom_port
+                config["smtp_settings"]["custom_user"] = custom_user
+                config["smtp_settings"]["custom_password"] = custom_password
+                config["smtp_settings"]["custom_from"] = custom_from
+                config["smtp_settings"]["custom_use_tls"] = use_tls
+                if save_config(config):
+                    st.session_state.config = config
+                    st.success("✅ Custom SMTP settings saved successfully!")
+                    st.rerun()
             
             if custom_server and custom_user and custom_password:
                 smtp_config = {
@@ -705,6 +814,29 @@ if df is not None and header_pdf_file:
         else:
             smtp_config = {'enabled': False}
         
+        # Clear settings button
+        if email_provider != "Not Configured":
+            if st.button("🗑️ Clear Saved Settings"):
+                config["smtp_settings"] = {
+                    "provider": "",
+                    "sendgrid_api_key": "",
+                    "sendgrid_from_email": "",
+                    "gmail_user": "",
+                    "gmail_password": "",
+                    "o365_user": "",
+                    "o365_password": "",
+                    "custom_server": "",
+                    "custom_port": 587,
+                    "custom_user": "",
+                    "custom_password": "",
+                    "custom_from": "",
+                    "custom_use_tls": True
+                }
+                if save_config(config):
+                    st.session_state.config = config
+                    st.success("✅ Settings cleared successfully!")
+                    st.rerun()
+        
         # Test Email Button
         if smtp_config.get('enabled', False):
             if st.button("🧪 Test Email Configuration"):
@@ -721,7 +853,9 @@ if df is not None and header_pdf_file:
     # Email Form
     col1, col2 = st.columns(2)
     with col1:
-        admin_email = st.text_input("Admin Team Email", placeholder="admin@company.com")
+        # Use saved admin email as default
+        saved_admin_email = st.session_state.config.get("admin_settings", {}).get("default_admin_email", "admin@company.com")
+        admin_email = st.text_input("Admin Team Email", value=saved_admin_email)
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
@@ -1202,14 +1336,34 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
     
     with tab1:
         st.markdown("#### Email Configuration")
+        
+        # Load saved admin settings
+        admin_settings = st.session_state.config.get("admin_settings", {})
+        
         col1, col2 = st.columns(2)
         with col1:
-            default_admin_email = st.text_input("Default Admin Email", value="admin@thehireman.co.uk")
-            cc_emails = st.text_input("CC Emails (comma separated)", placeholder="manager@company.com, crm@company.com")
+            default_admin_email = st.text_input(
+                "Default Admin Email", 
+                value=admin_settings.get("default_admin_email", "admin@thehireman.co.uk")
+            )
+            cc_emails = st.text_input(
+                "CC Emails (comma separated)", 
+                value=admin_settings.get("cc_emails", ""),
+                placeholder="manager@company.com, crm@company.com"
+            )
         with col2:
             email_template = st.selectbox("Email Template", 
                 ["Standard Price List", "Urgent Priority", "Bulk Import", "Custom"])
             auto_send = st.checkbox("Auto-send to admin team", help="Automatically email when price list is generated")
+        
+        # Save admin settings button
+        if st.button("💾 Save Admin Email Settings"):
+            config = st.session_state.config
+            config["admin_settings"]["default_admin_email"] = default_admin_email
+            config["admin_settings"]["cc_emails"] = cc_emails
+            if save_config(config):
+                st.session_state.config = config
+                st.success("✅ Admin email settings saved!")
     
     with tab2:
         st.markdown("#### Automation Options")

@@ -335,9 +335,29 @@ if df is not None and header_pdf_file:
     global_discount_value = st.session_state.get("global_discount", 0)
     global_discount = st.number_input("Global Discount (%)", min_value=0, max_value=100, value=global_discount_value, step=1, key="global_discount")
 
+    # Check if global discount has changed
+    previous_global_discount = st.session_state.get("previous_global_discount", global_discount)
+    if global_discount != previous_global_discount:
+        st.session_state["previous_global_discount"] = global_discount
+        # Show option to update all group discounts when global discount changes
+        if st.button(f"🔄 Update all group discounts to {global_discount}%", type="primary"):
+            group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+            for group, subsection in group_keys:
+                discount_key = f"{group}_{subsection}_discount"
+                st.session_state[discount_key] = global_discount
+            st.success(f"✅ All group discounts updated to {global_discount}%")
+            st.rerun()
+
     st.markdown("### Group-Level Discounts")
     group_discount_keys = {}
     group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+
+    # Add button to sync all group discounts with global discount
+    if st.button("🔄 Set All Groups to Global Discount"):
+        for group, subsection in group_keys:
+            discount_key = f"{group}_{subsection}_discount"
+            st.session_state[discount_key] = global_discount
+        st.rerun()
 
     cols = st.columns(3)
     for i, (group, subsection) in enumerate(group_keys):

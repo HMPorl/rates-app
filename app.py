@@ -700,123 +700,123 @@ if df is not None and header_pdf_file:
                     }
                 else:
                     smtp_config = {'enabled': False}
+                    
+            elif email_provider == "Gmail":
+                st.warning("⚠️ **Gmail requires App Password** (not your regular password)")
+                st.markdown("""
+                1. Enable 2-Factor Authentication on your Google account
+                2. Go to Google Account → Security → App passwords
+                3. Generate an app password for 'Mail'
+                4. Use that 16-character password below
+                """)
                 
-        elif email_provider == "Gmail":
-            st.warning("⚠️ **Gmail requires App Password** (not your regular password)")
-            st.markdown("""
-            1. Enable 2-Factor Authentication on your Google account
-            2. Go to Google Account → Security → App passwords
-            3. Generate an app password for 'Mail'
-            4. Use that 16-character password below
-            """)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                gmail_user = st.text_input("Gmail Address", value=smtp_settings.get("gmail_user", ""))
-                gmail_password = st.text_input("App Password", type="password", value=smtp_settings.get("gmail_password", ""))
-            with col2:
-                st.info("**Gmail Settings:**\n- Server: smtp.gmail.com\n- Port: 587\n- TLS: Enabled")
-            
-            # Save settings button
-            if st.button("💾 Save Gmail Settings"):
-                config["smtp_settings"]["provider"] = "Gmail"
-                config["smtp_settings"]["gmail_user"] = gmail_user
-                config["smtp_settings"]["gmail_password"] = gmail_password
-                if save_config(config):
-                    st.session_state.config = config
-                    st.success("✅ Gmail settings saved successfully!")
-                    st.rerun()
-            
-            if gmail_user and gmail_password:
-                smtp_config = {
-                    'enabled': True,
-                    'smtp_server': 'smtp.gmail.com',
-                    'smtp_port': 587,
-                    'username': gmail_user,
-                    'password': gmail_password,
-                    'from_email': gmail_user,
-                    'use_tls': True,
-                    'provider': 'Gmail'
-                }
+                col1, col2 = st.columns(2)
+                with col1:
+                    gmail_user = st.text_input("Gmail Address", value=smtp_settings.get("gmail_user", ""))
+                    gmail_password = st.text_input("App Password", type="password", value=smtp_settings.get("gmail_password", ""))
+                with col2:
+                    st.info("**Gmail Settings:**\n- Server: smtp.gmail.com\n- Port: 587\n- TLS: Enabled")
+                
+                # Save settings button
+                if st.button("💾 Save Gmail Settings"):
+                    config["smtp_settings"]["provider"] = "Gmail"
+                    config["smtp_settings"]["gmail_user"] = gmail_user
+                    config["smtp_settings"]["gmail_password"] = gmail_password
+                    if save_config(config):
+                        st.session_state.config = config
+                        st.success("✅ Gmail settings saved successfully!")
+                        st.rerun()
+                
+                if gmail_user and gmail_password:
+                    smtp_config = {
+                        'enabled': True,
+                        'smtp_server': 'smtp.gmail.com',
+                        'smtp_port': 587,
+                        'username': gmail_user,
+                        'password': gmail_password,
+                        'from_email': gmail_user,
+                        'use_tls': True,
+                        'provider': 'Gmail'
+                    }
+                else:
+                    smtp_config = {'enabled': False}
+                    
+            elif email_provider == "Outlook/Office365":
+                st.info("📋 **Office365/Outlook Setup:**")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    o365_user = st.text_input("Office365 Email", value=smtp_settings.get("o365_user", ""))
+                    o365_password = st.text_input("Password", type="password", value=smtp_settings.get("o365_password", ""))
+                with col2:
+                    st.info("**Office365 Settings:**\n- Server: smtp.office365.com\n- Port: 587\n- TLS: Enabled")
+                
+                # Save settings button
+                if st.button("💾 Save Office365 Settings"):
+                    config["smtp_settings"]["provider"] = "Outlook/Office365"
+                    config["smtp_settings"]["o365_user"] = o365_user
+                    config["smtp_settings"]["o365_password"] = o365_password
+                    if save_config(config):
+                        st.session_state.config = config
+                        st.success("✅ Office365 settings saved successfully!")
+                        st.rerun()
+                
+                if o365_user and o365_password:
+                    smtp_config = {
+                        'enabled': True,
+                        'smtp_server': 'smtp.office365.com',
+                        'smtp_port': 587,
+                        'username': o365_user,
+                        'password': o365_password,
+                        'from_email': o365_user,
+                        'use_tls': True,
+                        'provider': 'Office365'
+                    }
+                else:
+                    smtp_config = {'enabled': False}
+                    
+            elif email_provider == "Custom SMTP":
+                st.info("🔧 **Custom SMTP Configuration:**")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    custom_server = st.text_input("SMTP Server", value=smtp_settings.get("custom_server", ""))
+                    custom_port = st.number_input("SMTP Port", value=smtp_settings.get("custom_port", 587))
+                    custom_user = st.text_input("Username", value=smtp_settings.get("custom_user", ""))
+                with col2:
+                    custom_password = st.text_input("Password", type="password", value=smtp_settings.get("custom_password", ""))
+                    custom_from = st.text_input("From Email", value=smtp_settings.get("custom_from", ""))
+                    use_tls = st.checkbox("Use TLS", value=smtp_settings.get("custom_use_tls", True))
+                
+                # Save settings button
+                if st.button("💾 Save Custom SMTP Settings"):
+                    config["smtp_settings"]["provider"] = "Custom SMTP"
+                    config["smtp_settings"]["custom_server"] = custom_server
+                    config["smtp_settings"]["custom_port"] = custom_port
+                    config["smtp_settings"]["custom_user"] = custom_user
+                    config["smtp_settings"]["custom_password"] = custom_password
+                    config["smtp_settings"]["custom_from"] = custom_from
+                    config["smtp_settings"]["custom_use_tls"] = use_tls
+                    if save_config(config):
+                        st.session_state.config = config
+                        st.success("✅ Custom SMTP settings saved successfully!")
+                        st.rerun()
+                
+                if custom_server and custom_user and custom_password:
+                    smtp_config = {
+                        'enabled': True,
+                        'smtp_server': custom_server,
+                        'smtp_port': int(custom_port),
+                        'username': custom_user,
+                        'password': custom_password,
+                        'from_email': custom_from,
+                        'use_tls': use_tls,
+                        'provider': 'Custom'
+                    }
+                else:
+                    smtp_config = {'enabled': False}
             else:
                 smtp_config = {'enabled': False}
-                
-        elif email_provider == "Outlook/Office365":
-            st.info("📋 **Office365/Outlook Setup:**")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                o365_user = st.text_input("Office365 Email", value=smtp_settings.get("o365_user", ""))
-                o365_password = st.text_input("Password", type="password", value=smtp_settings.get("o365_password", ""))
-            with col2:
-                st.info("**Office365 Settings:**\n- Server: smtp.office365.com\n- Port: 587\n- TLS: Enabled")
-            
-            # Save settings button
-            if st.button("💾 Save Office365 Settings"):
-                config["smtp_settings"]["provider"] = "Outlook/Office365"
-                config["smtp_settings"]["o365_user"] = o365_user
-                config["smtp_settings"]["o365_password"] = o365_password
-                if save_config(config):
-                    st.session_state.config = config
-                    st.success("✅ Office365 settings saved successfully!")
-                    st.rerun()
-            
-            if o365_user and o365_password:
-                smtp_config = {
-                    'enabled': True,
-                    'smtp_server': 'smtp.office365.com',
-                    'smtp_port': 587,
-                    'username': o365_user,
-                    'password': o365_password,
-                    'from_email': o365_user,
-                    'use_tls': True,
-                    'provider': 'Office365'
-                }
-            else:
-                smtp_config = {'enabled': False}
-                
-        elif email_provider == "Custom SMTP":
-            st.info("🔧 **Custom SMTP Configuration:**")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                custom_server = st.text_input("SMTP Server", value=smtp_settings.get("custom_server", ""))
-                custom_port = st.number_input("SMTP Port", value=smtp_settings.get("custom_port", 587))
-                custom_user = st.text_input("Username", value=smtp_settings.get("custom_user", ""))
-            with col2:
-                custom_password = st.text_input("Password", type="password", value=smtp_settings.get("custom_password", ""))
-                custom_from = st.text_input("From Email", value=smtp_settings.get("custom_from", ""))
-                use_tls = st.checkbox("Use TLS", value=smtp_settings.get("custom_use_tls", True))
-            
-            # Save settings button
-            if st.button("💾 Save Custom SMTP Settings"):
-                config["smtp_settings"]["provider"] = "Custom SMTP"
-                config["smtp_settings"]["custom_server"] = custom_server
-                config["smtp_settings"]["custom_port"] = custom_port
-                config["smtp_settings"]["custom_user"] = custom_user
-                config["smtp_settings"]["custom_password"] = custom_password
-                config["smtp_settings"]["custom_from"] = custom_from
-                config["smtp_settings"]["custom_use_tls"] = use_tls
-                if save_config(config):
-                    st.session_state.config = config
-                    st.success("✅ Custom SMTP settings saved successfully!")
-                    st.rerun()
-            
-            if custom_server and custom_user and custom_password:
-                smtp_config = {
-                    'enabled': True,
-                    'smtp_server': custom_server,
-                    'smtp_port': int(custom_port),
-                    'username': custom_user,
-                    'password': custom_password,
-                    'from_email': custom_from,
-                    'use_tls': use_tls,
-                    'provider': 'Custom'
-                }
-            else:
-                smtp_config = {'enabled': False}
-        else:
-            smtp_config = {'enabled': False}
         
         # Clear settings button
         if email_provider != "Not Configured":

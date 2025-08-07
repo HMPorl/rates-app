@@ -215,7 +215,7 @@ def read_pdf_header(file):
     return file.read()
 
 def send_email_via_webhook(customer_name, admin_df, transport_df, recipient_email):
-    """Send email via webhook service - zero configuration required"""
+    """Send email via webhook service or SendGrid - zero configuration required"""
     try:
         # Create Excel file data
         output_excel = io.BytesIO()
@@ -231,36 +231,99 @@ def send_email_via_webhook(customer_name, admin_df, transport_df, recipient_emai
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
         
-        # Encode Excel file as base64
+        # Encode Excel file as base64 for transmission
         excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
         
-        # Prepare webhook payload
-        webhook_data = {
-            "to": recipient_email,
-            "subject": f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
-            "body": f"""Hello Admin Team,
+        # Save Excel file locally as backup
+        with open(excel_filename, 'wb') as f:
+            f.write(output_excel.getvalue())
+        
+        enhanced_body = f"""Hello Admin Team,
 
-Please find attached the price list for customer: {customer_name}
+Please find the Excel price list for customer: {customer_name}
 
 Summary:
 - Total Items: {len(admin_df)}
 - Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 - Created via: Net Rates Calculator
 
-The attached Excel file contains:
+The Excel file contains:
 - Sheet 1: Complete price list with all items
-- Sheet 2: Transport charges
+- Sheet 2: Transport charges  
 - Sheet 3: Summary information
 
 Please import this data into our CRM system.
 
 Best regards,
-Net Rates Calculator System""",
-            "attachment": {
-                "filename": f"{customer_name}_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                "content": excel_base64,
-                "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            }
+Net Rates Calculator System"""
+        
+        # Try SendGrid API first if available
+        config = st.session_state.get('config', {})
+        smtp_settings = config.get("smtp_settings", {})
+        
+        # Get API key from saved settings or environment variable
+        sendgrid_api_key = smtp_settings.get("sendgrid_api_key", "") or SENDGRID_API_KEY
+        sendgrid_from_email = smtp_settings.get("sendgrid_from_email", "") or SENDGRID_FROM_EMAIL
+        
+        if sendgrid_api_key and sendgrid_from_email:
+            try:
+                import sendgrid
+                from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+                
+                sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
+                
+                # Create email
+                message = Mail(
+                    from_email=sendgrid_from_email,
+                    to_emails=recipient_email,
+                    subject=f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
+                    html_content=enhanced_body.replace('\n', '<br>')
+                )
+                
+                # Add Excel attachment
+                attachment = Attachment(
+                    FileContent(excel_base64),
+                    FileName(excel_filename),
+                    FileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+                    Disposition('attachment')
+                )
+                message.attachment = attachment
+                
+                # Send email
+                response = sg.send(message)
+                if response.status_code in [200, 201, 202]:
+                    return {'status': 'sent', 'message': 'Email sent via SendGrid!'}
+                else:
+                    # Fall back to webhook if SendGrid fails
+                    pass
+                    
+            except ImportError:
+                st.warning("📦 SendGrid library not installed. Install with: pip install sendgrid")
+                # Fall back to webhook
+                pass
+            except Exception as e:
+                st.warning(f"SendGrid error: {str(e)}. Falling back to webhook.")
+                # Fall back to webhook
+                pass
+        
+        # Webhook payload optimized for SendGrid via Zapier
+        webhook_data = {
+            "to": recipient_email,
+            "from": "netrates@thehireman.co.uk", 
+            "subject": f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
+            "body": enhanced_body,
+            "customer_name": customer_name,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            # Excel attachment data formatted for SendGrid
+            "attachment_filename": excel_filename,
+            "attachment_content": excel_base64,
+            "attachment_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "total_items": len(admin_df),
+            # Additional metadata for SendGrid
+            "service": "sendgrid",
+            "delivery_method": "webhook"
         }
         
         # Try webhook service first
@@ -753,64 +816,48 @@ if df is not None and header_pdf_file:
             )
             
             if email_provider == "SendGrid":
-                # Use environment variables - secure approach
-                sg_api_key = SENDGRID_API_KEY
-                sg_from_email = SENDGRID_FROM_EMAIL
+                st.info("📋 **SendGrid API Configuration:**")
                 
-                # Check if environment variables are properly set
-                if not sg_api_key:
-                    st.error("⚠️ **Admin Configuration Required**")
-                    st.markdown("""
-                    **SendGrid API Key Missing**
+                # Check for saved settings first, then environment variables
+                saved_api_key = smtp_settings.get("sendgrid_api_key", "")
+                saved_from_email = smtp_settings.get("sendgrid_from_email", "")
+                
+                # Use saved settings or environment variables as defaults
+                default_api_key = saved_api_key or SENDGRID_API_KEY
+                default_from_email = saved_from_email or SENDGRID_FROM_EMAIL or "netrates@thehireman.co.uk"
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    # API Key input with default from saved/environment
+                    sg_api_key = st.text_input(
+                        "SendGrid API Key", 
+                        value=default_api_key,
+                        type="password",
+                        help="Get your API key from SendGrid dashboard → Settings → API Keys"
+                    )
+                    sg_from_email = st.text_input(
+                        "From Email Address", 
+                        value=default_from_email,
+                        help="Must be a verified sender in your SendGrid account"
+                    )
+                with col2:
+                    st.info("**SendGrid Settings:**\n- API-based email service\n- High deliverability\n- Advanced analytics\n- Free tier: 100 emails/day")
                     
-                    Please set the environment variable:
-                    ```
-                    SENDGRID_API_KEY=your_actual_api_key_here
-                    ```
-                    
-                    **How to set environment variables:**
-                    
-                    **Windows (PowerShell):**
-                    ```powershell
-                    $env:SENDGRID_API_KEY="your_api_key_here"
-                    $env:SENDGRID_FROM_EMAIL="your_email@domain.com"
-                    ```
-                    
-                    **Windows (Command Prompt):**
-                    ```cmd
-                    set SENDGRID_API_KEY=your_api_key_here
-                    set SENDGRID_FROM_EMAIL=your_email@domain.com
-                    ```
-                    
-                    **Linux/Mac:**
-                    ```bash
-                    export SENDGRID_API_KEY="your_api_key_here"
-                    export SENDGRID_FROM_EMAIL="your_email@domain.com"
-                    ```
-                    
-                    **For permanent setup, add to your system environment variables.**
-                    """)
-                    smtp_config = {'enabled': False}
-                else:
-                    st.success("📋 **SendGrid is Configured!**")
-                    st.info("✅ SendGrid API key loaded from environment variables (secure).")
-                    
-                    # Show current configuration (without exposing API key)
-                    st.markdown("**Current SendGrid Configuration:**")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"**From Email:** `{sg_from_email}`")
-                        st.markdown(f"**API Key:** `{'*' * 20}...{sg_api_key[-4:] if len(sg_api_key) > 4 else '****'}`")
-                    with col2:
-                        st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Authentication: Environment variable")
-                    
-                    # Automatically save the configuration
+                    if default_api_key:
+                        st.success(f"✅ API Key loaded: {default_api_key[:8]}...{default_api_key[-4:] if len(default_api_key) > 8 else '****'}")
+                
+                # Save settings button
+                if st.button("💾 Save SendGrid Settings"):
                     config["smtp_settings"]["provider"] = "SendGrid"
                     config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
                     config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
-                    save_config(config)
-                    st.session_state.config = config
-                    
+                    if save_config(config):
+                        st.session_state.config = config
+                        st.success("✅ SendGrid settings saved successfully!")
+                        st.rerun()
+                
+                # Configure SMTP settings if API key is provided
+                if sg_api_key and sg_from_email:
                     smtp_config = {
                         'enabled': True,
                         'smtp_server': 'smtp.sendgrid.net',
@@ -821,6 +868,17 @@ if df is not None and header_pdf_file:
                         'use_tls': True,
                         'provider': 'SendGrid'
                     }
+                    
+                    st.success("📋 **SendGrid is Ready!**")
+                    # Show current configuration (masking API key)
+                    st.markdown(f"**From Email:** `{sg_from_email}`")
+                    st.markdown(f"**API Key:** `{sg_api_key[:8]}...{sg_api_key[-4:] if len(sg_api_key) > 8 else '****'}`")
+                else:
+                    smtp_config = {'enabled': False}
+                    if not sg_api_key:
+                        st.warning("⚠️ Please enter your SendGrid API key")
+                    if not sg_from_email:
+                        st.warning("⚠️ Please enter a from email address")
                     
             elif email_provider == "Gmail":
                 st.warning("⚠️ **Gmail requires App Password** (not your regular password)")
@@ -987,7 +1045,11 @@ if df is not None and header_pdf_file:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
     # Status indicator - simplified for users
-    if WEBHOOK_EMAIL_URL or SENDGRID_API_KEY:
+    config = st.session_state.get('config', {})
+    smtp_settings = config.get("smtp_settings", {})
+    saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
+    
+    if WEBHOOK_EMAIL_URL or SENDGRID_API_KEY or saved_sendgrid_key:
         st.success("✅ Email service ready - just click send!")
     elif smtp_config.get('enabled', False):
         st.success(f"✅ Email configured via {smtp_config.get('provider', 'SMTP')}")

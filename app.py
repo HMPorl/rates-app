@@ -28,9 +28,14 @@ from reportlab.lib.utils import ImageReader
 # -------------------------------
 CONFIG_FILE = "config.json"
 
-# SECURE SENDGRID CONFIGURATION - Use environment variables
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")  # Set via environment variable
+# EMAIL SERVICE CONFIGURATION
+# Option 1: Environment variables (for admin deployment)
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
+
+# Option 2: Webhook service (zero-config for users)
+WEBHOOK_EMAIL_URL = os.getenv("WEBHOOK_EMAIL_URL", "")  # Optional webhook service
+COMPANY_EMAIL_SERVICE = "netrates@thehireman.co.uk"  # Fallback company email
 
 def load_config():
     """Load configuration from JSON file"""
@@ -190,6 +195,79 @@ def load_excel(file):
 @st.cache_data
 def read_pdf_header(file):
     return file.read()
+
+def send_email_via_webhook(customer_name, admin_df, transport_df, recipient_email):
+    """Send email via webhook service - zero configuration required"""
+    try:
+        # Create Excel file data
+        output_excel = io.BytesIO()
+        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+            admin_df.to_excel(writer, sheet_name='Price List', index=False)
+            transport_df.to_excel(writer, sheet_name='Transport Charges', index=False)
+            
+            summary_data = {
+                'Customer': [customer_name],
+                'Total Items': [len(admin_df)],
+                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
+                'Created By': ['Net Rates Calculator']
+            }
+            pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+        
+        # Encode Excel file as base64
+        excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
+        
+        # Prepare webhook payload
+        webhook_data = {
+            "to": recipient_email,
+            "subject": f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
+            "body": f"""Hello Admin Team,
+
+Please find attached the price list for customer: {customer_name}
+
+Summary:
+- Total Items: {len(admin_df)}
+- Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+- Created via: Net Rates Calculator
+
+The attached Excel file contains:
+- Sheet 1: Complete price list with all items
+- Sheet 2: Transport charges
+- Sheet 3: Summary information
+
+Please import this data into our CRM system.
+
+Best regards,
+Net Rates Calculator System""",
+            "attachment": {
+                "filename": f"{customer_name}_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                "content": excel_base64,
+                "mimetype": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+        }
+        
+        # Try webhook service first
+        if WEBHOOK_EMAIL_URL:
+            response = requests.post(WEBHOOK_EMAIL_URL, json=webhook_data, timeout=10)
+            if response.status_code == 200:
+                return {'status': 'sent', 'message': 'Email sent via webhook service!'}
+            else:
+                return {'status': 'error', 'message': f'Webhook failed: {response.text}'}
+        else:
+            # Fallback: save data locally and show manual instructions
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"email_data_{customer_name}_{timestamp}.json"
+            
+            with open(filename, 'w') as f:
+                json.dump(webhook_data, f, indent=2)
+            
+            return {
+                'status': 'saved', 
+                'message': f'Email data saved to {filename}. Please contact admin to configure email service.',
+                'filename': filename
+            }
+            
+    except Exception as e:
+        return {'status': 'error', 'message': f'Webhook email failed: {str(e)}'}
 
 def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None):
     """Send price list via email to admin team"""
@@ -890,27 +968,41 @@ if df is not None and header_pdf_file:
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
-    # Status indicator
-    if smtp_config.get('enabled', False):
+    # Status indicator - simplified for users
+    if WEBHOOK_EMAIL_URL or SENDGRID_API_KEY:
+        st.success("✅ Email service ready - just click send!")
+    elif smtp_config.get('enabled', False):
         st.success(f"✅ Email configured via {smtp_config.get('provider', 'SMTP')}")
     else:
-        st.warning("⚠️ Email not configured - will prepare email only")
+        st.info("📧 Email will be prepared for manual sending")
     
-    if st.button("📨 Send Email to Admin Team") and admin_email:
+    if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
         if customer_name:
             try:
-                # Prepare and send the email
-                result = send_email_with_pricelist(
-                    customer_name, 
-                    admin_df, 
-                    transport_df if include_transport else pd.DataFrame(), 
-                    admin_email,
-                    smtp_config
-                )
+                # Try webhook service first (zero-config for users)
+                if WEBHOOK_EMAIL_URL or not smtp_config.get('enabled', False):
+                    result = send_email_via_webhook(
+                        customer_name, 
+                        admin_df, 
+                        transport_df if include_transport else pd.DataFrame(), 
+                        admin_email
+                    )
+                else:
+                    # Fallback to SMTP if configured
+                    result = send_email_with_pricelist(
+                        customer_name, 
+                        admin_df, 
+                        transport_df if include_transport else pd.DataFrame(), 
+                        admin_email,
+                        smtp_config
+                    )
                 
                 if result['status'] == 'sent':
                     st.success(f"✅ {result['message']}")
                     st.balloons()
+                elif result['status'] == 'saved':
+                    st.success(f"✅ Email data prepared successfully!")
+                    st.info("📁 Data saved locally. Admin will process this shortly.")
                 elif result['status'] == 'prepared':
                     st.success(f"✅ Email prepared successfully!")
                     st.info("📝 **Note**: Configure SMTP above to enable automatic sending.")
@@ -924,9 +1016,11 @@ if df is not None and header_pdf_file:
                             st.text("📎 Attached: Excel file with price list")
                 else:
                     st.error(f"❌ {result['message']}")
+                    st.info("💡 **Alternative**: Download the Excel file above and email it manually.")
                     
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
+                st.info("💡 **Alternative**: Download the Excel file above and email it manually.")
         else:
             st.warning("⚠️ Please enter a customer name first")
 

@@ -1,0 +1,6 @@
+@echo off
+echo Setting up Net Rates Calculator...
+set WEBHOOK_EMAIL_URL=https://hooks.zapier.com/hooks/catch/YOUR_WEBHOOK_ID/
+echo Starting application...
+streamlit run app.py
+pause

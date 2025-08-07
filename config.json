@@ -17,5 +17,8 @@
   "admin_settings": {
     "default_admin_email": "admin@thehireman.co.uk",
     "cc_emails": ""
+  },
+  "webhook_settings": {
+    "webhook_url": "https://hooks.zapier.com/hooks/catch/2454500/u4jvanu/"
   }
 }

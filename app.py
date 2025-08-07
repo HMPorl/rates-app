@@ -633,14 +633,14 @@ if df is not None and header_pdf_file:
             )
             
             if email_provider == "SendGrid":
-            st.info("📋 **SendGrid Setup Instructions:**")
-            st.markdown("""
-            1. Go to [SendGrid Console](https://app.sendgrid.com/)
-            2. Navigate to Settings → API Keys
-            3. Create a new API key with 'Mail Send' permissions
-            4. Copy the API key and paste below
-            5. **IMPORTANT**: Verify your sender email in Settings → Sender Authentication
-            """)
+                st.info("📋 **SendGrid Setup Instructions:**")
+                st.markdown("""
+                1. Go to [SendGrid Console](https://app.sendgrid.com/)
+                2. Navigate to Settings → API Keys
+                3. Create a new API key with 'Mail Send' permissions
+                4. Copy the API key and paste below
+                5. **IMPORTANT**: Verify your sender email in Settings → Sender Authentication
+                """)
             
             col1, col2 = st.columns(2)
             with col1:

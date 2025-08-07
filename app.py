@@ -28,6 +28,10 @@ from reportlab.lib.utils import ImageReader
 # -------------------------------
 CONFIG_FILE = "config.json"
 
+# SECURE SENDGRID CONFIGURATION - Use environment variables
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")  # Set via environment variable
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
+
 def load_config():
     """Load configuration from JSON file"""
     try:
@@ -40,9 +44,9 @@ def load_config():
     # Return default config if file doesn't exist or has errors
     return {
         "smtp_settings": {
-            "provider": "",
-            "sendgrid_api_key": "",
-            "sendgrid_from_email": "",
+            "provider": "SendGrid",  # Default to SendGrid
+            "sendgrid_api_key": SENDGRID_API_KEY,
+            "sendgrid_from_email": SENDGRID_FROM_EMAIL,
             "gmail_user": "",
             "gmail_password": "",
             "o365_user": "",
@@ -653,61 +657,64 @@ if df is not None and header_pdf_file:
             )
             
             if email_provider == "SendGrid":
-                st.info("📋 **SendGrid Setup Instructions:**")
-                st.markdown("""
-                1. Go to [SendGrid Console](https://app.sendgrid.com/)
-                2. Navigate to Settings → API Keys
-                3. Create a new API key with 'Mail Send' permissions
-                4. Copy the API key and paste below
-                5. **IMPORTANT**: Verify your sender email in Settings → Sender Authentication
-                """)
+                # Use environment variables - secure approach
+                sg_api_key = SENDGRID_API_KEY
+                sg_from_email = SENDGRID_FROM_EMAIL
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    sg_api_key = st.text_input(
-                        "SendGrid API Key", 
-                        type="password", 
-                        value=smtp_settings.get("sendgrid_api_key", ""),
-                        help="This will be saved securely to config.json"
-                    )
-                    sg_from_email = st.text_input(
-                        "From Email", 
-                        value=smtp_settings.get("sendgrid_from_email", "paul.scott@thehireman.co.uk"), 
-                        help="Must be a verified sender in SendGrid"
-                    )
-                with col2:
-                    st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
-                    st.warning("⚠️ **Important**: The 'From Email' must be verified in SendGrid → Settings → Sender Authentication")
-                
-                # Save settings button
-                if st.button("💾 Save SendGrid Settings"):
+                # Check if environment variables are properly set
+                if not sg_api_key:
+                    st.error("⚠️ **Admin Configuration Required**")
+                    st.markdown("""
+                    **SendGrid API Key Missing**
+                    
+                    Please set the environment variable:
+                    ```
+                    SENDGRID_API_KEY=your_actual_api_key_here
+                    ```
+                    
+                    **How to set environment variables:**
+                    
+                    **Windows (PowerShell):**
+                    ```powershell
+                    $env:SENDGRID_API_KEY="your_api_key_here"
+                    $env:SENDGRID_FROM_EMAIL="your_email@domain.com"
+                    ```
+                    
+                    **Windows (Command Prompt):**
+                    ```cmd
+                    set SENDGRID_API_KEY=your_api_key_here
+                    set SENDGRID_FROM_EMAIL=your_email@domain.com
+                    ```
+                    
+                    **Linux/Mac:**
+                    ```bash
+                    export SENDGRID_API_KEY="your_api_key_here"
+                    export SENDGRID_FROM_EMAIL="your_email@domain.com"
+                    ```
+                    
+                    **For permanent setup, add to your system environment variables.**
+                    """)
+                    smtp_config = {'enabled': False}
+                else:
+                    st.success("📋 **SendGrid is Configured!**")
+                    st.info("✅ SendGrid API key loaded from environment variables (secure).")
+                    
+                    # Show current configuration (without exposing API key)
+                    st.markdown("**Current SendGrid Configuration:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**From Email:** `{sg_from_email}`")
+                        st.markdown(f"**API Key:** `{'*' * 20}...{sg_api_key[-4:] if len(sg_api_key) > 4 else '****'}`")
+                    with col2:
+                        st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Authentication: Environment variable")
+                    
+                    # Automatically save the configuration
                     config["smtp_settings"]["provider"] = "SendGrid"
                     config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
                     config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
-                    if save_config(config):
-                        st.session_state.config = config
-                        st.success("✅ SendGrid settings saved successfully!")
-                        st.rerun()
-                
-                # Sender verification helper
-                if sg_from_email:
-                    st.markdown("#### 🔍 **Sender Verification Check**")
-                    st.markdown(f"""
-                    **Your From Email:** `{sg_from_email}`
+                    save_config(config)
+                    st.session_state.config = config
                     
-                    **To verify this email in SendGrid:**
-                    1. Go to [SendGrid Sender Authentication](https://app.sendgrid.com/settings/sender_auth)
-                    2. Click **Single Sender Verification**
-                    3. Add `{sg_from_email}` as a verified sender
-                    4. Check your email and click the verification link
-                    
-                    **Alternative emails you could use:**
-                    - Your work email: `paul.scott@thehireman.co.uk`
-                    - Company no-reply: `noreply@thehireman.co.uk` (if domain is verified)
-                    - Gmail: `your.name@gmail.com` (if you have one)
-                    """)
-                
-                if sg_api_key:
                     smtp_config = {
                         'enabled': True,
                         'smtp_server': 'smtp.sendgrid.net',
@@ -718,8 +725,6 @@ if df is not None and header_pdf_file:
                         'use_tls': True,
                         'provider': 'SendGrid'
                     }
-                else:
-                    smtp_config = {'enabled': False}
                     
             elif email_provider == "Gmail":
                 st.warning("⚠️ **Gmail requires App Password** (not your regular password)")

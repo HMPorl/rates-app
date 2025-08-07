@@ -1516,7 +1516,7 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
                 "Zapier Webhook URL",
                 value=current_webhook,
                 help="Paste your Zapier webhook URL here for zero-configuration email sending",
-                placeholder="https://hooks.zapier.com/hooks/catch/2454500/u4jvanu/"
+                placeholder="https://hooks.zapier.com/hooks/catch/1234/test"
             )
         with col2:
             if st.button("💾 Update Webhook", type="primary"):

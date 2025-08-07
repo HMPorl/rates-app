@@ -34,7 +34,22 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
 
 # Option 2: Webhook service (zero-config for users)
-WEBHOOK_EMAIL_URL = os.getenv("WEBHOOK_EMAIL_URL", "")  # Optional webhook service
+# Check saved config first, then environment variable
+def get_webhook_url():
+    """Get webhook URL from config file or environment variable"""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                webhook_settings = config.get("webhook_settings", {})
+                saved_url = webhook_settings.get("webhook_url", "")
+                if saved_url:
+                    return saved_url
+    except:
+        pass
+    return os.getenv("WEBHOOK_EMAIL_URL", "")
+
+WEBHOOK_EMAIL_URL = get_webhook_url()
 COMPANY_EMAIL_SERVICE = "netrates@thehireman.co.uk"  # Fallback company email
 
 def load_config():
@@ -66,6 +81,9 @@ def load_config():
         "admin_settings": {
             "default_admin_email": "netrates@thehireman.co.uk",
             "cc_emails": ""
+        },
+        "webhook_settings": {
+            "webhook_url": WEBHOOK_EMAIL_URL
         }
     }
 
@@ -1488,7 +1506,66 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
     tab1, tab2, tab3 = st.tabs(["📧 Email Settings", "🔄 Automation", "📊 Analytics"])
     
     with tab1:
-        st.markdown("#### Email Configuration")
+        st.markdown("#### 🔗 Webhook Configuration (Zero-Config Email)")
+        
+        # Webhook URL Configuration
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            current_webhook = os.getenv("WEBHOOK_EMAIL_URL", "")
+            webhook_url = st.text_input(
+                "Zapier Webhook URL",
+                value=current_webhook,
+                help="Paste your Zapier webhook URL here for zero-configuration email sending",
+                placeholder="https://hooks.zapier.com/hooks/catch/2454500/u4jvanu/"
+            )
+        with col2:
+            if st.button("💾 Update Webhook", type="primary"):
+                if webhook_url.strip():
+                    # Set environment variable for current session
+                    os.environ["WEBHOOK_EMAIL_URL"] = webhook_url.strip()
+                    
+                    # Also save to config for persistence
+                    config = st.session_state.config
+                    if "webhook_settings" not in config:
+                        config["webhook_settings"] = {}
+                    config["webhook_settings"]["webhook_url"] = webhook_url.strip()
+                    save_config(config)
+                    st.session_state.config = config
+                    
+                    st.success("✅ Webhook URL updated successfully!")
+                    st.info("🔄 Restart the app to make this permanent across sessions.")
+                    st.rerun()
+                else:
+                    st.error("❌ Please enter a valid webhook URL")
+        
+        # Show current status
+        if webhook_url or current_webhook:
+            st.success("✅ Webhook configured - users can send emails with zero setup!")
+            if webhook_url != current_webhook:
+                st.warning("⚠️ New URL entered - click 'Update Webhook' to save changes")
+        else:
+            st.info("📝 Enter your Zapier webhook URL to enable zero-configuration email for all users")
+            
+        # Quick help section
+        with st.expander("❓ How to get your Zapier Webhook URL"):
+            st.markdown("""
+            **Steps to get your webhook URL:**
+            1. Go to [zapier.com](https://zapier.com) and create a Zap
+            2. Choose **"Webhooks by Zapier"** as trigger
+            3. Select **"Catch Hook"**
+            4. Copy the webhook URL that looks like:
+               `https://hooks.zapier.com/hooks/catch/12345678/abcd1234/`
+            5. Paste it above and click "Update Webhook"
+            
+            **What this does:**
+            - Users can click "Send Email" and it works instantly
+            - No email configuration needed by users
+            - Works on mobile, desktop, any device
+            - Professional email delivery via Zapier
+            """)
+        
+        st.markdown("---")
+        st.markdown("#### 📧 Traditional Email Configuration")
         
         # Load saved admin settings
         admin_settings = st.session_state.config.get("admin_settings", {})

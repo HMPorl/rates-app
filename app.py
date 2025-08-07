@@ -1044,13 +1044,17 @@ if df is not None and header_pdf_file:
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
-    # Status indicator - simplified for users
+    # Status indicator - prioritize SendGrid when configured
     config = st.session_state.get('config', {})
     smtp_settings = config.get("smtp_settings", {})
     saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
     
-    if WEBHOOK_EMAIL_URL or SENDGRID_API_KEY or saved_sendgrid_key:
-        st.success("✅ Email service ready - just click send!")
+    if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
+        st.success("✅ SendGrid configured - emails with attachments ready!")
+    elif saved_sendgrid_key or SENDGRID_API_KEY:
+        st.success("✅ SendGrid available - configure in Email Config above for best attachment support!")
+    elif WEBHOOK_EMAIL_URL:
+        st.warning("⚠️ Webhook configured but attachments may not work properly. Consider configuring SendGrid for reliable attachments.")
     elif smtp_config.get('enabled', False):
         st.success(f"✅ Email configured via {smtp_config.get('provider', 'SMTP')}")
     else:
@@ -1059,22 +1063,40 @@ if df is not None and header_pdf_file:
     if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
         if customer_name:
             try:
-                # Try webhook service first (zero-config for users)
-                if WEBHOOK_EMAIL_URL or not smtp_config.get('enabled', False):
-                    result = send_email_via_webhook(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email
-                    )
-                else:
-                    # Fallback to SMTP if configured
+                # Priority 1: Use SendGrid if configured (best for attachments)
+                if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
                     result = send_email_with_pricelist(
                         customer_name, 
                         admin_df, 
                         transport_df if include_transport else pd.DataFrame(), 
                         admin_email,
                         smtp_config
+                    )
+                # Priority 2: Use webhook with SendGrid fallback
+                elif WEBHOOK_EMAIL_URL:
+                    result = send_email_via_webhook(
+                        customer_name, 
+                        admin_df, 
+                        transport_df if include_transport else pd.DataFrame(), 
+                        admin_email
+                    )
+                # Priority 3: Use other SMTP if configured
+                elif smtp_config.get('enabled', False):
+                    result = send_email_with_pricelist(
+                        customer_name, 
+                        admin_df, 
+                        transport_df if include_transport else pd.DataFrame(), 
+                        admin_email,
+                        smtp_config
+                    )
+                else:
+                    # Fallback: prepare email data for manual sending
+                    result = send_email_with_pricelist(
+                        customer_name, 
+                        admin_df, 
+                        transport_df if include_transport else pd.DataFrame(), 
+                        admin_email,
+                        None
                     )
                 
                 if result['status'] == 'sent':

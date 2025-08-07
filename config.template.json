@@ -15,7 +15,7 @@
     "custom_use_tls": true
   },
   "admin_settings": {
-    "default_admin_email": "admin@thehireman.co.uk",
+    "default_admin_email": "netrates@thehireman.co.uk",
     "cc_emails": ""
   }
 }

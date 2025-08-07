@@ -55,7 +55,7 @@ def load_config():
             "custom_use_tls": True
         },
         "admin_settings": {
-            "default_admin_email": "admin@thehireman.co.uk",
+            "default_admin_email": "netrates@thehireman.co.uk",
             "cc_emails": ""
         }
     }
@@ -529,9 +529,9 @@ if df is not None and header_pdf_file:
 
 
     # -------------------------------
-    # Export Options for Admin Team
+    # Export Net Rates
     # -------------------------------
-    st.markdown("### 📤 Export Options for Admin Team")
+    st.markdown("### 📤 Export Net Rates")
     
     # Create admin-friendly DataFrame with clear column names
     admin_df = df[[
@@ -610,25 +610,29 @@ if df is not None and header_pdf_file:
         )
 
     # -------------------------------
-    # Direct Email to Admin Team
+    # Direct Email to Accounts Team
     # -------------------------------
-    st.markdown("### 📧 Email to Admin Team")
+    st.markdown("### 📧 Email Net Rates to Accounts")
     
-    # SMTP Configuration Section
-    with st.expander("⚙️ SMTP Configuration (Click to configure email sending)"):
-        st.markdown("#### Choose Email Provider")
-        
-        # Load saved settings
-        config = st.session_state.config
-        smtp_settings = config.get("smtp_settings", {})
-        
-        email_provider = st.selectbox(
-            "Email Service",
-            ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"],
-            index=["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"].index(smtp_settings.get("provider", "Not Configured")) if smtp_settings.get("provider", "Not Configured") in ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"] else 0
-        )
-        
-        if email_provider == "SendGrid":
+    # Email Configuration Toggle
+    show_email_config = st.toggle("Email Config", value=False)
+    
+    if show_email_config:
+        # SMTP Configuration Section
+        with st.expander("⚙️ SMTP Configuration (Click to configure email sending)"):
+            st.markdown("#### Choose Email Provider")
+            
+            # Load saved settings
+            config = st.session_state.config
+            smtp_settings = config.get("smtp_settings", {})
+            
+            email_provider = st.selectbox(
+                "Email Service",
+                ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"],
+                index=["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"].index(smtp_settings.get("provider", "Not Configured")) if smtp_settings.get("provider", "Not Configured") in ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"] else 0
+            )
+            
+            if email_provider == "SendGrid":
             st.info("📋 **SendGrid Setup Instructions:**")
             st.markdown("""
             1. Go to [SendGrid Console](https://app.sendgrid.com/)
@@ -849,13 +853,15 @@ if df is not None and header_pdf_file:
                     st.success("✅ SMTP Configuration Test Successful!")
                 except Exception as e:
                     st.error(f"❌ SMTP Test Failed: {str(e)}")
+    else:
+        # When email config is hidden, use default config
+        smtp_config = {'enabled': False}
     
     # Email Form
     col1, col2 = st.columns(2)
     with col1:
-        # Use saved admin email as default
-        saved_admin_email = st.session_state.config.get("admin_settings", {}).get("default_admin_email", "admin@company.com")
-        admin_email = st.text_input("Admin Team Email", value=saved_admin_email)
+        # Hard-coded admin email address
+        admin_email = st.text_input("Accounts Team Email", value="netrates@thehireman.co.uk")
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
@@ -900,12 +906,15 @@ if df is not None and header_pdf_file:
             st.warning("⚠️ Please enter a customer name first")
 
     # -------------------------------
-    # Alternative Data Sharing Methods
+    # Share Options (Alternative Data Sharing and Quick Actions)
     # -------------------------------
-    st.markdown("### 🔄 Alternative Data Sharing Methods")
+    show_share_options = st.toggle("Share Options", value=False)
     
-    # Quick share options
-    col1, col2, col3 = st.columns(3)
+    if show_share_options:
+        st.markdown("### 🔄 Alternative Data Sharing Methods")
+        
+        # Quick share options
+        col1, col2, col3 = st.columns(3)
     
     with col1:
         # Create a shareable link (placeholder for actual implementation)
@@ -988,15 +997,40 @@ if df is not None and header_pdf_file:
         3. **Notification**: Teams message with link to file
         """)
 
+        # -------------------------------
+        # Quick Admin Actions
+        # -------------------------------
+        if customer_name and 'admin_df' in locals():
+            st.markdown("---")
+            st.markdown("### ⚡ Quick Admin Actions")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if st.button("📧 Email to Admin"):
+                    st.info("Email prepared! (Configure SMTP for auto-send)")
+            
+            with col2:
+                if st.button("💾 Save to OneDrive"):
+                    st.info("File ready for OneDrive upload")
+            
+            with col3:
+                if st.button("💬 Teams Notification"):
+                    st.info("Teams message template generated above")
+            
+            with col4:
+                if st.button("🔄 Queue for CRM"):
+                    st.info("Added to CRM import queue")
+
     # -------------------------------
     # PDF Generation
     # -------------------------------
 
     # Add a checkbox for including the custom price table
-    include_custom_table = st.checkbox("Include Speical Rates at top of PDF", value=True)
+    include_custom_table = st.checkbox("Include Special Rates at top of PDF", value=True)
 
     # Add a checkbox for page break after special rates
-    special_rates_pagebreak = st.checkbox("Seperate Special Rates on their own page", value=False)
+    special_rates_pagebreak = st.checkbox("Separate Special Rates on their own page", value=False)
 
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -1402,31 +1436,6 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
         
         for check, status in health_checks.items():
             st.write(f"{check}: {status}")
-
-# -------------------------------
-# Quick Admin Actions
-# -------------------------------
-if customer_name and 'admin_df' in locals():
-    st.markdown("---")
-    st.markdown("### ⚡ Quick Admin Actions")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        if st.button("📧 Email to Admin"):
-            st.info("Email prepared! (Configure SMTP for auto-send)")
-    
-    with col2:
-        if st.button("💾 Save to OneDrive"):
-            st.info("File ready for OneDrive upload")
-    
-    with col3:
-        if st.button("💬 Teams Notification"):
-            st.info("Teams message template generated above")
-    
-    with col4:
-        if st.button("🔄 Queue for CRM"):
-            st.info("Added to CRM import queue")
 
 # Footer
 st.markdown("---")

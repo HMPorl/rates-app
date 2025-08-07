@@ -641,65 +641,65 @@ if df is not None and header_pdf_file:
                 4. Copy the API key and paste below
                 5. **IMPORTANT**: Verify your sender email in Settings → Sender Authentication
                 """)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                sg_api_key = st.text_input(
-                    "SendGrid API Key", 
-                    type="password", 
-                    value=smtp_settings.get("sendgrid_api_key", ""),
-                    help="This will be saved securely to config.json"
-                )
-                sg_from_email = st.text_input(
-                    "From Email", 
-                    value=smtp_settings.get("sendgrid_from_email", "paul.scott@thehireman.co.uk"), 
-                    help="Must be a verified sender in SendGrid"
-                )
-            with col2:
-                st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
-                st.warning("⚠️ **Important**: The 'From Email' must be verified in SendGrid → Settings → Sender Authentication")
-            
-            # Save settings button
-            if st.button("💾 Save SendGrid Settings"):
-                config["smtp_settings"]["provider"] = "SendGrid"
-                config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
-                config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
-                if save_config(config):
-                    st.session_state.config = config
-                    st.success("✅ SendGrid settings saved successfully!")
-                    st.rerun()
-            
-            # Sender verification helper
-            if sg_from_email:
-                st.markdown("#### 🔍 **Sender Verification Check**")
-                st.markdown(f"""
-                **Your From Email:** `{sg_from_email}`
                 
-                **To verify this email in SendGrid:**
-                1. Go to [SendGrid Sender Authentication](https://app.sendgrid.com/settings/sender_auth)
-                2. Click **Single Sender Verification**
-                3. Add `{sg_from_email}` as a verified sender
-                4. Check your email and click the verification link
+                col1, col2 = st.columns(2)
+                with col1:
+                    sg_api_key = st.text_input(
+                        "SendGrid API Key", 
+                        type="password", 
+                        value=smtp_settings.get("sendgrid_api_key", ""),
+                        help="This will be saved securely to config.json"
+                    )
+                    sg_from_email = st.text_input(
+                        "From Email", 
+                        value=smtp_settings.get("sendgrid_from_email", "paul.scott@thehireman.co.uk"), 
+                        help="Must be a verified sender in SendGrid"
+                    )
+                with col2:
+                    st.info("**SendGrid Settings:**\n- Server: smtp.sendgrid.net\n- Port: 587\n- Username: 'apikey'\n- Password: Your API Key")
+                    st.warning("⚠️ **Important**: The 'From Email' must be verified in SendGrid → Settings → Sender Authentication")
                 
-                **Alternative emails you could use:**
-                - Your work email: `paul.scott@thehireman.co.uk`
-                - Company no-reply: `noreply@thehireman.co.uk` (if domain is verified)
-                - Gmail: `your.name@gmail.com` (if you have one)
-                """)
-            
-            if sg_api_key:
-                smtp_config = {
-                    'enabled': True,
-                    'smtp_server': 'smtp.sendgrid.net',
-                    'smtp_port': 587,
-                    'username': 'apikey',
-                    'password': sg_api_key,
-                    'from_email': sg_from_email,
-                    'use_tls': True,
-                    'provider': 'SendGrid'
-                }
-            else:
-                smtp_config = {'enabled': False}
+                # Save settings button
+                if st.button("💾 Save SendGrid Settings"):
+                    config["smtp_settings"]["provider"] = "SendGrid"
+                    config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
+                    config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
+                    if save_config(config):
+                        st.session_state.config = config
+                        st.success("✅ SendGrid settings saved successfully!")
+                        st.rerun()
+                
+                # Sender verification helper
+                if sg_from_email:
+                    st.markdown("#### 🔍 **Sender Verification Check**")
+                    st.markdown(f"""
+                    **Your From Email:** `{sg_from_email}`
+                    
+                    **To verify this email in SendGrid:**
+                    1. Go to [SendGrid Sender Authentication](https://app.sendgrid.com/settings/sender_auth)
+                    2. Click **Single Sender Verification**
+                    3. Add `{sg_from_email}` as a verified sender
+                    4. Check your email and click the verification link
+                    
+                    **Alternative emails you could use:**
+                    - Your work email: `paul.scott@thehireman.co.uk`
+                    - Company no-reply: `noreply@thehireman.co.uk` (if domain is verified)
+                    - Gmail: `your.name@gmail.com` (if you have one)
+                    """)
+                
+                if sg_api_key:
+                    smtp_config = {
+                        'enabled': True,
+                        'smtp_server': 'smtp.sendgrid.net',
+                        'smtp_port': 587,
+                        'username': 'apikey',
+                        'password': sg_api_key,
+                        'from_email': sg_from_email,
+                        'use_tls': True,
+                        'provider': 'SendGrid'
+                    }
+                else:
+                    smtp_config = {'enabled': False}
                 
         elif email_provider == "Gmail":
             st.warning("⚠️ **Gmail requires App Password** (not your regular password)")

@@ -29,28 +29,9 @@ from reportlab.lib.utils import ImageReader
 CONFIG_FILE = "config.json"
 
 # EMAIL SERVICE CONFIGURATION
-# Option 1: Environment variables (for admin deployment)
+# SendGrid API Configuration
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
-
-# Option 2: Webhook service (zero-config for users)
-# Check saved config first, then environment variable
-def get_webhook_url():
-    """Get webhook URL from config file or environment variable"""
-    try:
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                config = json.load(f)
-                webhook_settings = config.get("webhook_settings", {})
-                saved_url = webhook_settings.get("webhook_url", "")
-                if saved_url:
-                    return saved_url
-    except:
-        pass
-    return os.getenv("WEBHOOK_EMAIL_URL", "")
-
-WEBHOOK_EMAIL_URL = get_webhook_url()
-COMPANY_EMAIL_SERVICE = "netrates@thehireman.co.uk"  # Fallback company email
 
 def load_config():
     """Load configuration from JSON file"""
@@ -81,9 +62,6 @@ def load_config():
         "admin_settings": {
             "default_admin_email": "netrates@thehireman.co.uk",
             "cc_emails": ""
-        },
-        "webhook_settings": {
-            "webhook_url": WEBHOOK_EMAIL_URL
         }
     }
 
@@ -214,9 +192,13 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_via_webhook(customer_name, admin_df, transport_df, recipient_email):
-    """Send email via webhook service or SendGrid - zero configuration required"""
+def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email):
+    """Send email with Excel attachment using SendGrid API - Clean implementation"""
     try:
+        # Import SendGrid here to handle missing library gracefully
+        import sendgrid
+        from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+        
         # Create Excel file data
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
@@ -231,35 +213,7 @@ def send_email_via_webhook(customer_name, admin_df, transport_df, recipient_emai
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
         
-        # Encode Excel file as base64 for transmission
-        excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
-        
-        # Save Excel file locally as backup
-        with open(excel_filename, 'wb') as f:
-            f.write(output_excel.getvalue())
-        
-        enhanced_body = f"""Hello Admin Team,
-
-Please find the Excel price list for customer: {customer_name}
-
-Summary:
-- Total Items: {len(admin_df)}
-- Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-- Created via: Net Rates Calculator
-
-The Excel file contains:
-- Sheet 1: Complete price list with all items
-- Sheet 2: Transport charges  
-- Sheet 3: Summary information
-
-Please import this data into our CRM system.
-
-Best regards,
-Net Rates Calculator System"""
-        
-        # Try SendGrid API first if available
+        # Get API credentials
         config = st.session_state.get('config', {})
         smtp_settings = config.get("smtp_settings", {})
         
@@ -267,88 +221,92 @@ Net Rates Calculator System"""
         sendgrid_api_key = smtp_settings.get("sendgrid_api_key", "") or SENDGRID_API_KEY
         sendgrid_from_email = smtp_settings.get("sendgrid_from_email", "") or SENDGRID_FROM_EMAIL
         
-        if sendgrid_api_key and sendgrid_from_email:
-            try:
-                import sendgrid
-                from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
-                
-                sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
-                
-                # Create email
-                message = Mail(
-                    from_email=sendgrid_from_email,
-                    to_emails=recipient_email,
-                    subject=f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
-                    html_content=enhanced_body.replace('\n', '<br>')
-                )
-                
-                # Add Excel attachment
-                attachment = Attachment(
-                    FileContent(excel_base64),
-                    FileName(excel_filename),
-                    FileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
-                    Disposition('attachment')
-                )
-                message.attachment = attachment
-                
-                # Send email
-                response = sg.send(message)
-                if response.status_code in [200, 201, 202]:
-                    return {'status': 'sent', 'message': 'Email sent via SendGrid!'}
-                else:
-                    # Fall back to webhook if SendGrid fails
-                    pass
-                    
-            except ImportError:
-                st.warning("📦 SendGrid library not installed. Install with: pip install sendgrid")
-                # Fall back to webhook
-                pass
-            except Exception as e:
-                st.warning(f"SendGrid error: {str(e)}. Falling back to webhook.")
-                # Fall back to webhook
-                pass
+        if not sendgrid_api_key:
+            return {'status': 'error', 'message': 'SendGrid API key not configured. Please configure in Email Config.'}
         
-        # Webhook payload optimized for SendGrid via Zapier
-        webhook_data = {
-            "to": recipient_email,
-            "from": "netrates@thehireman.co.uk", 
-            "subject": f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}",
-            "body": enhanced_body,
-            "customer_name": customer_name,
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            # Excel attachment data formatted for SendGrid
-            "attachment_filename": excel_filename,
-            "attachment_content": excel_base64,
-            "attachment_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "total_items": len(admin_df),
-            # Additional metadata for SendGrid
-            "service": "sendgrid",
-            "delivery_method": "webhook"
-        }
+        if not sendgrid_from_email:
+            return {'status': 'error', 'message': 'SendGrid from email not configured. Please configure in Email Config.'}
         
-        # Try webhook service first
-        if WEBHOOK_EMAIL_URL:
-            response = requests.post(WEBHOOK_EMAIL_URL, json=webhook_data, timeout=10)
-            if response.status_code == 200:
-                return {'status': 'sent', 'message': 'Email sent via webhook service!'}
-            else:
-                return {'status': 'error', 'message': f'Webhook failed: {response.text}'}
-        else:
-            # Fallback: save data locally and show manual instructions
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"email_data_{customer_name}_{timestamp}.json"
+        # Encode Excel file as base64 for attachment
+        excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
+        
+        # Create professional email content
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <h2 style="color: #002D56;">New Net Rates Price List</h2>
             
-            with open(filename, 'w') as f:
-                json.dump(webhook_data, f, indent=2)
+            <p><strong>Customer:</strong> {customer_name}</p>
+            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>Total Items:</strong> {len(admin_df)}</p>
             
+            <h3 style="color: #002D56;">Summary</h3>
+            <ul>
+                <li><strong>Price List:</strong> {len(admin_df)} equipment items</li>
+                <li><strong>Transport Options:</strong> {len(transport_df)} delivery types</li>
+                <li><strong>Format:</strong> Excel spreadsheet with multiple sheets</li>
+            </ul>
+            
+            <h3 style="color: #002D56;">Excel File Contents</h3>
+            <ul>
+                <li><strong>Price List Sheet:</strong> Complete equipment pricing with customer details</li>
+                <li><strong>Transport Charges Sheet:</strong> Delivery and collection rates</li>
+                <li><strong>Summary Sheet:</strong> Overview with totals and metadata</li>
+            </ul>
+            
+            <p style="margin-top: 20px;">
+                <em>Generated by Net Rates Calculator - The Hireman</em>
+            </p>
+        </body>
+        </html>
+        """
+        
+        # Create SendGrid mail object
+        sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
+        
+        message = Mail(
+            from_email=sendgrid_from_email,
+            to_emails=recipient_email,
+            subject=f"Net Rates Price List - {customer_name} ({datetime.now().strftime('%Y-%m-%d')})",
+            html_content=html_content
+        )
+        
+        # Create and attach Excel file
+        attachment = Attachment(
+            FileContent(excel_base64),
+            FileName(excel_filename),
+            FileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+            Disposition('attachment')
+        )
+        message.attachment = attachment
+        
+        # Send email
+        response = sg.send(message)
+        
+        if response.status_code in [200, 201, 202]:
             return {
-                'status': 'saved', 
-                'message': f'Email data saved to {filename}. Please contact admin to configure email service.',
-                'filename': filename
+                'status': 'sent', 
+                'message': f'Email with Excel attachment sent successfully to {recipient_email}',
+                'status_code': response.status_code
+            }
+        else:
+            return {
+                'status': 'error', 
+                'message': f'SendGrid API returned status code: {response.status_code}'
             }
             
+    except ImportError:
+        return {
+            'status': 'error', 
+            'message': 'SendGrid library not installed. Run: pip install sendgrid'
+        }
     except Exception as e:
-        return {'status': 'error', 'message': f'Webhook email failed: {str(e)}'}
+        return {
+            'status': 'error', 
+            'message': f'SendGrid API error: {str(e)}'
+        }
 
 def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None):
     """Send price list via email to admin team"""
@@ -1044,43 +1002,32 @@ if df is not None and header_pdf_file:
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
-    # Status indicator - prioritize SendGrid when configured
+    # Status indicator - SendGrid focused
     config = st.session_state.get('config', {})
     smtp_settings = config.get("smtp_settings", {})
     saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
     
     if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
-        st.success("✅ SendGrid configured - emails with attachments ready!")
+        st.success("✅ SendGrid configured - Perfect Excel attachments ready!")
     elif saved_sendgrid_key or SENDGRID_API_KEY:
-        st.success("✅ SendGrid available - configure in Email Config above for best attachment support!")
-    elif WEBHOOK_EMAIL_URL:
-        st.warning("⚠️ Webhook configured but attachments may not work properly. Consider configuring SendGrid for reliable attachments.")
+        st.success("✅ SendGrid available - Reliable Excel attachment delivery!")
     elif smtp_config.get('enabled', False):
-        st.success(f"✅ Email configured via {smtp_config.get('provider', 'SMTP')}")
+        st.warning(f"⚠️ {smtp_config.get('provider', 'SMTP')} configured - Excel attachments may have issues. SendGrid recommended.")
     else:
-        st.info("📧 Email will be prepared for manual sending")
+        st.info("📧 Configure SendGrid in Email Config above for best results")
     
     if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
         if customer_name:
             try:
-                # Priority 1: Use SendGrid if configured (best for attachments)
-                if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
-                    result = send_email_with_pricelist(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        smtp_config
-                    )
-                # Priority 2: Use webhook with SendGrid fallback
-                elif WEBHOOK_EMAIL_URL:
-                    result = send_email_via_webhook(
+                # Priority 1: Use SendGrid API (best for attachments)
+                if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
+                    result = send_email_via_sendgrid_api(
                         customer_name, 
                         admin_df, 
                         transport_df if include_transport else pd.DataFrame(), 
                         admin_email
                     )
-                # Priority 3: Use other SMTP if configured
+                # Priority 2: Use other SMTP if configured
                 elif smtp_config.get('enabled', False):
                     result = send_email_with_pricelist(
                         customer_name, 
@@ -1590,66 +1537,65 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
     tab1, tab2, tab3 = st.tabs(["📧 Email Settings", "🔄 Automation", "📊 Analytics"])
     
     with tab1:
-        st.markdown("#### 🔗 Webhook Configuration (Zero-Config Email)")
+        st.markdown("#### � SendGrid API Configuration (Recommended)")
         
-        # Webhook URL Configuration
+        # SendGrid Configuration
         col1, col2 = st.columns([3, 1])
         with col1:
-            current_webhook = os.getenv("WEBHOOK_EMAIL_URL", "")
-            webhook_url = st.text_input(
-                "Zapier Webhook URL",
-                value=current_webhook,
-                help="Paste your Zapier webhook URL here for zero-configuration email sending",
-                placeholder="https://hooks.zapier.com/hooks/catch/1234/test"
+            current_api_key = SENDGRID_API_KEY
+            current_from_email = SENDGRID_FROM_EMAIL
+            
+            st.text_input(
+                "SendGrid API Key",
+                value=current_api_key[:8] + "..." + current_api_key[-4:] if current_api_key else "Not configured",
+                disabled=True,
+                help="Configure via environment variables or Email Config in main app"
             )
-        with col2:
-            if st.button("💾 Update Webhook", type="primary"):
-                if webhook_url.strip():
-                    # Set environment variable for current session
-                    os.environ["WEBHOOK_EMAIL_URL"] = webhook_url.strip()
-                    
-                    # Also save to config for persistence
-                    config = st.session_state.config
-                    if "webhook_settings" not in config:
-                        config["webhook_settings"] = {}
-                    config["webhook_settings"]["webhook_url"] = webhook_url.strip()
-                    save_config(config)
-                    st.session_state.config = config
-                    
-                    st.success("✅ Webhook URL updated successfully!")
-                    st.info("🔄 Restart the app to make this permanent across sessions.")
-                    st.rerun()
-                else:
-                    st.error("❌ Please enter a valid webhook URL")
+            st.text_input(
+                "From Email Address", 
+                value=current_from_email if current_from_email else "Not configured",
+                disabled=True,
+                help="Verified sender address in SendGrid"
+            )
         
-        # Show current status
-        if webhook_url or current_webhook:
-            st.success("✅ Webhook configured - users can send emails with zero setup!")
-            if webhook_url != current_webhook:
-                st.warning("⚠️ New URL entered - click 'Update Webhook' to save changes")
+        with col2:
+            if current_api_key and current_from_email:
+                st.success("✅ SendGrid Ready")
+                st.info("Perfect Excel attachments enabled!")
+            else:
+                st.warning("⚠️ Not Configured")
+                st.info("Use Email Config toggle in main app")
+        
+        # Status display
+        if current_api_key and current_from_email:
+            st.success("✅ SendGrid configured - users can send perfect Excel attachments!")
+            st.markdown(f"**From Email:** `{current_from_email}`")
+            st.markdown(f"**API Key:** `{current_api_key[:8]}...{current_api_key[-4:] if len(current_api_key) > 8 else '****'}`")
         else:
-            st.info("📝 Enter your Zapier webhook URL to enable zero-configuration email for all users")
+            st.info("� Configure SendGrid for reliable Excel attachment delivery")
             
         # Quick help section
-        with st.expander("❓ How to get your Zapier Webhook URL"):
+        with st.expander("❓ How to configure SendGrid"):
             st.markdown("""
-            **Steps to get your webhook URL:**
-            1. Go to [zapier.com](https://zapier.com) and create a Zap
-            2. Choose **"Webhooks by Zapier"** as trigger
-            3. Select **"Catch Hook"**
-            4. Copy the webhook URL that looks like:
-               `https://hooks.zapier.com/hooks/catch/12345678/abcd1234/`
-            5. Paste it above and click "Update Webhook"
+            **Steps to configure SendGrid:**
+            1. Sign up at [SendGrid.com](https://sendgrid.com) (free tier: 100 emails/day)
+            2. Go to Settings → API Keys → Create API Key
+            3. Choose "Restricted Access" and enable "Mail Send" permissions
+            4. Copy the API key
+            5. Go to Settings → Sender Authentication → Verify single sender
+            6. Verify your from email address
+            7. Use the Email Config toggle in the main app to configure
             
-            **What this does:**
-            - Users can click "Send Email" and it works instantly
-            - No email configuration needed by users
-            - Works on mobile, desktop, any device
-            - Professional email delivery via Zapier
+            **Why SendGrid?**
+            - ✅ Perfect Excel attachment delivery (no .txt file corruption)
+            - ✅ Professional email appearance
+            - ✅ 99.9% delivery rate
+            - ✅ Advanced analytics and tracking
+            - ✅ Reliable API with excellent documentation
             """)
         
         st.markdown("---")
-        st.markdown("#### 📧 Traditional Email Configuration")
+        st.markdown("#### 📧 Alternative Email Options")
         
         # Load saved admin settings
         admin_settings = st.session_state.config.get("admin_settings", {})

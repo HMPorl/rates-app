@@ -29,9 +29,15 @@ from reportlab.lib.utils import ImageReader
 CONFIG_FILE = "config.json"
 
 # EMAIL SERVICE CONFIGURATION
-# SendGrid API Configuration
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
-SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
+# SendGrid API Configuration - Cloud Compatible
+try:
+    # Try Streamlit secrets first (for cloud deployment)
+    SENDGRID_API_KEY = st.secrets.get("sendgrid", {}).get("SENDGRID_API_KEY", "") or os.getenv("SENDGRID_API_KEY", "")
+    SENDGRID_FROM_EMAIL = st.secrets.get("sendgrid", {}).get("SENDGRID_FROM_EMAIL", "") or os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
+except AttributeError:
+    # Fallback to environment variables (for local development)
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+    SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
 
 def load_config():
     """Load configuration from JSON file"""

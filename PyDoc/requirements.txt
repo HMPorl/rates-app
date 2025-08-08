@@ -1,4 +1,5 @@
 # Net Rates Calculator Dependencies
+# Updated: 2025-08-08 - Ensuring SendGrid is installed in Streamlit Cloud
 
 # Web Framework
 streamlit>=1.28.0

@@ -30,7 +30,7 @@ try:
     SENDGRID_AVAILABLE = True
 except ImportError:
     SENDGRID_AVAILABLE = False
-    st.warning("⚠️ SendGrid library not installed. Email functionality will be limited.")
+    # Don't show warning immediately - let user see it only when needed
 
 # -------------------------------
 # Configuration Management
@@ -1176,62 +1176,54 @@ if df is not None and header_pdf_file:
     
     if not SENDGRID_AVAILABLE:
         st.error("❌ SendGrid library not installed. Check requirements.txt and redeploy.")
-    elif smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
-        st.success("✅ SendGrid configured - Perfect Excel attachments ready!")
+        st.info("📋 **Required**: Add `sendgrid>=6.10.0` to requirements.txt")
+    elif (saved_sendgrid_key or SENDGRID_API_KEY) and SENDGRID_FROM_EMAIL:
+        st.success("✅ SendGrid configured and ready - Perfect Excel attachment delivery!")
+        if saved_sendgrid_key:
+            st.info(f"🔑 Using saved API key: {saved_sendgrid_key[:8]}...{saved_sendgrid_key[-4:] if len(saved_sendgrid_key) > 8 else '****'}")
+        elif SENDGRID_API_KEY:
+            st.info("🔑 Using environment/secrets API key")
     elif saved_sendgrid_key or SENDGRID_API_KEY:
-        st.success("✅ SendGrid available - Reliable Excel attachment delivery!")
-    elif WEBHOOK_EMAIL_URL:
-        st.warning("⚠️ Webhook configured but attachments may not work properly. SendGrid recommended for Excel files.")
-    elif smtp_config.get('enabled', False):
-        st.warning(f"⚠️ {smtp_config.get('provider', 'SMTP')} configured - Excel attachments may have issues. SendGrid recommended.")
+        st.warning("⚠️ SendGrid API key found but missing from email. Configure in Email Config above.")
     else:
-        st.info("📧 Configure SendGrid in Email Config above for best results")
+        st.warning("⚠️ SendGrid not configured. Configure API key in Email Config above for reliable Excel attachments.")
+        st.info("📧 **Recommended**: Use SendGrid for best Excel file delivery")
     
     if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
         if customer_name:
             try:
-                # Debug: Show which method will be used
+                # Check if SendGrid is available first
+                if not SENDGRID_AVAILABLE:
+                    st.error("❌ SendGrid library not installed. Please ensure sendgrid>=6.10.0 is in requirements.txt and redeploy.")
+                    st.info("� **Alternative**: Download the Excel file above and email it manually.")
+                    st.stop()
+                
+                # Get SendGrid configuration
                 config = st.session_state.get('config', {})
                 smtp_settings = config.get("smtp_settings", {})
                 saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
                 
-                if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
-                    st.info("🔄 Using SendGrid API for email delivery...")
-                    result = send_email_via_sendgrid_api(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email
-                    )
-                # Priority 2: Use webhook with SendGrid fallback
-                elif WEBHOOK_EMAIL_URL:
-                    st.info("🔄 Using webhook service for email delivery...")
-                    result = send_email_via_webhook(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email
-                    )
-                # Priority 3: Use other SMTP if configured
-                elif smtp_config.get('enabled', False):
-                    st.info(f"🔄 Using {smtp_config.get('provider', 'SMTP')} for email delivery...")
-                    result = send_email_with_pricelist(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        smtp_config
-                    )
-                else:
-                    # Fallback: prepare email data for manual sending
-                    st.info("🔄 Preparing email for manual sending...")
-                    result = send_email_with_pricelist(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        None
-                    )
+                # Use SendGrid API - the clean, working approach
+                sendgrid_api_key = saved_sendgrid_key or SENDGRID_API_KEY
+                sendgrid_from_email = smtp_settings.get("sendgrid_from_email", "") or SENDGRID_FROM_EMAIL
+                
+                if not sendgrid_api_key:
+                    st.error("❌ SendGrid API key not configured. Please configure in Email Config above.")
+                    st.info("� **Alternative**: Download the Excel file above and email it manually.")
+                    st.stop()
+                
+                if not sendgrid_from_email:
+                    st.error("❌ SendGrid from email not configured. Please configure in Email Config above.")
+                    st.info("💡 **Alternative**: Download the Excel file above and email it manually.")
+                    st.stop()
+                
+                st.info("🔄 Sending email via SendGrid API...")
+                result = send_email_via_sendgrid_api(
+                    customer_name, 
+                    admin_df, 
+                    transport_df if include_transport else pd.DataFrame(), 
+                    admin_email
+                )
                 
                 if result['status'] == 'sent':
                     st.success(f"✅ {result['message']}")

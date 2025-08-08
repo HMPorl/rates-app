@@ -23,6 +23,15 @@ from datetime import datetime
 import glob
 from reportlab.lib.utils import ImageReader
 
+# Try to import SendGrid early to catch any issues
+try:
+    import sendgrid
+    from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+    SENDGRID_AVAILABLE = True
+except ImportError:
+    SENDGRID_AVAILABLE = False
+    st.warning("⚠️ SendGrid library not installed. Email functionality will be limited.")
+
 # -------------------------------
 # Configuration Management
 # -------------------------------
@@ -222,11 +231,15 @@ def read_pdf_header(file):
 
 def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email):
     """Send email with Excel attachment using SendGrid API - Clean implementation"""
+    
+    # Check if SendGrid is available
+    if not SENDGRID_AVAILABLE:
+        return {
+            'status': 'error', 
+            'message': 'SendGrid library not installed. Please ensure sendgrid>=6.10.0 is in requirements.txt and redeploy.'
+        }
+    
     try:
-        # Import SendGrid here to handle missing library gracefully
-        import sendgrid
-        from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
-        
         # Create Excel file data
         output_excel = io.BytesIO()
         with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
@@ -325,11 +338,6 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
                 'message': f'SendGrid API returned status code: {response.status_code}'
             }
             
-    except ImportError:
-        return {
-            'status': 'error', 
-            'message': 'SendGrid library not installed. Run: pip install sendgrid'
-        }
     except Exception as e:
         return {
             'status': 'error', 
@@ -389,11 +397,8 @@ Net Rates Calculator System"""
         sendgrid_api_key = smtp_settings.get("sendgrid_api_key", "") or SENDGRID_API_KEY
         sendgrid_from_email = smtp_settings.get("sendgrid_from_email", "") or SENDGRID_FROM_EMAIL
         
-        if sendgrid_api_key and sendgrid_from_email:
+        if sendgrid_api_key and sendgrid_from_email and SENDGRID_AVAILABLE:
             try:
-                import sendgrid
-                from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
-                
                 sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
                 
                 # Create email
@@ -421,14 +426,12 @@ Net Rates Calculator System"""
                     # Fall back to webhook if SendGrid fails
                     pass
                     
-            except ImportError:
-                st.warning("📦 SendGrid library not installed. Install with: pip install sendgrid")
-                # Fall back to webhook
-                pass
             except Exception as e:
                 st.warning(f"SendGrid error: {str(e)}. Falling back to webhook.")
                 # Fall back to webhook
                 pass
+        elif sendgrid_api_key and sendgrid_from_email and not SENDGRID_AVAILABLE:
+            st.warning("📦 SendGrid API key configured but library not installed. Falling back to webhook.")
         
         # Webhook payload optimized for SendGrid via Zapier
         webhook_data = {
@@ -1171,7 +1174,9 @@ if df is not None and header_pdf_file:
     smtp_settings = config.get("smtp_settings", {})
     saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
     
-    if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
+    if not SENDGRID_AVAILABLE:
+        st.error("❌ SendGrid library not installed. Check requirements.txt and redeploy.")
+    elif smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
         st.success("✅ SendGrid configured - Perfect Excel attachments ready!")
     elif saved_sendgrid_key or SENDGRID_API_KEY:
         st.success("✅ SendGrid available - Reliable Excel attachment delivery!")
@@ -1185,8 +1190,13 @@ if df is not None and header_pdf_file:
     if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
         if customer_name:
             try:
-                # Priority 1: Use SendGrid API (best for attachments)
-                if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or SENDGRID_API_KEY:
+                # Debug: Show which method will be used
+                config = st.session_state.get('config', {})
+                smtp_settings = config.get("smtp_settings", {})
+                saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
+                
+                if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
+                    st.info("🔄 Using SendGrid API for email delivery...")
                     result = send_email_via_sendgrid_api(
                         customer_name, 
                         admin_df, 
@@ -1195,6 +1205,7 @@ if df is not None and header_pdf_file:
                     )
                 # Priority 2: Use webhook with SendGrid fallback
                 elif WEBHOOK_EMAIL_URL:
+                    st.info("🔄 Using webhook service for email delivery...")
                     result = send_email_via_webhook(
                         customer_name, 
                         admin_df, 
@@ -1203,6 +1214,7 @@ if df is not None and header_pdf_file:
                     )
                 # Priority 3: Use other SMTP if configured
                 elif smtp_config.get('enabled', False):
+                    st.info(f"🔄 Using {smtp_config.get('provider', 'SMTP')} for email delivery...")
                     result = send_email_with_pricelist(
                         customer_name, 
                         admin_df, 
@@ -1212,6 +1224,7 @@ if df is not None and header_pdf_file:
                     )
                 else:
                     # Fallback: prepare email data for manual sending
+                    st.info("🔄 Preparing email for manual sending...")
                     result = send_email_with_pricelist(
                         customer_name, 
                         admin_df, 

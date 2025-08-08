@@ -1,5 +1,5 @@
 # Net Rates Calculator Dependencies
-# Updated: 2025-08-08 14:30 - Fixed SendGrid import issue and added proper Streamlit secrets support
+# Updated: 2025-08-08 15:00 - Fixed SendGrid import handling and added global availability check
 
 # Web Framework
 streamlit>=1.28.0

@@ -175,7 +175,104 @@ if show_weather:
 # Streamlit Page Configuration
 # -------------------------------
 st.set_page_config(page_title="Net Rates Calculator", layout="wide")
-st.title("Net Rates Calculator")
+
+# Header with help button
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.title("Net Rates Calculator")
+with col2:
+    if st.button("❓ Help Guide", type="secondary"):
+        st.session_state.show_help = not st.session_state.get('show_help', False)
+
+# Built-in Help System
+if st.session_state.get('show_help', False):
+    with st.expander("📚 **User Guide & Instructions**", expanded=True):
+        st.markdown("""
+        ## 🚀 Quick Start Guide
+        
+        ### 1️⃣ **Basic Setup**
+        - **Customer Name**: Required for all exports and emails
+        - **Company Logo**: Optional, appears on PDF documents
+        - **Sales Person Header**: Choose PDF template for your quotes
+        
+        ### 2️⃣ **Setting Discounts**
+        
+        #### Global Discount
+        - Set base discount percentage for all items
+        - Use "Update all group discounts" to apply globally
+        
+        #### Group-Level Discounts  
+        - Each equipment group can have custom discount
+        - "Set All Groups to Global Discount" resets everything
+        
+        ### 3️⃣ **Custom Pricing**
+        - **Automatic**: Items show discounted prices based on group settings
+        - **Manual Override**: Enter custom prices in text boxes
+        - ⚠️ System warns if you exceed maximum allowed discount
+        - Only manual entries appear in "Special Rates" section
+        
+        ### 4️⃣ **Export Options**
+        
+        | Format | Use Case |
+        |--------|----------|
+        | 📊 **Excel** | Admin format with 3 sheets - ready for CRM |
+        | 📄 **CSV** | Universal format for other systems |
+        | 🔗 **JSON** | API integration or system imports |
+        | 📄 **PDF** | Professional customer-facing quotes |
+        | 💾 **Save Progress** | JSON backup to resume work later |
+        
+        ### 5️⃣ **Email System**
+        
+        #### Recommended: SendGrid Setup
+        1. Click "Email Config" toggle
+        2. Select "SendGrid" 
+        3. Enter API key and from email
+        4. Save settings - now ready for reliable delivery!
+        
+        #### Email Features
+        - ✅ **Dual Attachments**: Excel (for CRM) + JSON (for backup)
+        - ✅ **CC Support**: CC yourself or others
+        - ✅ **Professional Format**: Auto-generated business emails
+        - ✅ **Reliable Delivery**: SendGrid ensures best attachment support
+        
+        ### 6️⃣ **Advanced Features**
+        
+        #### Weather Display
+        - Toggle on/off for London weather info
+        - Shows current conditions and daily forecast
+        
+        #### Admin Options
+        - Upload custom Excel templates
+        - Upload custom PDF headers  
+        - Override default system files
+        
+        ## 🛠️ **Troubleshooting**
+        
+        ### Email Issues
+        - **SendGrid errors**: Check API key and verified sender email
+        - **Gmail issues**: Need 2-factor auth + app password
+        - **Attachment problems**: SendGrid provides best support
+        
+        ### Export Issues  
+        - Ensure customer name is entered first
+        - PDF requires sales person header selection
+        - Check browser download permissions
+        
+        ## ✅ **Best Practices**
+        
+        1. **Always enter customer name first** - Required for exports
+        2. **Save progress frequently** - Especially for large lists  
+        3. **Test email settings** - Use test button before important quotes
+        4. **Use SendGrid** - Most reliable for business email delivery
+        5. **Review discount warnings** - Stay within maximum limits
+        
+        ## 📞 **Support**
+        - 📧 Email: netrates@thehireman.co.uk
+        - 💡 Check this guide first for common questions
+        
+        ---
+        *Net Rates Calculator - The Hireman | Version: August 2025*
+        """)
 
 #if st.button("📂 Go to Load Progress Section"):
 #    st.session_state["scroll_to_load"] = True

@@ -1080,129 +1080,16 @@ if df is not None and header_pdf_file:
             st.warning("⚠️ Please enter a customer name first")
 
     # -------------------------------
-    # Share Options (Alternative Data Sharing and Quick Actions)
+    # Export Net Rates to PDF
     # -------------------------------
-    show_share_options = st.toggle("Share Options", value=False)
-    
-    if show_share_options:
-        st.markdown("### 🔄 Alternative Data Sharing Methods")
-        
-        # Quick share options
-        col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Create a shareable link (placeholder for actual implementation)
-        if st.button("🔗 Generate Share Link"):
-            # In a real implementation, this would upload to a temporary server
-            share_data = {
-                "customer": customer_name,
-                "data": admin_df.to_dict('records'),
-                "timestamp": datetime.now().isoformat()
-            }
-            # Encode data for demo purposes
-            encoded_data = base64.b64encode(json.dumps(share_data).encode()).decode()[:50] + "..."
-            st.success("� Share link generated!")
-            st.code(f"https://your-company.com/share/{encoded_data}")
-            st.info("�💡 Admin team can click this link to access the data directly")
-    
-    with col2:
-        # Teams/Slack message template
-        if st.button("💬 Generate Teams Message"):
-            teams_message = f"""
-🏢 **New Price List Ready for CRM Input**
-
-**Customer:** {customer_name}
-**Items:** {len(admin_df)} equipment items
-**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M')}
-**Created by:** Net Rates Calculator
-
-📊 **Action Required:** Please download and import the attached Excel file into our CRM system.
-
-📎 Files attached:
-- {customer_name}_admin_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx
-            """
-            st.success("💬 Teams message template generated!")
-            st.text_area("Copy this message to Teams:", teams_message, height=200)
-    
-    with col3:
-        # API endpoint for CRM integration
-        if st.button("🔌 Show API Format"):
-            api_payload = {
-                "endpoint": "POST /api/crm/import-pricelist",
-                "headers": {"Content-Type": "application/json"},
-                "payload": {
-                    "customer_name": customer_name,
-                    "created_date": datetime.now().isoformat(),
-                    "items": admin_df.head(3).to_dict('records'),  # Show first 3 as example
-                    "total_items": len(admin_df)
-                }
-            }
-            st.success("🔌 API format generated!")
-            st.json(api_payload)
-    
-    with st.expander("💡 Click to see detailed comparison of methods"):
-        st.markdown("""
-        **📊 Spreadsheet Options:**
-        - **Excel** (Current) ⭐ - Best for CRM import, formulas, multiple sheets
-        - **Google Sheets** - Real-time collaboration, automatic sync
-        - **CSV** - Universal format, works with any system
-        
-        **🌐 Digital Methods:**
-        - **Shared Cloud Folder** ⭐ - OneDrive/Google Drive automatic sync
-        - **Teams/Slack Integration** - Direct channel posting
-        - **API Integration** - Direct CRM connection (JSON format)
-        - **Share Links** - Temporary download links
-        
-        **📧 Communication Options:**
-        - **Direct Email** (Above) ⭐ - Instant delivery with attachment
-        - **Scheduled Reports** - Daily/weekly automatic sends
-        - **Internal Portal** - Web dashboard for admin access
-        
-        **⚡ Easiest Methods Ranked:**
-        1. **Email with Excel** ⭐ - Familiar, reliable, includes all data
-        2. **Shared OneDrive folder** ⭐ - Automatic sync, version control
-        3. **Teams message with attachment** - Quick notification
-        4. **CSV to shared folder** - Simple, works with all systems
-        5. **API integration** - Fully automated (requires development)
-        
-        **🎯 Recommended Setup:**
-        1. **Primary**: Email Excel file to admin team
-        2. **Backup**: Save to shared OneDrive folder
-        3. **Notification**: Teams message with link to file
-        """)
-
-        # -------------------------------
-        # Quick Admin Actions
-        # -------------------------------
-        if customer_name and 'admin_df' in locals():
-            st.markdown("---")
-            st.markdown("### ⚡ Quick Admin Actions")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                if st.button("📧 Email to Admin"):
-                    st.info("Email prepared! (Configure SMTP for auto-send)")
-            
-            with col2:
-                if st.button("💾 Save to OneDrive"):
-                    st.info("File ready for OneDrive upload")
-            
-            with col3:
-                if st.button("💬 Teams Notification"):
-                    st.info("Teams message template generated above")
-            
-            with col4:
-                if st.button("🔄 Queue for CRM"):
-                    st.info("Added to CRM import queue")
-
-    # -------------------------------
-    # PDF Generation
-    # -------------------------------
+    st.markdown("---")
+    st.markdown("### 📄 Export Net Rates to PDF")
+    st.markdown("Generate a professional PDF document with your customized pricing.")
 
     # Add a checkbox for including the custom price table
+    # Add a checkbox for including the custom price table
     include_custom_table = st.checkbox("Include Special Rates at top of PDF", value=True)
-
+    
     # Add a checkbox for page break after special rates
     special_rates_pagebreak = st.checkbox("Separate Special Rates on their own page", value=False)
 
@@ -1526,12 +1413,37 @@ if df is not None and header_pdf_file:
     safe_customer_name = customer_name.strip() if customer_name else "Customer"
     filename = f'Price List for {safe_customer_name} {month_year}.pdf'
 
+    # Make PDF download button prominent and red
+    st.markdown("---")
+    st.markdown("#### 🎯 **Download Your PDF Price List**")
     st.download_button(
-        label="Download as PDF",
+        label="📄 Download as PDF",
         data=merged_output.getvalue(),
         file_name=filename,
-        mime="application/pdf"
+        mime="application/pdf",
+        type="primary",
+        help="Download your customized price list as a PDF document"
     )
+    
+    # Add custom CSS to make the button red
+    st.markdown("""
+    <style>
+    .stDownloadButton > button {
+        background-color: #ff4444 !important;
+        color: white !important;
+        border: 2px solid #ff4444 !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        padding: 12px 24px !important;
+        margin: 10px 0 !important;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #cc0000 !important;
+        border-color: #cc0000 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # -------------------------------
 # Admin Dashboard (Collapsible)

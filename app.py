@@ -198,7 +198,7 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email):
+def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0):
     """Send email with Excel attachment using SendGrid API - Clean implementation"""
     try:
         # Import SendGrid here to handle missing library gracefully
@@ -252,10 +252,16 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             <ul>
                 <li><strong>Price List:</strong> {len(admin_df)} equipment items</li>
                 <li><strong>Transport Options:</strong> {len(transport_df)} delivery types</li>
-                <li><strong>Format:</strong> Excel spreadsheet with multiple sheets</li>
+                <li><strong>Attachments:</strong> Excel spreadsheet + JSON backup file</li>
             </ul>
             
-            <h3 style="color: #002D56;">Excel File Contents</h3>
+            <h3 style="color: #002D56;">Attached Files</h3>
+            <ul>
+                <li><strong>Excel File:</strong> Complete pricing data ready for CRM import</li>
+                <li><strong>JSON File:</strong> Calculator backup file (can be reloaded into Net Rates Calculator)</li>
+            </ul>
+            
+            <h4 style="color: #002D56;">Excel File Contents:</h4>
             <ul>
                 <li><strong>Price List Sheet:</strong> Complete equipment pricing with customer details</li>
                 <li><strong>Transport Charges Sheet:</strong> Delivery and collection rates</li>
@@ -272,29 +278,81 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         # Create SendGrid mail object
         sg = sendgrid.SendGridAPIClient(api_key=sendgrid_api_key)
         
+        # Setup email recipients (include CC if provided)
+        to_emails = [recipient_email]
+        if cc_email and cc_email.strip():
+            cc_emails = [cc_email.strip()]
+        else:
+            cc_emails = None
+        
         message = Mail(
             from_email=sendgrid_from_email,
-            to_emails=recipient_email,
+            to_emails=to_emails,
             subject=f"Net Rates Price List - {customer_name} ({datetime.now().strftime('%Y-%m-%d')})",
             html_content=html_content
         )
         
+        # Add CC if provided
+        if cc_emails:
+            message.cc = cc_emails
+        
+        # Create JSON save file for backup/reload capability
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Prepare JSON save data (same format as Save Progress feature)
+        save_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": {
+                key: st.session_state.get(key, 0)
+                for key in st.session_state
+                if key.endswith("_discount")
+            },
+            "custom_prices": {
+                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
+                for idx, row in admin_df.iterrows()
+                if hasattr(admin_df, 'iterrows')
+            },
+            "transport_charges": {
+                key: st.session_state.get(key, "")
+                for key in st.session_state
+                if key.startswith("transport_")
+            },
+            "created_timestamp": datetime.now().isoformat(),
+            "created_by": "Net Rates Calculator"
+        }
+        
+        json_data = json.dumps(save_data, indent=2)
+        json_base64 = base64.b64encode(json_data.encode()).decode()
+        json_filename = f"{customer_name}_progress_backup_{timestamp}.json"
+        
         # Create and attach Excel file
-        attachment = Attachment(
+        excel_attachment = Attachment(
             FileContent(excel_base64),
             FileName(excel_filename),
             FileType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             Disposition('attachment')
         )
-        message.attachment = attachment
+        
+        # Create and attach JSON save file
+        json_attachment = Attachment(
+            FileContent(json_base64),
+            FileName(json_filename),
+            FileType('application/json'),
+            Disposition('attachment')
+        )
+        
+        # Add both attachments to message
+        message.attachment = [excel_attachment, json_attachment]
         
         # Send email
         response = sg.send(message)
         
         if response.status_code in [200, 201, 202]:
+            cc_message = f" (CC: {cc_email})" if cc_email and cc_email.strip() else ""
             return {
                 'status': 'sent', 
-                'message': f'Email with Excel attachment sent successfully to {recipient_email}',
+                'message': f'Email with Excel & JSON backup files sent to {recipient_email}{cc_message}',
                 'status_code': response.status_code
             }
         else:
@@ -314,16 +372,22 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             'message': f'SendGrid API error: {str(e)}'
         }
 
-def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None):
+def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0):
     """Send price list via email to admin team"""
     try:
         # Create the email
         msg = MIMEMultipart()
         msg['From'] = smtp_config.get('from_email', 'noreply@thehireman.co.uk') if smtp_config else 'noreply@thehireman.co.uk'
         msg['To'] = recipient_email
+        
+        # Add CC if provided
+        if cc_email and cc_email.strip():
+            msg['Cc'] = cc_email.strip()
+            
         msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
         
         # Email body
+        cc_note = f"\n(CC: {cc_email})" if cc_email and cc_email.strip() else ""
         body = f"""
 Hello Admin Team,
 
@@ -332,14 +396,14 @@ Please find attached the price list for customer: {customer_name}
 Summary:
 - Total Items: {len(admin_df)}
 - Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
-- Created via: Net Rates Calculator
+- Created via: Net Rates Calculator{cc_note}
 
-The attached Excel file contains:
-- Sheet 1: Complete price list with all items
-- Sheet 2: Transport charges
-- Sheet 3: Summary information
+The attached files contain:
+- Excel file: Complete price list with transport charges and summary
+- JSON file: Backup/reload file for the Net Rates Calculator
 
-Please import this data into our CRM system.
+Please import the Excel data into our CRM system.
+The JSON file can be used to reload this exact configuration in the calculator if needed.
 
 Best regards,
 Net Rates Calculator System
@@ -371,6 +435,43 @@ Net Rates Calculator System
         )
         msg.attach(part)
         
+        # Create and attach JSON save file
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        save_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": {
+                key: st.session_state.get(key, 0)
+                for key in st.session_state
+                if key.endswith("_discount")
+            },
+            "custom_prices": {
+                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
+                for idx, row in admin_df.iterrows()
+                if hasattr(admin_df, 'iterrows')
+            },
+            "transport_charges": {
+                key: st.session_state.get(key, "")
+                for key in st.session_state
+                if key.startswith("transport_")
+            },
+            "created_timestamp": datetime.now().isoformat(),
+            "created_by": "Net Rates Calculator"
+        }
+        
+        json_data = json.dumps(save_data, indent=2)
+        json_filename = f"{customer_name}_progress_backup_{timestamp}.json"
+        
+        # Attach JSON file
+        json_part = MIMEBase('application', 'json')
+        json_part.set_payload(json_data.encode('utf-8'))
+        encoders.encode_base64(json_part)
+        json_part.add_header(
+            'Content-Disposition',
+            f'attachment; filename={json_filename}'
+        )
+        msg.attach(json_part)
+        
         # Send email if SMTP is configured
         if smtp_config and smtp_config.get('enabled', False):
             try:
@@ -379,9 +480,17 @@ Net Rates Calculator System
                     server.starttls()
                 server.login(smtp_config['username'], smtp_config['password'])
                 text = msg.as_string()
-                server.sendmail(smtp_config['from_email'], recipient_email, text)
+                
+                # Build recipient list (includes CC if provided)
+                recipients = [recipient_email]
+                if cc_email and cc_email.strip():
+                    recipients.append(cc_email.strip())
+                
+                server.sendmail(smtp_config['from_email'], recipients, text)
                 server.quit()
-                return {'status': 'sent', 'message': 'Email sent successfully!'}
+                
+                cc_message = f" (CC: {cc_email})" if cc_email and cc_email.strip() else ""
+                return {'status': 'sent', 'message': f'Email with attachments sent successfully{cc_message}!'}
             except Exception as e:
                 return {'status': 'error', 'message': f'SMTP Error: {str(e)}'}
         else:
@@ -1005,6 +1114,8 @@ if df is not None and header_pdf_file:
     with col1:
         # Hard-coded admin email address
         admin_email = st.text_input("Accounts Team Email", value="netrates@thehireman.co.uk")
+        # CC email input
+        cc_email = st.text_input("CC Email (optional)", placeholder="your.email@company.com", help="CC yourself or others on this email")
     with col2:
         include_transport = st.checkbox("Include Transport Charges", value=True)
     
@@ -1031,7 +1142,9 @@ if df is not None and header_pdf_file:
                         customer_name, 
                         admin_df, 
                         transport_df if include_transport else pd.DataFrame(), 
-                        admin_email
+                        admin_email,
+                        cc_email if cc_email and cc_email.strip() else None,
+                        global_discount
                     )
                 # Priority 2: Use other SMTP if configured
                 elif smtp_config.get('enabled', False):
@@ -1040,7 +1153,9 @@ if df is not None and header_pdf_file:
                         admin_df, 
                         transport_df if include_transport else pd.DataFrame(), 
                         admin_email,
-                        smtp_config
+                        smtp_config,
+                        cc_email if cc_email and cc_email.strip() else None,
+                        global_discount
                     )
                 else:
                     # Fallback: prepare email data for manual sending
@@ -1049,7 +1164,9 @@ if df is not None and header_pdf_file:
                         admin_df, 
                         transport_df if include_transport else pd.DataFrame(), 
                         admin_email,
-                        None
+                        None,
+                        cc_email if cc_email and cc_email.strip() else None,
+                        global_discount
                     )
                 
                 if result['status'] == 'sent':
@@ -1067,8 +1184,12 @@ if df is not None and header_pdf_file:
                         email_obj = result.get('email_obj')
                         if email_obj:
                             st.text(f"To: {admin_email}")
+                            if cc_email and cc_email.strip():
+                                st.text(f"CC: {cc_email}")
                             st.text(f"Subject: {email_obj['Subject']}")
-                            st.text("📎 Attached: Excel file with price list")
+                            st.text("📎 Attachments:")
+                            st.text("   • Excel file with price list")
+                            st.text("   • JSON backup file for calculator")
                 else:
                     st.error(f"❌ {result['message']}")
                     st.info("💡 **Alternative**: Download the Excel file above and email it manually.")

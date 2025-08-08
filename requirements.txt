@@ -1,5 +1,23 @@
-streamlit
-pandas
-openpyxl
-reportlab
-pymupdf
+# Net Rates Calculator Dependencies
+# Updated: 2025-08-08 16:15 - FIXED SendGrid import syntax and simplified email logic
+
+# Web Framework
+streamlit>=1.28.0
+
+# Email Integration - CRITICAL FOR CLOUD DEPLOYMENT
+sendgrid>=6.10.0
+requests>=2.31.0
+
+# Data Processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+
+# PDF Generation
+reportlab>=4.0.0
+PyMuPDF>=1.23.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Utilities
+python-dotenv>=1.0.0

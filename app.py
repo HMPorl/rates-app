@@ -198,7 +198,7 @@ def load_excel(file):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0):
+def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0, original_df=None):
     """Send email with Excel attachment using SendGrid API - Clean implementation"""
     try:
         # Import SendGrid here to handle missing library gracefully
@@ -300,6 +300,20 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         # Prepare JSON save data (same format as Save Progress feature)
+        # Use original_df if provided, otherwise fallback to a simple approach
+        if original_df is not None and hasattr(original_df, 'iterrows'):
+            custom_prices = {
+                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
+                for idx, row in original_df.iterrows()
+            }
+        else:
+            # Fallback: get custom prices from session state directly
+            custom_prices = {
+                key.replace("price_", ""): st.session_state.get(key, "")
+                for key in st.session_state
+                if key.startswith("price_")
+            }
+            
         save_data = {
             "customer_name": customer_name,
             "global_discount": global_discount,
@@ -308,11 +322,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
                 for key in st.session_state
                 if key.endswith("_discount")
             },
-            "custom_prices": {
-                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
-                for idx, row in admin_df.iterrows()
-                if hasattr(admin_df, 'iterrows')
-            },
+            "custom_prices": custom_prices,
             "transport_charges": {
                 key: st.session_state.get(key, "")
                 for key in st.session_state
@@ -372,7 +382,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             'message': f'SendGrid API error: {str(e)}'
         }
 
-def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0):
+def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0, original_df=None):
     """Send price list via email to admin team"""
     try:
         # Create the email
@@ -437,6 +447,21 @@ Net Rates Calculator System
         
         # Create and attach JSON save file
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Use original_df if provided, otherwise fallback to a simple approach
+        if original_df is not None and hasattr(original_df, 'iterrows'):
+            custom_prices = {
+                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
+                for idx, row in original_df.iterrows()
+            }
+        else:
+            # Fallback: get custom prices from session state directly
+            custom_prices = {
+                key.replace("price_", ""): st.session_state.get(key, "")
+                for key in st.session_state
+                if key.startswith("price_")
+            }
+            
         save_data = {
             "customer_name": customer_name,
             "global_discount": global_discount,
@@ -445,11 +470,7 @@ Net Rates Calculator System
                 for key in st.session_state
                 if key.endswith("_discount")
             },
-            "custom_prices": {
-                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
-                for idx, row in admin_df.iterrows()
-                if hasattr(admin_df, 'iterrows')
-            },
+            "custom_prices": custom_prices,
             "transport_charges": {
                 key: st.session_state.get(key, "")
                 for key in st.session_state
@@ -1144,7 +1165,8 @@ if df is not None and header_pdf_file:
                         transport_df if include_transport else pd.DataFrame(), 
                         admin_email,
                         cc_email if cc_email and cc_email.strip() else None,
-                        global_discount
+                        global_discount,
+                        df  # Pass the original DataFrame
                     )
                 # Priority 2: Use other SMTP if configured
                 elif smtp_config.get('enabled', False):
@@ -1155,7 +1177,8 @@ if df is not None and header_pdf_file:
                         admin_email,
                         smtp_config,
                         cc_email if cc_email and cc_email.strip() else None,
-                        global_discount
+                        global_discount,
+                        df  # Pass the original DataFrame
                     )
                 else:
                     # Fallback: prepare email data for manual sending
@@ -1166,7 +1189,8 @@ if df is not None and header_pdf_file:
                         admin_email,
                         None,
                         cc_email if cc_email and cc_email.strip() else None,
-                        global_discount
+                        global_discount,
+                        df  # Pass the original DataFrame
                     )
                 
                 if result['status'] == 'sent':

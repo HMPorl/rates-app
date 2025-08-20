@@ -184,24 +184,31 @@ if "authenticated" not in st.session_state:
 
 if not st.session_state.authenticated:
     st.title("🔐 Net Rates Calculator - Access Required")
-    st.markdown("### Please enter your PIN to access the calculator")
+    st.markdown("### Please enter your credentials to access the calculator")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        username_input = st.text_input("Username:", max_chars=10, placeholder="Enter username")
         pin_input = st.text_input("Enter PIN:", type="password", max_chars=4, placeholder="****")
         
         col_a, col_b, col_c = st.columns([1, 2, 1])
         with col_b:
             if st.button("🔓 Access Calculator", type="primary", use_container_width=True):
-                if pin_input == "1985":
+                if username_input == "HM" and pin_input == "1985":
                     st.session_state.authenticated = True
+                    st.session_state.current_user = username_input  # Store username for potential future use
                     st.success("✅ Access granted! Redirecting...")
                     st.rerun()
                 else:
-                    st.error("❌ Incorrect PIN. Please try again.")
+                    if username_input != "HM":
+                        st.error("❌ Incorrect username. Please try again.")
+                    elif pin_input != "1985":
+                        st.error("❌ Incorrect PIN. Please try again.")
+                    else:
+                        st.error("❌ Incorrect credentials. Please try again.")
     
     st.markdown("---")
-    st.info("💡 **Need access?** Contact your system administrator for the PIN.")
+    st.info("💡 **Need access?** Contact your system administrator for the username and PIN.")
     st.stop()  # Stop execution here if not authenticated
 
 # Header with help button

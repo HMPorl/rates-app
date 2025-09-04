@@ -1,4 +1,5 @@
-# net_rates_calculator_group_discount_SaveFunc 45.py
+# Net Rates Calculator V2.0 - Development Branch
+# Enhanced features and improved architecture
 
 import streamlit as st
 import pandas as pd
@@ -174,7 +175,11 @@ if show_weather:
 # -------------------------------
 # Streamlit Page Configuration
 # -------------------------------
-st.set_page_config(page_title="Net Rates Calculator", layout="wide")
+st.set_page_config(
+    page_title="Net Rates Calculator V2.0 (Development)",
+    page_icon="🚀",
+    layout="wide"
+)
 
 # -------------------------------
 # Security: PIN Authentication
@@ -214,7 +219,8 @@ if not st.session_state.authenticated:
 # Header with help button
 col1, col2 = st.columns([4, 1])
 with col1:
-    st.title("Net Rates Calculator")
+    st.title("🚀 Net Rates Calculator V2.0")
+    st.markdown("*Development Branch - Enhanced Features*")
 with col2:
     if st.button("❓ Help Guide", type="secondary"):
         st.session_state.show_help = not st.session_state.get('show_help', False)

@@ -1653,14 +1653,9 @@ if df is not None and header_pdf_file:
             price_key = f"price_{idx}"
             user_input = str(st.session_state.get(price_key, "")).strip()
             if user_input:
-                if is_poa_value(user_input):
-                    # User entered POA
-                    custom_price_rows.append([
-                        row["ItemCategory"],
-                        Paragraph(row["EquipmentName"], styles['BodyText']),
-                        "POA"
-                    ])
-                else:
+                # Only include numeric prices in Special Rates section
+                # POA items are excluded from this section
+                if not is_poa_value(user_input):
                     try:
                         entered_price = float(user_input)
                         custom_price_rows.append([
@@ -1669,12 +1664,8 @@ if df is not None and header_pdf_file:
                             f"£{entered_price:.2f}"
                         ])
                     except ValueError:
-                        # Invalid input - treat as POA
-                        custom_price_rows.append([
-                            row["ItemCategory"],
-                            Paragraph(row["EquipmentName"], styles['BodyText']),
-                            "POA"
-                        ])
+                        # Invalid input - skip (don't include in Special Rates)
+                        continue
 
         if custom_price_rows:
             customer_title = customer_name if customer_name else "Customer"

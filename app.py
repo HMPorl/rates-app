@@ -695,19 +695,49 @@ with col2:
     if st.button("🔄 Refresh PDF List", help="Click to refresh the list of available PDF header files"):
         st.rerun()
 
-# Show current PDF files found
-if st.checkbox("Show available PDF files", value=False):
-    if available_pdfs:
-        st.info(f"📄 Found {len(available_pdfs)} PDF files: {', '.join(available_pdfs)}")
-    else:
-        st.warning("⚠️ No PDF files found in the current directory")
-
 # Toggle for admin options (hide by default)
 show_admin_uploads = st.toggle("Show Admin Upload Options", value=False)
 
 if show_admin_uploads:
+    st.markdown("#### � Admin File Management")
+    
+    # Admin Excel upload
     uploaded_file = st.file_uploader("❗ADMIN Upload Excel file (Admin Only❗)", type=["xlsx"])
+    
+    # Admin PDF upload
     uploaded_header_pdf = st.file_uploader("❗ADMIN Upload PDF Header (Admin Only❗)", type=["pdf"], key="header_pdf_upload")
+    
+    # Show default file information in admin section
+    st.markdown("#### 📊 Default File Information")
+    
+    if os.path.exists(DEFAULT_EXCEL_PATH):
+        # Get file modification time
+        import os
+        mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
+        mod_time_str = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
+        file_size = os.path.getsize(DEFAULT_EXCEL_PATH) / 1024
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info(f"📁 **Default Excel File:**\n`{DEFAULT_EXCEL_PATH}`")
+            st.info(f"📅 **Last Modified:**\n{mod_time_str}")
+        with col2:
+            st.info(f"📏 **File Size:**\n{file_size:.1f} KB")
+            if st.button("🔄 Force Refresh Excel Data", help="Manually refresh Excel data cache"):
+                load_excel.clear()
+                load_excel_with_timestamp.clear()
+                st.success("✅ Excel cache cleared!")
+                st.rerun()
+    else:
+        st.warning(f"⚠️ **Default Excel file not found:**\n`{DEFAULT_EXCEL_PATH}`")
+    
+    # Show PDF files information  
+    available_pdfs = get_available_pdf_files()
+    if available_pdfs:
+        st.info(f"📄 **Available PDF Headers:** {len(available_pdfs)} files\n{', '.join(available_pdfs)}")
+    else:
+        st.warning("⚠️ No PDF header files found in current directory")
+        
 else:
     uploaded_file = None
     uploaded_header_pdf = None
@@ -718,27 +748,11 @@ else:
 df = None
 excel_source = None
 
-# Add cache control for Excel files
-col1, col2 = st.columns([4, 1])
-
-with col1:
-    st.markdown("**📊 Excel Data Source**")
-
-with col2:
-    if st.button("🔄 Refresh Data", help="Click to reload Excel data from file"):
-        # Clear the Excel cache
-        load_excel.clear()
-        st.rerun()
-
 if uploaded_file:
     try:
         df = load_excel(uploaded_file)
         excel_source = "uploaded"
-        st.success("✅ Excel file uploaded and loaded.")
-        
-        # Show file info
-        file_size = len(uploaded_file.getvalue()) / 1024
-        st.info(f"📁 Uploaded file: {uploaded_file.name} ({file_size:.1f} KB)")
+        st.success(f"✅ Excel file uploaded: {uploaded_file.name}")
         
     except Exception as e:
         st.error(f"❌ Error reading uploaded Excel file: {e}")
@@ -748,14 +762,12 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
         # Get file modification time for cache invalidation
         import os
         mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
-        mod_time_str = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
         
         # Use timestamp-aware loading to auto-refresh when file changes
         df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
         excel_source = "default"
         
-        st.info(f"📊 Using default Excel: {DEFAULT_EXCEL_PATH}")
-        st.info(f"📅 File last modified: {mod_time_str}")
+        st.success(f"✅ Using default Excel data")
         
     except Exception as e:
         st.error(f"❌ Failed to load default Excel: {e}")

@@ -815,8 +815,8 @@ if df is not None and header_pdf_file:
     # Global and Group-Level Discounts
     # -------------------------------
     # Get global discount from session state if available, otherwise use default
-    global_discount_value = st.session_state.get("global_discount", 0)
-    global_discount = st.number_input("Global Discount (%)", min_value=0, max_value=100, value=global_discount_value, step=1, key="global_discount")
+    global_discount_value = st.session_state.get("global_discount", 0.0)
+    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=global_discount_value, step=0.01, key="global_discount")
 
     # Check if global discount has changed
     previous_global_discount = st.session_state.get("previous_global_discount", global_discount)
@@ -851,10 +851,10 @@ if df is not None and header_pdf_file:
             default_value = st.session_state.get(discount_key, global_discount)
             st.number_input(
                 f"{group} - {subsection} (%)",
-                min_value=0,
-                max_value=100,
+                min_value=0.0,
+                max_value=100.0,
                 value=default_value,
-                step=1,
+                step=0.01,
                 key=discount_key
             )
 
@@ -966,7 +966,7 @@ if df is not None and header_pdf_file:
                                 if discount_percent == "POA":
                                     st.markdown("**POA**")
                                 else:
-                                    st.markdown(f"**{discount_percent:.0f}%**")
+                                    st.markdown(f"**{discount_percent:.2f}%**")
                                     # Check max discount only for numeric values
                                     orig_numeric = get_numeric_price(row["HireRateWeekly"])
                                     if orig_numeric and discount_percent > row["Max Discount"]:
@@ -985,7 +985,7 @@ if df is not None and header_pdf_file:
                         if discount_percent == "POA":
                             st.markdown("**POA**")
                         else:
-                            st.markdown(f"**{discount_percent:.0f}%**")
+                            st.markdown(f"**{discount_percent:.2f}%**")
 
                 # Store the final values
                 df.at[idx, "CustomPrice"] = custom_price
@@ -1047,7 +1047,7 @@ if df is not None and header_pdf_file:
         lambda x: "POA" if is_poa_value(x) or x == "POA" else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(
-        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.0f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     
     # Rename columns for better display
@@ -1088,7 +1088,7 @@ if df is not None and header_pdf_file:
                         "EquipmentName": row["EquipmentName"],
                         "HireRateWeekly": format_price_display(row["HireRateWeekly"]),
                         "CustomPrice": f"£{entered_price:.2f}",
-                        "DiscountPercent": f"{calculate_discount_percent(row['HireRateWeekly'], entered_price):.0f}%" if calculate_discount_percent(row['HireRateWeekly'], entered_price) != "POA" else "POA",
+                        "DiscountPercent": f"{calculate_discount_percent(row['HireRateWeekly'], entered_price):.2f}%" if calculate_discount_percent(row['HireRateWeekly'], entered_price) != "POA" else "POA",
                         "GroupName": row["GroupName"],
                         "Sub Section": row["Sub Section"]
                     })
@@ -1176,7 +1176,7 @@ if df is not None and header_pdf_file:
         lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.1f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     
     admin_df.columns = [

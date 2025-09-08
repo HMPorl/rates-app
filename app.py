@@ -328,6 +328,15 @@ if not os.path.exists("progress_saves"):
 # -------------------------------
 DEFAULT_EXCEL_PATH = "Net rates Webapp.xlsx"  # Change this to your actual default file name
 
+def get_available_pdf_files():
+    """Get list of available PDF files - not cached to always show latest files"""
+    try:
+        pdf_files = glob.glob("*.pdf")
+        return sorted(pdf_files)  # Sort alphabetically for consistent order
+    except Exception as e:
+        st.error(f"Error scanning for PDF files: {e}")
+        return []
+
 @st.cache_data
 def load_excel(file):
     return pd.read_excel(file, engine='openpyxl')
@@ -664,10 +673,28 @@ bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
 
 # --- Move PDF header selection ABOVE Excel upload ---
-header_pdf_choice = st.selectbox(
-    "⭐Select a PDF Header Sheet",
-    ["(Select Sales Person)"] + glob.glob("*.pdf")
-)
+# Add refresh button for PDF headers
+col1, col2 = st.columns([4, 1])
+
+with col1:
+    # Get available PDF files dynamically (not cached)
+    available_pdfs = get_available_pdf_files()
+    header_pdf_choice = st.selectbox(
+        "⭐Select a PDF Header Sheet",
+        ["(Select Sales Person)"] + available_pdfs,
+        help=f"Found {len(available_pdfs)} PDF files in the current directory"
+    )
+
+with col2:
+    if st.button("🔄 Refresh PDF List", help="Click to refresh the list of available PDF header files"):
+        st.rerun()
+
+# Show current PDF files found
+if st.checkbox("Show available PDF files", value=False):
+    if available_pdfs:
+        st.info(f"📄 Found {len(available_pdfs)} PDF files: {', '.join(available_pdfs)}")
+    else:
+        st.warning("⚠️ No PDF files found in the current directory")
 
 # Toggle for admin options (hide by default)
 show_admin_uploads = st.toggle("Show Admin Upload Options", value=False)

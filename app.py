@@ -1676,10 +1676,10 @@ if df is not None and header_pdf_file:
             table_data = [["Category", "Equipment", "Special (£)"]]
             table_data.extend(custom_price_rows)
             row_styles = [
-                ('BACKGROUND', (0, 0), (-1, 0), colors.yellow),
+                ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Updated yellow color
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                 ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                # Removed GRID line to eliminate cell borders
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ]
@@ -1790,7 +1790,7 @@ if df is not None and header_pdf_file:
             
             # Add yellow highlighting for special rate rows
             for row_num in special_rate_rows:
-                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFFF99'))  # Light yellow
+                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFD51D'))  # Updated yellow color
             
             table_with_repeat_header.setStyle(TableStyle(table_style))
 

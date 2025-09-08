@@ -339,7 +339,13 @@ def get_available_pdf_files():
 
 @st.cache_data
 def load_excel(file):
+    """Load Excel file with caching"""
     return pd.read_excel(file, engine='openpyxl')
+
+@st.cache_data
+def load_excel_with_timestamp(file_path, timestamp):
+    """Load Excel file with timestamp-based cache invalidation"""
+    return pd.read_excel(file_path, engine='openpyxl')
 
 @st.cache_data
 def read_pdf_header(file):
@@ -712,22 +718,51 @@ else:
 df = None
 excel_source = None
 
+# Add cache control for Excel files
+col1, col2 = st.columns([4, 1])
+
+with col1:
+    st.markdown("**📊 Excel Data Source**")
+
+with col2:
+    if st.button("🔄 Refresh Data", help="Click to reload Excel data from file"):
+        # Clear the Excel cache
+        load_excel.clear()
+        st.rerun()
+
 if uploaded_file:
     try:
         df = load_excel(uploaded_file)
         excel_source = "uploaded"
-        st.success("Excel file uploaded and loaded.")
+        st.success("✅ Excel file uploaded and loaded.")
+        
+        # Show file info
+        file_size = len(uploaded_file.getvalue()) / 1024
+        st.info(f"📁 Uploaded file: {uploaded_file.name} ({file_size:.1f} KB)")
+        
     except Exception as e:
-        st.error(f"Error reading uploaded Excel file: {e}")
+        st.error(f"❌ Error reading uploaded Excel file: {e}")
         st.stop()
 elif os.path.exists(DEFAULT_EXCEL_PATH):
     try:
-        df = load_excel(DEFAULT_EXCEL_PATH)
+        # Get file modification time for cache invalidation
+        import os
+        mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
+        mod_time_str = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Use timestamp-aware loading to auto-refresh when file changes
+        df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
         excel_source = "default"
-        st.info(f"Loaded default Excel data from {DEFAULT_EXCEL_PATH}")
+        
+        st.info(f"📊 Using default Excel: {DEFAULT_EXCEL_PATH}")
+        st.info(f"📅 File last modified: {mod_time_str}")
+        
     except Exception as e:
-        st.error(f"Failed to load default Excel: {e}")
+        st.error(f"❌ Failed to load default Excel: {e}")
         st.stop()
+else:
+    st.error(f"❌ No Excel file found. Please upload a file or ensure {DEFAULT_EXCEL_PATH} exists.")
+    st.stop()
 
 header_pdf_file = None
 if uploaded_header_pdf is not None:

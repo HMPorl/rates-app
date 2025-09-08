@@ -1,4 +1,4 @@
-# Net Rates Calculator V2.0 - Development Branch
+# Net Rates Calculator - Production
 # Enhanced features and improved architecture
 
 import streamlit as st
@@ -85,6 +85,20 @@ def save_config(config):
 # Load configuration at startup
 if 'config' not in st.session_state:
     st.session_state.config = load_config()
+
+def get_available_pdf_files():
+    """Get list of available PDF files - not cached to always show latest files"""
+    try:
+        pdf_files = glob.glob("*.pdf")
+        return sorted(pdf_files)  # Sort alphabetically for consistent order
+    except Exception as e:
+        st.error(f"Error scanning for PDF files: {e}")
+        return []
+
+@st.cache_data
+def load_excel_with_timestamp(file_path, timestamp):
+    """Load Excel file with timestamp-based cache invalidation"""
+    return pd.read_excel(file_path, engine='openpyxl')
 
 def add_footer_logo(canvas, doc):
     logo_path = "HMChev.png"  # Place your logo in the app root folder
@@ -176,7 +190,7 @@ if show_weather:
 # Streamlit Page Configuration
 # -------------------------------
 st.set_page_config(
-    page_title="Net Rates Calculator V2.0 (Development)",
+    page_title="Net Rates Calculator",
     page_icon="🚀",
     layout="wide"
 )
@@ -219,7 +233,7 @@ if not st.session_state.authenticated:
 # Header with help button
 col1, col2 = st.columns([4, 1])
 with col1:
-    st.title("🚀 Net Rates Calculator V2.0")
+    st.title("� Net Rates Calculator")
     st.markdown("*Development Branch - Enhanced Features*")
 with col2:
     if st.button("❓ Help Guide", type="secondary"):

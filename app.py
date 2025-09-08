@@ -1,4 +1,4 @@
-# Net Rates Calculator - Production
+# Net Rates Calculator - Production Version
 # Enhanced features and improved architecture
 
 import streamlit as st
@@ -191,7 +191,7 @@ if show_weather:
 # -------------------------------
 st.set_page_config(
     page_title="Net Rates Calculator",
-    page_icon="🚀",
+    page_icon="�",
     layout="wide"
 )
 

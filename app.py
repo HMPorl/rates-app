@@ -1737,15 +1737,27 @@ if df is not None and header_pdf_file:
 
             # Table data (no header, no grid)
             table_data = [header_row]
-            for _, row in sub_df.iterrows():
+            special_rate_rows = []  # Track rows with special rates for highlighting
+            
+            for row_idx, (_, row) in enumerate(sub_df.iterrows(), start=1):  # start=1 because header is row 0
                 # Handle POA values in PDF generation
                 if is_poa_value(row['CustomPrice']) or row['CustomPrice'] == "POA":
                     price_text = "POA"
+                    has_special_rate = False
                 else:
                     try:
                         price_text = f"£{float(row['CustomPrice']):.2f}"
+                        # Check if this is a special rate (user entered custom price)
+                        price_key = f"price_{row.name}"  # row.name is the original DataFrame index
+                        user_input = str(st.session_state.get(price_key, "")).strip()
+                        has_special_rate = bool(user_input and not is_poa_value(user_input))
                     except (ValueError, TypeError):
                         price_text = "POA"
+                        has_special_rate = False
+                
+                # Track rows with special rates for highlighting
+                if has_special_rate:
+                    special_rate_rows.append(row_idx)
                 
                 table_data.append([
                     row["ItemCategory"],
@@ -1758,7 +1770,9 @@ if df is not None and header_pdf_file:
                 colWidths=table_col_widths,
                 repeatRows=1
             )
-            table_with_repeat_header.setStyle(TableStyle([
+            
+            # Build table style with yellow highlighting for special rates
+            table_style = [
                 # Style for the header row
                 ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
                 ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
@@ -1772,7 +1786,13 @@ if df is not None and header_pdf_file:
                 ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 1), (-1, -1), 10),
                 ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
-            ]))
+            ]
+            
+            # Add yellow highlighting for special rate rows
+            for row_num in special_rate_rows:
+                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFFF99'))  # Light yellow
+            
+            table_with_repeat_header.setStyle(TableStyle(table_style))
 
             group_subsection_blocks.append(
                 [table_with_repeat_header, Spacer(1, 12)]

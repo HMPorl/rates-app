@@ -1653,15 +1653,28 @@ if df is not None and header_pdf_file:
             price_key = f"price_{idx}"
             user_input = str(st.session_state.get(price_key, "")).strip()
             if user_input:
-                try:
-                    entered_price = float(user_input)
+                if is_poa_value(user_input):
+                    # User entered POA
                     custom_price_rows.append([
                         row["ItemCategory"],
                         Paragraph(row["EquipmentName"], styles['BodyText']),
-                        f"£{entered_price:.2f}"
+                        "POA"
                     ])
-                except ValueError:
-                    continue
+                else:
+                    try:
+                        entered_price = float(user_input)
+                        custom_price_rows.append([
+                            row["ItemCategory"],
+                            Paragraph(row["EquipmentName"], styles['BodyText']),
+                            f"£{entered_price:.2f}"
+                        ])
+                    except ValueError:
+                        # Invalid input - treat as POA
+                        custom_price_rows.append([
+                            row["ItemCategory"],
+                            Paragraph(row["EquipmentName"], styles['BodyText']),
+                            "POA"
+                        ])
 
         if custom_price_rows:
             customer_title = customer_name if customer_name else "Customer"
@@ -1734,10 +1747,19 @@ if df is not None and header_pdf_file:
             # Table data (no header, no grid)
             table_data = [header_row]
             for _, row in sub_df.iterrows():
+                # Handle POA values in PDF generation
+                if is_poa_value(row['CustomPrice']) or row['CustomPrice'] == "POA":
+                    price_text = "POA"
+                else:
+                    try:
+                        price_text = f"£{float(row['CustomPrice']):.2f}"
+                    except (ValueError, TypeError):
+                        price_text = "POA"
+                
                 table_data.append([
                     row["ItemCategory"],
                     Paragraph(row["EquipmentName"], styles['BodyText']),
-                    f"£{row['CustomPrice']:.2f}"
+                    price_text
                 ])
 
             table_with_repeat_header = Table(

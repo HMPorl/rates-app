@@ -862,13 +862,63 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Helper Functions
     # -------------------------------
+    def is_poa_value(value):
+        """Check if a value represents POA (Price on Application)"""
+        if pd.isna(value):
+            return False
+        return str(value).upper().strip() in ['POA', 'PRICE ON APPLICATION', 'CONTACT FOR PRICE']
+    
+    def get_numeric_price(value):
+        """Convert price value to numeric, return None if POA"""
+        if is_poa_value(value):
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
+    
+    def format_price_display(value):
+        """Format price for display - handles both numeric and POA values"""
+        if is_poa_value(value):
+            return "POA"
+        numeric_value = get_numeric_price(value)
+        if numeric_value is not None:
+            return f"£{numeric_value:.2f}"
+        return "POA"
+    
     def get_discounted_price(row):
+        """Calculate discounted price, handling POA values"""
         key = f"{row['GroupName']}_{row['Sub Section']}_discount"
         discount = st.session_state.get(key, global_discount)
-        return row["HireRateWeekly"] * (1 - discount / 100)
+        
+        # Check if original price is POA
+        if is_poa_value(row["HireRateWeekly"]):
+            return "POA"
+        
+        # Get numeric price for calculation
+        numeric_price = get_numeric_price(row["HireRateWeekly"])
+        if numeric_price is None:
+            return "POA"
+        
+        return numeric_price * (1 - discount / 100)
 
     def calculate_discount_percent(original, custom):
-        return ((original - custom) / original) * 100 if original else 0
+        """Calculate discount percentage, handling POA values"""
+        # If either value is POA, return special indicator
+        if is_poa_value(original) or is_poa_value(custom):
+            return "POA"
+        
+        # Get numeric values
+        orig_numeric = get_numeric_price(original)
+        custom_numeric = get_numeric_price(custom)
+        
+        if orig_numeric is None or custom_numeric is None:
+            return "POA"
+        
+        if orig_numeric == 0:
+            return 0
+        
+        return ((orig_numeric - custom_numeric) / orig_numeric) * 100
 
     # -------------------------------
     # Adjust Prices by Group and Sub Section
@@ -886,19 +936,58 @@ if df is not None and header_pdf_file:
                 with col2:
                     st.write(row["EquipmentName"])
                 with col3:
-                    st.write(f"£{discounted_price:.2f}")
+                    # Display calculated price or POA
+                    if discounted_price == "POA":
+                        st.write("POA")
+                    else:
+                        st.write(f"£{discounted_price:.2f}")
                 with col4:
-                    st.text_input("", key=price_key, label_visibility="collapsed")
+                    # Input field with helpful placeholder
+                    placeholder_text = "Enter price or POA"
+                    st.text_input("", key=price_key, label_visibility="collapsed", 
+                                placeholder=placeholder_text)
                 with col5:
-                    try:
-                        custom_price = float(st.session_state[price_key]) if st.session_state[price_key] else discounted_price
-                    except:
+                    # Handle custom price input (numeric or POA)
+                    user_input = st.session_state.get(price_key, "").strip()
+                    
+                    if user_input:
+                        # User entered something
+                        if is_poa_value(user_input):
+                            # User entered POA
+                            custom_price = "POA"
+                            discount_percent = "POA"
+                            st.markdown("**POA**")
+                        else:
+                            # User entered a number
+                            try:
+                                custom_price = float(user_input)
+                                discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
+                                
+                                if discount_percent == "POA":
+                                    st.markdown("**POA**")
+                                else:
+                                    st.markdown(f"**{discount_percent:.0f}%**")
+                                    # Check max discount only for numeric values
+                                    orig_numeric = get_numeric_price(row["HireRateWeekly"])
+                                    if orig_numeric and discount_percent > row["Max Discount"]:
+                                        st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
+                            except ValueError:
+                                # Invalid input - treat as POA
+                                custom_price = "POA"
+                                discount_percent = "POA"
+                                st.markdown("**POA**")
+                                st.warning("⚠️ Invalid input - treated as POA")
+                    else:
+                        # No user input - use calculated price
                         custom_price = discounted_price
-                    discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
-                    st.markdown(f"**{discount_percent:.0f}%**")
-                    if discount_percent > row["Max Discount"]:
-                        st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
+                        discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
+                        
+                        if discount_percent == "POA":
+                            st.markdown("**POA**")
+                        else:
+                            st.markdown(f"**{discount_percent:.0f}%**")
 
+                # Store the final values
                 df.at[idx, "CustomPrice"] = custom_price
                 df.at[idx, "DiscountPercent"] = discount_percent
 
@@ -945,10 +1034,26 @@ if df is not None and header_pdf_file:
     # Final Price List Display
     # -------------------------------
     st.markdown("### Final Price List")
-    st.dataframe(df[[
+    
+    # Create a display-friendly version of the dataframe
+    display_df = df[[
         "ItemCategory", "EquipmentName", "HireRateWeekly",
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
-    ]], use_container_width=True)
+    ]].copy()
+    
+    # Format the display columns for better readability
+    display_df["HireRateWeekly"] = display_df["HireRateWeekly"].apply(format_price_display)
+    display_df["CustomPrice"] = display_df["CustomPrice"].apply(
+        lambda x: "POA" if is_poa_value(x) or x == "POA" else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
+    display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(
+        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.0f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
+    
+    # Rename columns for better display
+    display_df.columns = ["Item Category", "Equipment Name", "Original Price", "Group", "Sub Section", "Final Price", "Discount %"]
+    
+    st.dataframe(display_df, use_container_width=True)
 
 
     # -------------------------------
@@ -964,19 +1069,40 @@ if df is not None and header_pdf_file:
 
         # Only include if the user typed something in the box
         if user_input:
-            try:
-                entered_price = float(user_input)
+            if is_poa_value(user_input):
+                # User entered POA
                 manual_entries.append({
                     "ItemCategory": row["ItemCategory"],
                     "EquipmentName": row["EquipmentName"],
-                    "HireRateWeekly": row["HireRateWeekly"],
-                    "CustomPrice": entered_price,
-                    "DiscountPercent": calculate_discount_percent(row["HireRateWeekly"], entered_price),
+                    "HireRateWeekly": format_price_display(row["HireRateWeekly"]),
+                    "CustomPrice": "POA",
+                    "DiscountPercent": "POA",
                     "GroupName": row["GroupName"],
                     "Sub Section": row["Sub Section"]
                 })
-            except ValueError:
-                continue  # Skip invalid entries
+            else:
+                try:
+                    entered_price = float(user_input)
+                    manual_entries.append({
+                        "ItemCategory": row["ItemCategory"],
+                        "EquipmentName": row["EquipmentName"],
+                        "HireRateWeekly": format_price_display(row["HireRateWeekly"]),
+                        "CustomPrice": f"£{entered_price:.2f}",
+                        "DiscountPercent": f"{calculate_discount_percent(row['HireRateWeekly'], entered_price):.0f}%" if calculate_discount_percent(row['HireRateWeekly'], entered_price) != "POA" else "POA",
+                        "GroupName": row["GroupName"],
+                        "Sub Section": row["Sub Section"]
+                    })
+                except ValueError:
+                    # Invalid numeric input - treat as POA
+                    manual_entries.append({
+                        "ItemCategory": row["ItemCategory"],
+                        "EquipmentName": row["EquipmentName"],
+                        "HireRateWeekly": format_price_display(row["HireRateWeekly"]),
+                        "CustomPrice": "POA (Invalid Input)",
+                        "DiscountPercent": "POA",
+                        "GroupName": row["GroupName"],
+                        "Sub Section": row["Sub Section"]
+                    })
 
     if manual_entries:
         manual_df = pd.DataFrame(manual_entries)
@@ -1041,6 +1167,18 @@ if df is not None and header_pdf_file:
         "ItemCategory", "EquipmentName", "HireRateWeekly", 
         "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
     ]].copy()
+    
+    # Format values for export (handle POA properly)
+    admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
+        lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+    )
+    admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
+        lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
+    admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
+        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.1f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
+    
     admin_df.columns = [
         "Item Category", "Equipment Name", "Original Price (£)", 
         "Net Price (£)", "Discount %", "Group", "Sub Section"

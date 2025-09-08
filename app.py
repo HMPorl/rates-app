@@ -191,7 +191,7 @@ if show_weather:
 # -------------------------------
 st.set_page_config(
     page_title="Net Rates Calculator",
-    page_icon="�",
+    page_icon="🚀",
     layout="wide"
 )
 
@@ -233,7 +233,7 @@ if not st.session_state.authenticated:
 # Header with help button
 col1, col2 = st.columns([4, 1])
 with col1:
-    st.title("� Net Rates Calculator")
+    st.title("🚀 Net Rates Calculator")
     st.markdown("*Production Version - Enhanced Features*")
 with col2:
     if st.button("❓ Help Guide", type="secondary"):

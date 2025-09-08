@@ -234,7 +234,7 @@ if not st.session_state.authenticated:
 col1, col2 = st.columns([4, 1])
 with col1:
     st.title("� Net Rates Calculator")
-    st.markdown("*Development Branch - Enhanced Features*")
+    st.markdown("*Production Version - Enhanced Features*")
 with col2:
     if st.button("❓ Help Guide", type="secondary"):
         st.session_state.show_help = not st.session_state.get('show_help', False)

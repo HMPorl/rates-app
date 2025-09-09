@@ -738,9 +738,19 @@ if show_admin_uploads:
         with col2:
             st.info(f"📏 **File Size:**\n{file_size:.1f} KB")
             if st.button("🔄 Force Refresh Excel Data", help="Manually refresh Excel data cache"):
+                # Clear all Excel-related caches
                 load_excel.clear()
                 load_excel_with_timestamp.clear()
-                st.success("✅ Excel cache cleared!")
+                
+                # Clear any session state that might be caching data
+                cache_keys_to_clear = [key for key in st.session_state.keys() if 'excel' in key.lower() or 'df' in key.lower()]
+                for key in cache_keys_to_clear:
+                    del st.session_state[key]
+                
+                # Force Streamlit to clear all caches
+                st.cache_data.clear()
+                
+                st.success("✅ Excel cache cleared completely!")
                 st.rerun()
     else:
         st.warning(f"⚠️ **Default Excel file not found:**\n`{DEFAULT_EXCEL_PATH}`")
@@ -776,12 +786,13 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
         # Get file modification time for cache invalidation
         import os
         mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
+        mod_time_readable = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
         
         # Use timestamp-aware loading to auto-refresh when file changes
         df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
         excel_source = "default"
         
-        st.success(f"✅ Using default Excel data")
+        st.success(f"✅ Using default Excel data (Last modified: {mod_time_readable})")
         
     except Exception as e:
         st.error(f"❌ Failed to load default Excel: {e}")

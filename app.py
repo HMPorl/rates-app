@@ -1,5 +1,6 @@
 # Net Rates Calculator - Production Version
 # Enhanced features and improved architecture
+# Redeployment trigger - Sept 16, 2025
 
 import streamlit as st
 import pandas as pd

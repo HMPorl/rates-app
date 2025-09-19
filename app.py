@@ -2650,10 +2650,16 @@ load_expanded = show_load_section
 
 with st.expander("📁 Load Progress Options", expanded=load_expanded):
     
-    # Create tabs for different load options
-    tab1, tab2, tab3 = st.tabs(["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"])
-
-    with tab1:
+    # Simple radio button selection instead of tabs
+    load_method = st.radio(
+        "Choose loading method:",
+        ["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"],
+        horizontal=True
+    )
+    
+    st.markdown("---")
+    
+    if load_method == "📁 Local Files":
         st.markdown("**Load from Local Files:**")
         
         # List available local files
@@ -2678,7 +2684,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                     formatted_time = "Unknown"
                 
                 display_name = f"{name} ({location}) - Modified: {formatted_time}, Size: {size} bytes"
-                file_options[display_name] = path  # Store full path instead of just name
+                file_options[display_name] = path
             
             selected_local_file_display = st.selectbox(
                 "Select a local progress file:",
@@ -2687,15 +2693,13 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
             )
             
             if selected_local_file_display and st.button("📥 Load from Local File"):
-                selected_filepath = file_options[selected_local_file_display]  # Now it's a full path
+                selected_filepath = file_options[selected_local_file_display]
                 loaded_data = load_progress_from_local_file(selected_filepath)
                 
                 if loaded_data:
-                    # Apply the loaded data (same logic as Google Drive)
                     source = "Local File"
                     
                     # Clear session state and apply loaded data
-                    # [Same loading logic as Google Drive tab]
                     keys_to_clear = []
                     for key in st.session_state.keys():
                         if key.startswith(('customer_', 'rate_', 'selected_', 'markup_')):
@@ -2717,7 +2721,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
         else:
             st.info("No local progress files found. Save some progress first!")
 
-    with tab2:
+    elif load_method == "☁️ Google Drive Files":
         st.markdown("**Load from Google Drive:**")
         
         # List available files from Google Drive
@@ -2729,7 +2733,6 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                     # Create a more user-friendly display
                     file_options = {}
                     for file in drive_files:
-                        # Parse the filename for better display
                         name = file['name']
                         modified = file.get('modifiedTime', 'Unknown')
                         size = file.get('size', 'Unknown')
@@ -2756,7 +2759,6 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                         loaded_data = load_progress_from_google_drive(selected_file_id)
                         
                         if loaded_data:
-                            # Same loading logic as before
                             source = "Google Drive"
                             
                             # Clear ALL session state to avoid widget conflicts
@@ -2805,7 +2807,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
         else:
             st.warning("Google Drive integration not available.")
 
-    with tab3:
+    elif load_method == "📤 Upload File":
         st.markdown("**Upload a local JSON file:**")
         
         uploaded_progress = st.file_uploader(

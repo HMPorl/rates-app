@@ -200,23 +200,31 @@ def find_or_create_folder(service, folder_name, parent_folder_id=None):
 
 def save_progress_to_google_drive(progress_data, customer_name):
     """Save progress data to Google Drive (with local fallback)"""
-    # Always save locally first as backup - save to Downloads folder
+    # Always save locally first as backup
     safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{safe_customer_name}_progress_{timestamp}.json"
     json_content = json.dumps(progress_data, indent=2)
     
-    # Get Downloads folder path
-    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-    local_file_path = os.path.join(downloads_path, filename)
-    
-    # Save locally to Downloads
+    # Determine local save path based on environment
     try:
+        # Try Downloads folder first (for local development)
+        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        if os.path.exists(downloads_path):
+            local_file_path = os.path.join(downloads_path, filename)
+            save_location = "Downloads folder"
+        else:
+            # Fallback to current directory (for cloud deployment)
+            local_file_path = filename
+            save_location = "app directory"
+        
+        # Save locally
         with open(local_file_path, 'w') as f:
             f.write(json_content)
-        st.success(f"✅ Progress saved locally to Downloads: {filename}")
+        st.success(f"✅ Progress saved locally to {save_location}: {filename}")
+        
     except Exception as e:
-        st.error(f"Failed to save to Downloads folder: {e}")
+        st.error(f"Failed to save locally: {e}")
         return False
     
     # Try Google Drive as additional backup (optional)
@@ -337,34 +345,63 @@ def load_progress_from_google_drive(file_id):
         return None
 
 def list_local_progress_files():
-    """List available local progress files from Downloads folder"""
+    """List available local progress files from Downloads folder or current directory"""
     try:
         import os
-        # Look in Downloads folder
-        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-        pattern = os.path.join(downloads_path, "*_progress_*.json")
-        json_files = glob.glob(pattern)
-        
-        # Get file info
         files_with_info = []
-        for filepath in json_files:
+        
+        # Check Downloads folder first (for local development)
+        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        if os.path.exists(downloads_path):
+            pattern = os.path.join(downloads_path, "*_progress_*.json")
+            downloads_files = glob.glob(pattern)
+            
+            for filepath in downloads_files:
+                try:
+                    stat = os.stat(filepath)
+                    filename = os.path.basename(filepath)
+                    files_with_info.append({
+                        'name': filename,
+                        'path': filepath,
+                        'size': stat.st_size,
+                        'modified': stat.st_mtime,
+                        'location': 'Downloads'
+                    })
+                except:
+                    filename = os.path.basename(filepath)
+                    files_with_info.append({
+                        'name': filename,
+                        'path': filepath,
+                        'size': 0,
+                        'modified': 0,
+                        'location': 'Downloads'
+                    })
+        
+        # Also check current directory (for cloud deployment)
+        current_dir_files = glob.glob("*_progress_*.json")
+        for filepath in current_dir_files:
             try:
                 stat = os.stat(filepath)
                 filename = os.path.basename(filepath)
-                files_with_info.append({
-                    'name': filename,
-                    'path': filepath,
-                    'size': stat.st_size,
-                    'modified': stat.st_mtime
-                })
+                # Only add if not already found in Downloads
+                if not any(f['name'] == filename for f in files_with_info):
+                    files_with_info.append({
+                        'name': filename,
+                        'path': filepath,
+                        'size': stat.st_size,
+                        'modified': stat.st_mtime,
+                        'location': 'App Directory'
+                    })
             except:
                 filename = os.path.basename(filepath)
-                files_with_info.append({
-                    'name': filename,
-                    'path': filepath,
-                    'size': 0,
-                    'modified': 0
-                })
+                if not any(f['name'] == filename for f in files_with_info):
+                    files_with_info.append({
+                        'name': filename,
+                        'path': filepath,
+                        'size': 0,
+                        'modified': 0,
+                        'location': 'App Directory'
+                    })
         
         # Sort by modified time (newest first)
         files_with_info.sort(key=lambda x: x['modified'], reverse=True)
@@ -2470,6 +2507,7 @@ with tab1:
             path = file_info['path']
             size = file_info['size']
             modified = file_info['modified']
+            location = file_info.get('location', 'Unknown')
             
             # Convert modified time to readable format
             try:
@@ -2479,7 +2517,7 @@ with tab1:
             except:
                 formatted_time = "Unknown"
             
-            display_name = f"{name} (Modified: {formatted_time}, Size: {size} bytes)"
+            display_name = f"{name} ({location}) - Modified: {formatted_time}, Size: {size} bytes"
             file_options[display_name] = path  # Store full path instead of just name
         
         selected_local_file_display = st.selectbox(

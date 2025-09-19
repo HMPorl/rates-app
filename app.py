@@ -2649,214 +2649,214 @@ st.markdown("### Load Progress from Saved Files")
 load_expanded = show_load_section
 
 with st.expander("📁 Load Progress Options", expanded=load_expanded):
-
-# Create tabs for different load options
-tab1, tab2, tab3 = st.tabs(["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"])
-
-with tab1:
-    st.markdown("**Load from Local Files:**")
     
-    # List available local files
-    local_files = list_local_progress_files()
-    
-    if local_files:
-        # Create user-friendly display
-        file_options = {}
-        for file_info in local_files:
-            name = file_info['name']
-            path = file_info['path']
-            size = file_info['size']
-            modified = file_info['modified']
-            location = file_info.get('location', 'Unknown')
-            
-            # Convert modified time to readable format
-            try:
-                from datetime import datetime
-                dt = datetime.fromtimestamp(modified)
-                formatted_time = dt.strftime('%Y-%m-%d %H:%M')
-            except:
-                formatted_time = "Unknown"
-            
-            display_name = f"{name} ({location}) - Modified: {formatted_time}, Size: {size} bytes"
-            file_options[display_name] = path  # Store full path instead of just name
+    # Create tabs for different load options
+    tab1, tab2, tab3 = st.tabs(["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"])
+
+    with tab1:
+        st.markdown("**Load from Local Files:**")
         
-        selected_local_file_display = st.selectbox(
-            "Select a local progress file:",
-            options=list(file_options.keys()),
-            key="local_file_selector"
-        )
+        # List available local files
+        local_files = list_local_progress_files()
         
-        if selected_local_file_display and st.button("📥 Load from Local File"):
-            selected_filepath = file_options[selected_local_file_display]  # Now it's a full path
-            loaded_data = load_progress_from_local_file(selected_filepath)
-            
-            if loaded_data:
-                # Apply the loaded data (same logic as Google Drive)
-                source = "Local File"
+        if local_files:
+            # Create user-friendly display
+            file_options = {}
+            for file_info in local_files:
+                name = file_info['name']
+                path = file_info['path']
+                size = file_info['size']
+                modified = file_info['modified']
+                location = file_info.get('location', 'Unknown')
                 
-                # Clear session state and apply loaded data
-                # [Same loading logic as Google Drive tab]
+                # Convert modified time to readable format
+                try:
+                    from datetime import datetime
+                    dt = datetime.fromtimestamp(modified)
+                    formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                except:
+                    formatted_time = "Unknown"
+                
+                display_name = f"{name} ({location}) - Modified: {formatted_time}, Size: {size} bytes"
+                file_options[display_name] = path  # Store full path instead of just name
+            
+            selected_local_file_display = st.selectbox(
+                "Select a local progress file:",
+                options=list(file_options.keys()),
+                key="local_file_selector"
+            )
+            
+            if selected_local_file_display and st.button("📥 Load from Local File"):
+                selected_filepath = file_options[selected_local_file_display]  # Now it's a full path
+                loaded_data = load_progress_from_local_file(selected_filepath)
+                
+                if loaded_data:
+                    # Apply the loaded data (same logic as Google Drive)
+                    source = "Local File"
+                    
+                    # Clear session state and apply loaded data
+                    # [Same loading logic as Google Drive tab]
+                    keys_to_clear = []
+                    for key in st.session_state.keys():
+                        if key.startswith(('customer_', 'rate_', 'selected_', 'markup_')):
+                            keys_to_clear.append(key)
+                    
+                    for key in keys_to_clear:
+                        del st.session_state[key]
+                    
+                    # Apply loaded data
+                    success_count = 0
+                    for key, value in loaded_data.items():
+                        if safe_set_session_state(key, value):
+                            success_count += 1
+                    
+                    filename_only = os.path.basename(selected_filepath)
+                    st.success(f"✅ Progress loaded successfully from {source}: {filename_only} ({success_count} items loaded)")
+                    st.rerun()
+                    
+        else:
+            st.info("No local progress files found. Save some progress first!")
+
+    with tab2:
+        st.markdown("**Load from Google Drive:**")
+        
+        # List available files from Google Drive
+        if GOOGLE_DRIVE_AVAILABLE:
+            try:
+                drive_files = list_progress_files_from_google_drive()
+                
+                if drive_files:
+                    # Create a more user-friendly display
+                    file_options = {}
+                    for file in drive_files:
+                        # Parse the filename for better display
+                        name = file['name']
+                        modified = file.get('modifiedTime', 'Unknown')
+                        size = file.get('size', 'Unknown')
+                        
+                        # Convert modified time to readable format
+                        try:
+                            from datetime import datetime
+                            dt = datetime.fromisoformat(modified.replace('Z', '+00:00'))
+                            formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                        except:
+                            formatted_time = modified
+                        
+                        display_name = f"{name} (Modified: {formatted_time})"
+                        file_options[display_name] = file['id']
+                    
+                    selected_file_display = st.selectbox(
+                        "Select a progress file:",
+                        options=list(file_options.keys()),
+                        key="drive_file_selector"
+                    )
+                    
+                    if selected_file_display and st.button("📥 Load from Google Drive"):
+                        selected_file_id = file_options[selected_file_display]
+                        loaded_data = load_progress_from_google_drive(selected_file_id)
+                        
+                        if loaded_data:
+                            # Same loading logic as before
+                            source = "Google Drive"
+                            
+                            # Clear ALL session state to avoid widget conflicts
+                            keys_to_clear = []
+                            for key in st.session_state.keys():
+                                if (key.endswith("_discount") or 
+                                    key.startswith("price_") or 
+                                    key.startswith("transport_") or
+                                    key == "customer_name" or
+                                    key == "global_discount"):
+                                    keys_to_clear.append(key)
+                            
+                            for key in keys_to_clear:
+                                del st.session_state[key]
+                            
+                            # Restore values to session state
+                            safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
+                            safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
+                            
+                            # Restore group discounts
+                            for key, value in loaded_data.get("group_discounts", {}).items():
+                                safe_set_session_state(key, value)
+                                
+                            # Restore custom prices using ItemCategory as key
+                            custom_prices = loaded_data.get("custom_prices", {})
+                            found_count = 0
+                            if df is not None:
+                                for idx, row in df.iterrows():
+                                    item_key = str(row["ItemCategory"])
+                                    price_key = f"price_{idx}"
+                                    if item_key in custom_prices:
+                                        st.session_state[price_key] = custom_prices[item_key]
+                                        found_count += 1
+                                        
+                            # Restore transport charges
+                            for key, value in loaded_data.get("transport_charges", {}).items():
+                                safe_set_session_state(key, value)
+                                
+                            st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+                            st.rerun()
+                else:
+                    st.info("No progress files found in Google Drive. Save some progress first!")
+                    
+            except Exception as e:
+                st.error(f"Error accessing Google Drive: {e}")
+        else:
+            st.warning("Google Drive integration not available.")
+
+    with tab3:
+        st.markdown("**Upload a local JSON file:**")
+        
+        uploaded_progress = st.file_uploader(
+            "Upload a Progress JSON", type=["json"], key="progress_json_upload"
+        )
+
+        if uploaded_progress and st.button("📤 Load Uploaded File"):
+            try:
+                loaded_data = json.load(uploaded_progress)
+                source = "uploaded file"
+
+                # Clear ALL session state to avoid widget conflicts
                 keys_to_clear = []
                 for key in st.session_state.keys():
-                    if key.startswith(('customer_', 'rate_', 'selected_', 'markup_')):
+                    if (key.endswith("_discount") or 
+                        key.startswith("price_") or 
+                        key.startswith("transport_") or
+                        key == "customer_name" or
+                        key == "global_discount"):
                         keys_to_clear.append(key)
                 
                 for key in keys_to_clear:
                     del st.session_state[key]
                 
-                # Apply loaded data
-                success_count = 0
-                for key, value in loaded_data.items():
-                    if safe_set_session_state(key, value):
-                        success_count += 1
+                # Restore values to session state
+                safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
+                safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
                 
-                filename_only = os.path.basename(selected_filepath)
-                st.success(f"✅ Progress loaded successfully from {source}: {filename_only} ({success_count} items loaded)")
+                # Restore group discounts
+                for key, value in loaded_data.get("group_discounts", {}).items():
+                    safe_set_session_state(key, value)
+                    
+                # Restore custom prices using ItemCategory as key
+                custom_prices = loaded_data.get("custom_prices", {})
+                found_count = 0
+                if df is not None:
+                    for idx, row in df.iterrows():
+                        item_key = str(row["ItemCategory"])
+                        price_key = f"price_{idx}"
+                        if item_key in custom_prices:
+                            safe_set_session_state(price_key, custom_prices[item_key])
+                            found_count += 1
+                            
+                # Restore transport charges
+                for key, value in loaded_data.get("transport_charges", {}).items():
+                    safe_set_session_state(key, value)
+                    
+                st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
                 st.rerun()
-                
-    else:
-        st.info("No local progress files found. Save some progress first!")
-
-with tab2:
-    st.markdown("**Load from Google Drive:**")
-    
-    # List available files from Google Drive
-    if GOOGLE_DRIVE_AVAILABLE:
-        try:
-            drive_files = list_progress_files_from_google_drive()
-            
-            if drive_files:
-                # Create a more user-friendly display
-                file_options = {}
-                for file in drive_files:
-                    # Parse the filename for better display
-                    name = file['name']
-                    modified = file.get('modifiedTime', 'Unknown')
-                    size = file.get('size', 'Unknown')
-                    
-                    # Convert modified time to readable format
-                    try:
-                        from datetime import datetime
-                        dt = datetime.fromisoformat(modified.replace('Z', '+00:00'))
-                        formatted_time = dt.strftime('%Y-%m-%d %H:%M')
-                    except:
-                        formatted_time = modified
-                    
-                    display_name = f"{name} (Modified: {formatted_time})"
-                    file_options[display_name] = file['id']
-                
-                selected_file_display = st.selectbox(
-                    "Select a progress file:",
-                    options=list(file_options.keys()),
-                    key="drive_file_selector"
-                )
-                
-                if selected_file_display and st.button("📥 Load from Google Drive"):
-                    selected_file_id = file_options[selected_file_display]
-                    loaded_data = load_progress_from_google_drive(selected_file_id)
-                    
-                    if loaded_data:
-                        # Same loading logic as before
-                        source = "Google Drive"
-                        
-                        # Clear ALL session state to avoid widget conflicts
-                        keys_to_clear = []
-                        for key in st.session_state.keys():
-                            if (key.endswith("_discount") or 
-                                key.startswith("price_") or 
-                                key.startswith("transport_") or
-                                key == "customer_name" or
-                                key == "global_discount"):
-                                keys_to_clear.append(key)
-                        
-                        for key in keys_to_clear:
-                            del st.session_state[key]
-                        
-                        # Restore values to session state
-                        safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
-                        safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
-                        
-                        # Restore group discounts
-                        for key, value in loaded_data.get("group_discounts", {}).items():
-                            safe_set_session_state(key, value)
-                            
-                        # Restore custom prices using ItemCategory as key
-                        custom_prices = loaded_data.get("custom_prices", {})
-                        found_count = 0
-                        if df is not None:
-                            for idx, row in df.iterrows():
-                                item_key = str(row["ItemCategory"])
-                                price_key = f"price_{idx}"
-                                if item_key in custom_prices:
-                                    st.session_state[price_key] = custom_prices[item_key]
-                                    found_count += 1
-                                    
-                        # Restore transport charges
-                        for key, value in loaded_data.get("transport_charges", {}).items():
-                            safe_set_session_state(key, value)
-                            
-                        st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
-                        st.rerun()
-            else:
-                st.info("No progress files found in Google Drive. Save some progress first!")
-                
-        except Exception as e:
-            st.error(f"Error accessing Google Drive: {e}")
-    else:
-        st.warning("Google Drive integration not available.")
-
-with tab3:
-    st.markdown("**Upload a local JSON file:**")
-    
-    uploaded_progress = st.file_uploader(
-        "Upload a Progress JSON", type=["json"], key="progress_json_upload"
-    )
-
-    if uploaded_progress and st.button("📤 Load Uploaded File"):
-        try:
-            loaded_data = json.load(uploaded_progress)
-            source = "uploaded file"
-
-            # Clear ALL session state to avoid widget conflicts
-            keys_to_clear = []
-            for key in st.session_state.keys():
-                if (key.endswith("_discount") or 
-                    key.startswith("price_") or 
-                    key.startswith("transport_") or
-                    key == "customer_name" or
-                    key == "global_discount"):
-                    keys_to_clear.append(key)
-            
-            for key in keys_to_clear:
-                del st.session_state[key]
-            
-            # Restore values to session state
-            safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
-            safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
-            
-            # Restore group discounts
-            for key, value in loaded_data.get("group_discounts", {}).items():
-                safe_set_session_state(key, value)
-                
-            # Restore custom prices using ItemCategory as key
-            custom_prices = loaded_data.get("custom_prices", {})
-            found_count = 0
-            if df is not None:
-                for idx, row in df.iterrows():
-                    item_key = str(row["ItemCategory"])
-                    price_key = f"price_{idx}"
-                    if item_key in custom_prices:
-                        safe_set_session_state(price_key, custom_prices[item_key])
-                        found_count += 1
-                        
-            # Restore transport charges
-            for key, value in loaded_data.get("transport_charges", {}).items():
-                safe_set_session_state(key, value)
-                
-            st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Failed to load progress: {e}")
+            except Exception as e:
+                st.error(f"Failed to load progress: {e}")
 
 import os
 st.write("Current working directory:", os.getcwd())

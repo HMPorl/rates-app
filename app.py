@@ -200,19 +200,23 @@ def find_or_create_folder(service, folder_name, parent_folder_id=None):
 
 def save_progress_to_google_drive(progress_data, customer_name):
     """Save progress data to Google Drive (with local fallback)"""
-    # Always save locally first as backup
+    # Always save locally first as backup - save to Downloads folder
     safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{safe_customer_name}_progress_{timestamp}.json"
     json_content = json.dumps(progress_data, indent=2)
     
-    # Save locally
+    # Get Downloads folder path
+    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+    local_file_path = os.path.join(downloads_path, filename)
+    
+    # Save locally to Downloads
     try:
-        with open(filename, 'w') as f:
+        with open(local_file_path, 'w') as f:
             f.write(json_content)
-        st.success(f"✅ Progress saved locally: {filename}")
+        st.success(f"✅ Progress saved locally to Downloads: {filename}")
     except Exception as e:
-        st.error(f"Failed to save locally: {e}")
+        st.error(f"Failed to save to Downloads folder: {e}")
         return False
     
     # Try Google Drive as additional backup (optional)
@@ -333,24 +337,31 @@ def load_progress_from_google_drive(file_id):
         return None
 
 def list_local_progress_files():
-    """List available local progress files"""
+    """List available local progress files from Downloads folder"""
     try:
         import os
-        json_files = glob.glob("*_progress_*.json")
+        # Look in Downloads folder
+        downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        pattern = os.path.join(downloads_path, "*_progress_*.json")
+        json_files = glob.glob(pattern)
         
         # Get file info
         files_with_info = []
-        for filename in json_files:
+        for filepath in json_files:
             try:
-                stat = os.stat(filename)
+                stat = os.stat(filepath)
+                filename = os.path.basename(filepath)
                 files_with_info.append({
                     'name': filename,
+                    'path': filepath,
                     'size': stat.st_size,
                     'modified': stat.st_mtime
                 })
             except:
+                filename = os.path.basename(filepath)
                 files_with_info.append({
                     'name': filename,
+                    'path': filepath,
                     'size': 0,
                     'modified': 0
                 })
@@ -363,10 +374,10 @@ def list_local_progress_files():
         st.error(f"Failed to list local files: {e}")
         return []
 
-def load_progress_from_local_file(filename):
+def load_progress_from_local_file(filepath):
     """Load progress data from local file"""
     try:
-        with open(filename, 'r') as f:
+        with open(filepath, 'r') as f:
             progress_data = json.load(f)
         return progress_data
     except Exception as e:
@@ -2456,6 +2467,7 @@ with tab1:
         file_options = {}
         for file_info in local_files:
             name = file_info['name']
+            path = file_info['path']
             size = file_info['size']
             modified = file_info['modified']
             
@@ -2468,7 +2480,7 @@ with tab1:
                 formatted_time = "Unknown"
             
             display_name = f"{name} (Modified: {formatted_time}, Size: {size} bytes)"
-            file_options[display_name] = name
+            file_options[display_name] = path  # Store full path instead of just name
         
         selected_local_file_display = st.selectbox(
             "Select a local progress file:",
@@ -2477,8 +2489,8 @@ with tab1:
         )
         
         if selected_local_file_display and st.button("📥 Load from Local File"):
-            selected_filename = file_options[selected_local_file_display]
-            loaded_data = load_progress_from_local_file(selected_filename)
+            selected_filepath = file_options[selected_local_file_display]  # Now it's a full path
+            loaded_data = load_progress_from_local_file(selected_filepath)
             
             if loaded_data:
                 # Apply the loaded data (same logic as Google Drive)
@@ -2498,7 +2510,8 @@ with tab1:
                 for key, value in loaded_data.items():
                     st.session_state[key] = value
                 
-                st.success(f"✅ Progress loaded successfully from {source}: {selected_filename}")
+                filename_only = os.path.basename(selected_filepath)
+                st.success(f"✅ Progress loaded successfully from {source}: {filename_only}")
                 st.rerun()
                 
     else:

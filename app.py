@@ -93,9 +93,55 @@ def save_config(config):
         st.error(f"Error saving config: {e}")
         return False
 
-# Load configuration at startup
-if 'config' not in st.session_state:
-    st.session_state.config = load_config()
+# -------------------------------
+# Streamlit Page Configuration
+# -------------------------------
+st.set_page_config(
+    page_title="Net Rates Calculator",
+    page_icon="🚀",
+    layout="wide"
+)
+
+# -------------------------------
+# Session State Initialization
+# -------------------------------
+def initialize_session_state():
+    """Safely initialize session state variables"""
+    try:
+        # Load configuration at startup
+        if 'config' not in st.session_state:
+            st.session_state.config = load_config()
+        
+        # Authentication state
+        if "authenticated" not in st.session_state:
+            st.session_state.authenticated = False
+    except Exception as e:
+        st.error(f"Error initializing session state: {e}")
+
+def safe_set_session_state(key, value):
+    """Safely set session state with error handling"""
+    try:
+        # Validate the key and value
+        if not isinstance(key, str):
+            st.error(f"Invalid session state key type: {type(key)}")
+            return False
+        
+        # Check for problematic values
+        if value is None:
+            st.session_state[key] = ""
+        elif isinstance(value, (str, int, float, bool, list, dict)):
+            st.session_state[key] = value
+        else:
+            # Convert complex objects to string representation
+            st.session_state[key] = str(value)
+        
+        return True
+    except Exception as e:
+        st.error(f"Error setting session state key '{key}': {e}")
+        return False
+
+# Initialize session state
+initialize_session_state()
 
 # -------------------------------
 # Google Drive Integration Functions
@@ -519,22 +565,9 @@ if show_weather:
     else:
         st.markdown("### 🌦️ Weather: Unable to fetch data")
 
-
-
-# -------------------------------
-# Streamlit Page Configuration
-# -------------------------------
-st.set_page_config(
-    page_title="Net Rates Calculator",
-    page_icon="�",
-    layout="wide"
-)
-
 # -------------------------------
 # Security: PIN Authentication
 # -------------------------------
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
     st.title("🔐 Net Rates Calculator - Access Required")
@@ -2545,11 +2578,13 @@ with tab1:
                     del st.session_state[key]
                 
                 # Apply loaded data
+                success_count = 0
                 for key, value in loaded_data.items():
-                    st.session_state[key] = value
+                    if safe_set_session_state(key, value):
+                        success_count += 1
                 
                 filename_only = os.path.basename(selected_filepath)
-                st.success(f"✅ Progress loaded successfully from {source}: {filename_only}")
+                st.success(f"✅ Progress loaded successfully from {source}: {filename_only} ({success_count} items loaded)")
                 st.rerun()
                 
     else:
@@ -2611,12 +2646,12 @@ with tab2:
                             del st.session_state[key]
                         
                         # Restore values to session state
-                        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-                        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+                        safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
+                        safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
                         
                         # Restore group discounts
                         for key, value in loaded_data.get("group_discounts", {}).items():
-                            st.session_state[key] = value
+                            safe_set_session_state(key, value)
                             
                         # Restore custom prices using ItemCategory as key
                         custom_prices = loaded_data.get("custom_prices", {})
@@ -2631,7 +2666,7 @@ with tab2:
                                     
                         # Restore transport charges
                         for key, value in loaded_data.get("transport_charges", {}).items():
-                            st.session_state[key] = value
+                            safe_set_session_state(key, value)
                             
                         st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
                         st.rerun()
@@ -2669,12 +2704,12 @@ with tab3:
                 del st.session_state[key]
             
             # Restore values to session state
-            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+            safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
+            safe_set_session_state("global_discount", loaded_data.get("global_discount", 0.0))
             
             # Restore group discounts
             for key, value in loaded_data.get("group_discounts", {}).items():
-                st.session_state[key] = value
+                safe_set_session_state(key, value)
                 
             # Restore custom prices using ItemCategory as key
             custom_prices = loaded_data.get("custom_prices", {})
@@ -2684,12 +2719,12 @@ with tab3:
                     item_key = str(row["ItemCategory"])
                     price_key = f"price_{idx}"
                     if item_key in custom_prices:
-                        st.session_state[price_key] = custom_prices[item_key]
+                        safe_set_session_state(price_key, custom_prices[item_key])
                         found_count += 1
                         
             # Restore transport charges
             for key, value in loaded_data.get("transport_charges", {}).items():
-                st.session_state[key] = value
+                safe_set_session_state(key, value)
                 
             st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
             st.rerun()

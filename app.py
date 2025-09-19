@@ -598,14 +598,120 @@ if not st.session_state.authenticated:
     st.info("💡 **Need access?** Contact your system administrator for the username and PIN.")
     st.stop()  # Stop execution here if not authenticated
 
-# Header with help button
-col1, col2 = st.columns([4, 1])
-with col1:
-    st.title("🚀 Net Rates Calculator")
-    st.markdown("*Production Version - Enhanced Features*")
-with col2:
-    if st.button("❓ Help Guide", type="secondary"):
-        st.session_state.show_help = not st.session_state.get('show_help', False)
+# -------------------------------
+# Navigation Bar
+# -------------------------------
+def render_navbar():
+    """Render the main navigation bar with key actions"""
+    st.markdown("""
+    <style>
+    .navbar {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border: 1px solid #e1e5e9;
+    }
+    .nav-title {
+        color: #1f77b4;
+        font-weight: bold;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Create navbar container
+    with st.container():
+        st.markdown('<div class="navbar">', unsafe_allow_html=True)
+        
+        # Title row
+        col_title, col_help = st.columns([4, 1])
+        with col_title:
+            st.markdown('<div class="nav-title">🚀 Net Rates Calculator</div>', unsafe_allow_html=True)
+            st.caption("*Production Version - Enhanced Features*")
+        with col_help:
+            if st.button("❓ Help Guide", key="navbar_help", type="secondary"):
+                st.session_state.show_help = not st.session_state.get('show_help', False)
+        
+        # Action buttons row
+        col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 1, 1, 1, 2])
+        
+        with col1:
+            save_progress = st.button("💾 Save Progress", key="navbar_save", help="Save current progress to file")
+        
+        with col2:
+            load_progress = st.button("📁 Load Progress", key="navbar_load", help="Load saved progress file")
+        
+        with col3:
+            export_excel = st.button("📊 Excel Export", key="navbar_excel", help="Export to Excel format")
+        
+        with col4:
+            export_pdf = st.button("📄 PDF Quote", key="navbar_pdf", help="Generate PDF quote")
+        
+        with col5:
+            email_quote = st.button("📧 Email Quote", key="navbar_email", help="Email quote directly")
+        
+        with col6:
+            # Customer name input in navbar
+            customer_name = st.text_input("Customer Name:", key="navbar_customer", placeholder="Enter customer name")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    return {
+        'save_progress': save_progress,
+        'load_progress': load_progress,
+        'export_excel': export_excel,
+        'export_pdf': export_pdf,
+        'email_quote': email_quote,
+        'customer_name': customer_name
+    }
+
+# Render navbar and get button states
+navbar_actions = render_navbar()
+
+# -------------------------------
+# Handle Navbar Actions
+# -------------------------------
+# Sync customer name between navbar and main form
+if navbar_actions['customer_name']:
+    safe_set_session_state('customer_name', navbar_actions['customer_name'])
+
+# Handle Save Progress from navbar
+if navbar_actions['save_progress']:
+    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
+    if customer_name:
+        st.session_state['trigger_save'] = True
+    else:
+        st.error("Please enter a customer name before saving.")
+
+# Handle Load Progress from navbar  
+if navbar_actions['load_progress']:
+    st.session_state['show_load_progress'] = True
+
+# Handle Excel Export from navbar
+if navbar_actions['export_excel']:
+    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
+    if customer_name:
+        st.session_state['trigger_excel_export'] = True
+    else:
+        st.error("Please enter a customer name before exporting.")
+
+# Handle PDF Export from navbar
+if navbar_actions['export_pdf']:
+    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
+    if customer_name:
+        st.session_state['trigger_pdf_export'] = True
+    else:
+        st.error("Please enter a customer name before generating PDF.")
+
+# Handle Email Quote from navbar
+if navbar_actions['email_quote']:
+    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
+    if customer_name:
+        st.session_state['trigger_email'] = True
+    else:
+        st.error("Please enter a customer name before emailing.")
 
 # Built-in Help System
 if st.session_state.get('show_help', False):
@@ -1056,7 +1162,14 @@ Net Rates Calculator System
     except Exception as e:
         return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
-customer_name = st.text_input("⭐Enter Customer Name")
+# Customer name input (synced with navbar)
+navbar_customer_name = st.session_state.get('navbar_customer', '')
+customer_name = st.text_input("⭐Enter Customer Name", value=navbar_customer_name, key="customer_name")
+
+# Sync back to navbar if main input changes
+if customer_name != navbar_customer_name:
+    safe_set_session_state('navbar_customer', customer_name)
+
 bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
 
@@ -1373,7 +1486,11 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Save Progress Button (with Google Drive + Local Download)
     # -------------------------------
-    if st.button("💾Save Progress"):
+    navbar_save_trigger = st.session_state.get('trigger_save', False)
+    if st.button("💾Save Progress") or navbar_save_trigger:
+        if navbar_save_trigger:
+            st.session_state['trigger_save'] = False  # Clear the trigger
+        
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
@@ -2521,7 +2638,17 @@ st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
  #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
  #   st.session_state["scroll_to_load"] = False
 
+# Check if Load Progress triggered from navbar
+show_load_section = st.session_state.get('show_load_progress', False)
+if show_load_section:
+    st.session_state['show_load_progress'] = False  # Clear the trigger
+
 st.markdown("### Load Progress from Saved Files")
+
+# Auto-expand the load section if triggered from navbar
+load_expanded = show_load_section
+
+with st.expander("📁 Load Progress Options", expanded=load_expanded):
 
 # Create tabs for different load options
 tab1, tab2, tab3 = st.tabs(["� Local Files", "�📁 Google Drive Files", "📤 Upload File"])

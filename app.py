@@ -102,17 +102,39 @@ if 'config' not in st.session_state:
 # -------------------------------
 
 def get_google_drive_service():
-    """Initialize Google Drive service using service account credentials"""
+    """Initialize Google Drive service using OAuth or service account credentials"""
     if not GOOGLE_DRIVE_AVAILABLE:
         return None
     
     try:
-        # Get credentials from Streamlit secrets
+        # Try OAuth approach first (uses user's storage quota)
+        oauth_creds = st.secrets.get("google_oauth", {})
+        if oauth_creds:
+            try:
+                from google.oauth2.credentials import Credentials
+                credentials = Credentials(
+                    token=oauth_creds.get("access_token"),
+                    refresh_token=oauth_creds.get("refresh_token"),
+                    token_uri=oauth_creds.get("token_uri", "https://oauth2.googleapis.com/token"),
+                    client_id=oauth_creds.get("client_id"),
+                    client_secret=oauth_creds.get("client_secret"),
+                    scopes=[
+                        'https://www.googleapis.com/auth/drive.file',
+                        'https://www.googleapis.com/auth/drive'
+                    ]
+                )
+                service = build('drive', 'v3', credentials=credentials)
+                return service
+            except Exception as oauth_error:
+                st.warning(f"OAuth credentials failed: {oauth_error}")
+        
+        # Fallback to service account (but this has storage quota issues)
         creds_info = st.secrets.get("google_drive", {})
         if not creds_info:
             st.error("Google Drive credentials not found in secrets")
             return None
         
+        # Try domain-wide delegation approach
         credentials = service_account.Credentials.from_service_account_info(
             creds_info,
             scopes=[
@@ -121,10 +143,14 @@ def get_google_drive_service():
             ]
         )
         
-        service = build('drive', 'v3', credentials=credentials)
+        # Try to delegate to user account
+        delegated_creds = credentials.with_subject('staff.hireman@gmail.com')
+        service = build('drive', 'v3', credentials=delegated_creds)
         return service
+        
     except Exception as e:
         st.error(f"Failed to initialize Google Drive service: {e}")
+        st.info("💡 **Alternative Solution**: Consider using OAuth instead of service account to avoid storage quota issues.")
         return None
 
 def find_or_create_shared_drive(service, drive_name):
@@ -173,47 +199,51 @@ def find_or_create_folder(service, folder_name, parent_folder_id=None):
         return None
 
 def save_progress_to_google_drive(progress_data, customer_name):
-    """Save progress data to Google Drive"""
-    if not GOOGLE_DRIVE_AVAILABLE:
-        st.error("Google Drive integration not available")
+    """Save progress data to Google Drive (with local fallback)"""
+    # Always save locally first as backup
+    safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"{safe_customer_name}_progress_{timestamp}.json"
+    json_content = json.dumps(progress_data, indent=2)
+    
+    # Save locally
+    try:
+        with open(filename, 'w') as f:
+            f.write(json_content)
+        st.success(f"✅ Progress saved locally: {filename}")
+    except Exception as e:
+        st.error(f"Failed to save locally: {e}")
         return False
+    
+    # Try Google Drive as additional backup (optional)
+    if not GOOGLE_DRIVE_AVAILABLE:
+        st.info("📁 File saved locally. Google Drive integration not available.")
+        return True
     
     try:
         service = get_google_drive_service()
         if not service:
-            return False
+            st.info("📁 File saved locally. Google Drive connection failed.")
+            return True
         
-        # Find the "Net Rates App" folder that you've shared with the service account
+        # Find the "Net Rates App" folder
         query = "name='Net Rates App' and mimeType='application/vnd.google-apps.folder'"
         results = service.files().list(q=query).execute()
         folders = results.get('files', [])
         
         if not folders:
-            st.warning("⚠️ 'Net Rates App' folder not found or not accessible.")
-            st.info("""
-            **Please ensure:**
-            1. You have created a folder named 'Net Rates App' in your Google Drive
-            2. You have shared it with: netrates-drive-access@netrates-driveapi.iam.gserviceaccount.com
-            3. The service account has 'Editor' permissions
-            """)
-            return False
+            st.info("📁 File saved locally. Google Drive folder 'Net Rates App' not found.")
+            return True
         
         main_folder_id = folders[0]['id']
         
         # Find or create Current_Saves subfolder
         current_saves_id = find_or_create_folder(service, "Current_Saves", main_folder_id)
         if not current_saves_id:
-            return False
+            st.info("📁 File saved locally. Could not access Google Drive Current_Saves folder.")
+            return True
         
-        # Prepare file
-        safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{safe_customer_name}_progress_{timestamp}.json"
-        
-        # Create file content
-        json_content = json.dumps(progress_data, indent=2)
-        
-        # Upload file
+        # Upload file to Google Drive
         file_metadata = {
             'name': filename,
             'parents': [current_saves_id]
@@ -231,13 +261,14 @@ def save_progress_to_google_drive(progress_data, customer_name):
             fields='id,name,webViewLink'
         ).execute()
         
-        st.success(f"✅ Progress saved to Google Drive: {filename}")
-        st.info(f"📁 File ID: {file.get('id')}")
+        st.success(f"✅ Progress saved locally AND to Google Drive: {filename}")
+        st.info(f"📁 Google Drive File ID: {file.get('id')}")
         return True
         
     except Exception as e:
-        st.error(f"Failed to save to Google Drive: {e}")
-        return False
+        st.warning(f"Google Drive upload failed: {e}")
+        st.info("📁 But don't worry - your progress is saved locally!")
+        return True  # Still return True because local save succeeded
 
 def list_progress_files_from_google_drive():
     """List available progress files from Google Drive"""
@@ -299,6 +330,47 @@ def load_progress_from_google_drive(file_id):
         
     except Exception as e:
         st.error(f"Failed to load file from Google Drive: {e}")
+        return None
+
+def list_local_progress_files():
+    """List available local progress files"""
+    try:
+        import os
+        json_files = glob.glob("*_progress_*.json")
+        
+        # Get file info
+        files_with_info = []
+        for filename in json_files:
+            try:
+                stat = os.stat(filename)
+                files_with_info.append({
+                    'name': filename,
+                    'size': stat.st_size,
+                    'modified': stat.st_mtime
+                })
+            except:
+                files_with_info.append({
+                    'name': filename,
+                    'size': 0,
+                    'modified': 0
+                })
+        
+        # Sort by modified time (newest first)
+        files_with_info.sort(key=lambda x: x['modified'], reverse=True)
+        return files_with_info
+        
+    except Exception as e:
+        st.error(f"Failed to list local files: {e}")
+        return []
+
+def load_progress_from_local_file(filename):
+    """Load progress data from local file"""
+    try:
+        with open(filename, 'r') as f:
+            progress_data = json.load(f)
+        return progress_data
+    except Exception as e:
+        st.error(f"Failed to load local file: {e}")
         return None
 
 def get_available_pdf_files():
@@ -2371,9 +2443,68 @@ st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
 st.markdown("### Load Progress from Saved Files")
 
 # Create tabs for different load options
-tab1, tab2 = st.tabs(["📁 Google Drive Files", "📤 Upload Local File"])
+tab1, tab2, tab3 = st.tabs(["� Local Files", "�📁 Google Drive Files", "📤 Upload File"])
 
 with tab1:
+    st.markdown("**Load from Local Files:**")
+    
+    # List available local files
+    local_files = list_local_progress_files()
+    
+    if local_files:
+        # Create user-friendly display
+        file_options = {}
+        for file_info in local_files:
+            name = file_info['name']
+            size = file_info['size']
+            modified = file_info['modified']
+            
+            # Convert modified time to readable format
+            try:
+                from datetime import datetime
+                dt = datetime.fromtimestamp(modified)
+                formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+            except:
+                formatted_time = "Unknown"
+            
+            display_name = f"{name} (Modified: {formatted_time}, Size: {size} bytes)"
+            file_options[display_name] = name
+        
+        selected_local_file_display = st.selectbox(
+            "Select a local progress file:",
+            options=list(file_options.keys()),
+            key="local_file_selector"
+        )
+        
+        if selected_local_file_display and st.button("📥 Load from Local File"):
+            selected_filename = file_options[selected_local_file_display]
+            loaded_data = load_progress_from_local_file(selected_filename)
+            
+            if loaded_data:
+                # Apply the loaded data (same logic as Google Drive)
+                source = "Local File"
+                
+                # Clear session state and apply loaded data
+                # [Same loading logic as Google Drive tab]
+                keys_to_clear = []
+                for key in st.session_state.keys():
+                    if key.startswith(('customer_', 'rate_', 'selected_', 'markup_')):
+                        keys_to_clear.append(key)
+                
+                for key in keys_to_clear:
+                    del st.session_state[key]
+                
+                # Apply loaded data
+                for key, value in loaded_data.items():
+                    st.session_state[key] = value
+                
+                st.success(f"✅ Progress loaded successfully from {source}: {selected_filename}")
+                st.rerun()
+                
+    else:
+        st.info("No local progress files found. Save some progress first!")
+
+with tab2:
     st.markdown("**Load from Google Drive:**")
     
     # List available files from Google Drive
@@ -2461,7 +2592,7 @@ with tab1:
     else:
         st.warning("Google Drive integration not available.")
 
-with tab2:
+with tab3:
     st.markdown("**Upload a local JSON file:**")
     
     uploaded_progress = st.file_uploader(

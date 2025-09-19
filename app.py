@@ -687,7 +687,8 @@ if navbar_actions['save_progress']:
 
 # Handle Load Progress from navbar  
 if navbar_actions['load_progress']:
-    st.session_state['show_load_progress'] = True
+    st.info("👈 **Load Progress:** Use the sidebar on the left to load saved progress files!")
+    st.balloons()  # Fun visual feedback
 
 # Handle Excel Export from navbar
 if navbar_actions['export_excel']:
@@ -2638,26 +2639,23 @@ st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
  #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
  #   st.session_state["scroll_to_load"] = False
 
-# Check if Load Progress triggered from navbar
-show_load_section = st.session_state.get('show_load_progress', False)
-if show_load_section:
-    st.session_state['show_load_progress'] = False  # Clear the trigger
-
-st.markdown("### Load Progress from Saved Files")
-
-# Auto-expand the load section if triggered from navbar
-load_expanded = show_load_section
-
-with st.expander("📁 Load Progress Options", expanded=load_expanded):
+# Sidebar for Load Progress and other actions
+with st.sidebar:
+    st.markdown("## 🎛️ Controls")
     
-    # Simple radio button selection instead of tabs
-    load_method = st.radio(
+    # Check if Load Progress triggered from navbar
+    show_load_section = st.session_state.get('show_load_progress', False)
+    if show_load_section:
+        st.session_state['show_load_progress'] = False  # Clear the trigger
+    
+    # Load Progress Section in Sidebar
+    st.markdown("### � Load Progress")
+    
+    load_method = st.selectbox(
         "Choose loading method:",
-        ["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"],
-        horizontal=True
+        ["Select method...", "📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"],
+        index=1 if show_load_section else 0
     )
-    
-    st.markdown("---")
     
     if load_method == "📁 Local Files":
         st.markdown("**Load from Local Files:**")
@@ -2683,7 +2681,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                 except:
                     formatted_time = "Unknown"
                 
-                display_name = f"{name} ({location}) - Modified: {formatted_time}, Size: {size} bytes"
+                display_name = f"{name} ({location})"
                 file_options[display_name] = path
             
             selected_local_file_display = st.selectbox(
@@ -2692,7 +2690,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                 key="local_file_selector"
             )
             
-            if selected_local_file_display and st.button("📥 Load from Local File"):
+            if selected_local_file_display and st.button("📥 Load from Local File", use_container_width=True):
                 selected_filepath = file_options[selected_local_file_display]
                 loaded_data = load_progress_from_local_file(selected_filepath)
                 
@@ -2715,11 +2713,11 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                             success_count += 1
                     
                     filename_only = os.path.basename(selected_filepath)
-                    st.success(f"✅ Progress loaded successfully from {source}: {filename_only} ({success_count} items loaded)")
+                    st.success(f"✅ Progress loaded from {source}: {filename_only}")
                     st.rerun()
                     
         else:
-            st.info("No local progress files found. Save some progress first!")
+            st.info("No local progress files found.")
 
     elif load_method == "☁️ Google Drive Files":
         st.markdown("**Load from Google Drive:**")
@@ -2735,7 +2733,6 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                     for file in drive_files:
                         name = file['name']
                         modified = file.get('modifiedTime', 'Unknown')
-                        size = file.get('size', 'Unknown')
                         
                         # Convert modified time to readable format
                         try:
@@ -2745,7 +2742,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                         except:
                             formatted_time = modified
                         
-                        display_name = f"{name} (Modified: {formatted_time})"
+                        display_name = f"{name}"
                         file_options[display_name] = file['id']
                     
                     selected_file_display = st.selectbox(
@@ -2754,7 +2751,7 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                         key="drive_file_selector"
                     )
                     
-                    if selected_file_display and st.button("📥 Load from Google Drive"):
+                    if selected_file_display and st.button("📥 Load from Google Drive", use_container_width=True):
                         selected_file_id = file_options[selected_file_display]
                         loaded_data = load_progress_from_google_drive(selected_file_id)
                         
@@ -2797,10 +2794,10 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                             for key, value in loaded_data.get("transport_charges", {}).items():
                                 safe_set_session_state(key, value)
                                 
-                            st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+                            st.success(f"Progress loaded from {source}!")
                             st.rerun()
                 else:
-                    st.info("No progress files found in Google Drive. Save some progress first!")
+                    st.info("No progress files found in Google Drive.")
                     
             except Exception as e:
                 st.error(f"Error accessing Google Drive: {e}")
@@ -2811,10 +2808,12 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
         st.markdown("**Upload a local JSON file:**")
         
         uploaded_progress = st.file_uploader(
-            "Upload a Progress JSON", type=["json"], key="progress_json_upload"
+            "Upload a Progress JSON", 
+            type=["json"], 
+            key="progress_json_upload"
         )
 
-        if uploaded_progress and st.button("📤 Load Uploaded File"):
+        if uploaded_progress and st.button("📤 Load Uploaded File", use_container_width=True):
             try:
                 loaded_data = json.load(uploaded_progress)
                 source = "uploaded file"
@@ -2855,13 +2854,30 @@ with st.expander("📁 Load Progress Options", expanded=load_expanded):
                 for key, value in loaded_data.get("transport_charges", {}).items():
                     safe_set_session_state(key, value)
                     
-                st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+                st.success(f"Progress loaded from {source}!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Failed to load progress: {e}")
 
-import os
-st.write("Current working directory:", os.getcwd())
+    # Add some spacing
+    st.markdown("---")
+    
+    # Additional sidebar controls
+    st.markdown("### 💾 Quick Actions")
+    
+    if st.button("💾 Save Progress", use_container_width=True):
+        st.session_state['trigger_save'] = True
+        st.rerun()
+    
+    if st.button("📤 Export Data", use_container_width=True):
+        st.session_state['trigger_export'] = True
+        st.rerun()
+
+# Main content area - simplified load progress section
+st.markdown("### Load Progress from Saved Files")
+if st.session_state.get('show_load_progress', False):
+    st.info("👈 Use the sidebar to load progress from saved files.")
+    st.session_state['show_load_progress'] = False
 
 
 

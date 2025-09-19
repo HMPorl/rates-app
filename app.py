@@ -25,6 +25,16 @@ from datetime import datetime
 import glob
 from reportlab.lib.utils import ImageReader
 
+# Google Drive API imports
+try:
+    from googleapiclient.discovery import build
+    from google.oauth2 import service_account
+    from googleapiclient.http import MediaIoBaseUpload
+    GOOGLE_DRIVE_AVAILABLE = True
+except ImportError:
+    GOOGLE_DRIVE_AVAILABLE = False
+    st.warning("⚠️ Google Drive integration not available. Install required packages.")
+
 # -------------------------------
 # Configuration Management
 # -------------------------------
@@ -86,6 +96,168 @@ def save_config(config):
 # Load configuration at startup
 if 'config' not in st.session_state:
     st.session_state.config = load_config()
+
+# -------------------------------
+# Google Drive Integration Functions
+# -------------------------------
+
+def get_google_drive_service():
+    """Initialize Google Drive service using service account credentials"""
+    if not GOOGLE_DRIVE_AVAILABLE:
+        return None
+    
+    try:
+        # Get credentials from Streamlit secrets
+        creds_info = st.secrets.get("google_drive", {})
+        if not creds_info:
+            st.error("Google Drive credentials not found in secrets")
+            return None
+        
+        credentials = service_account.Credentials.from_service_account_info(
+            creds_info,
+            scopes=['https://www.googleapis.com/auth/drive.file']
+        )
+        
+        service = build('drive', 'v3', credentials=credentials)
+        return service
+    except Exception as e:
+        st.error(f"Failed to initialize Google Drive service: {e}")
+        return None
+
+def find_or_create_folder(service, folder_name, parent_folder_id=None):
+    """Find existing folder or create new one"""
+    try:
+        # Search for existing folder
+        query = f"name='{folder_name}' and mimeType='application/vnd.google-apps.folder'"
+        if parent_folder_id:
+            query += f" and '{parent_folder_id}' in parents"
+        
+        results = service.files().list(q=query).execute()
+        folders = results.get('files', [])
+        
+        if folders:
+            return folders[0]['id']
+        
+        # Create new folder
+        folder_metadata = {
+            'name': folder_name,
+            'mimeType': 'application/vnd.google-apps.folder'
+        }
+        if parent_folder_id:
+            folder_metadata['parents'] = [parent_folder_id]
+        
+        folder = service.files().create(body=folder_metadata).execute()
+        return folder.get('id')
+    except Exception as e:
+        st.error(f"Error managing folder '{folder_name}': {e}")
+        return None
+
+def save_progress_to_google_drive(progress_data, customer_name):
+    """Save progress data to Google Drive"""
+    if not GOOGLE_DRIVE_AVAILABLE:
+        st.error("Google Drive integration not available")
+        return False
+    
+    try:
+        service = get_google_drive_service()
+        if not service:
+            return False
+        
+        # Find or create main folder
+        main_folder_id = find_or_create_folder(service, "Net Rates App")
+        if not main_folder_id:
+            return False
+        
+        # Find or create Current_Saves subfolder
+        current_saves_id = find_or_create_folder(service, "Current_Saves", main_folder_id)
+        if not current_saves_id:
+            return False
+        
+        # Prepare file
+        safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{safe_customer_name}_progress_{timestamp}.json"
+        
+        # Create file content
+        json_content = json.dumps(progress_data, indent=2)
+        
+        # Upload file
+        file_metadata = {
+            'name': filename,
+            'parents': [current_saves_id]
+        }
+        
+        media = MediaIoBaseUpload(
+            io.BytesIO(json_content.encode('utf-8')),
+            mimetype='application/json',
+            resumable=True
+        )
+        
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id,name,webViewLink'
+        ).execute()
+        
+        st.success(f"✅ Progress saved to Google Drive: {filename}")
+        st.info(f"📁 File ID: {file.get('id')}")
+        return True
+        
+    except Exception as e:
+        st.error(f"Failed to save to Google Drive: {e}")
+        return False
+
+def list_progress_files_from_google_drive():
+    """List available progress files from Google Drive"""
+    if not GOOGLE_DRIVE_AVAILABLE:
+        return []
+    
+    try:
+        service = get_google_drive_service()
+        if not service:
+            return []
+        
+        # Find Current_Saves folder
+        main_folder_id = find_or_create_folder(service, "Net Rates App")
+        current_saves_id = find_or_create_folder(service, "Current_Saves", main_folder_id)
+        
+        if not current_saves_id:
+            return []
+        
+        # List JSON files in Current_Saves
+        query = f"'{current_saves_id}' in parents and name contains '.json'"
+        results = service.files().list(
+            q=query,
+            orderBy='modifiedTime desc',
+            fields='files(id,name,modifiedTime,size)'
+        ).execute()
+        
+        files = results.get('files', [])
+        return files
+        
+    except Exception as e:
+        st.error(f"Failed to list files from Google Drive: {e}")
+        return []
+
+def load_progress_from_google_drive(file_id):
+    """Load progress data from Google Drive file"""
+    if not GOOGLE_DRIVE_AVAILABLE:
+        return None
+    
+    try:
+        service = get_google_drive_service()
+        if not service:
+            return None
+        
+        # Download file content
+        file_content = service.files().get_media(fileId=file_id).execute()
+        progress_data = json.loads(file_content.decode('utf-8'))
+        
+        return progress_data
+        
+    except Exception as e:
+        st.error(f"Failed to load file from Google Drive: {e}")
+        return None
 
 def get_available_pdf_files():
     """Get list of available PDF files - not cached to always show latest files"""
@@ -1004,7 +1176,7 @@ if df is not None and header_pdf_file:
                 df.at[idx, "DiscountPercent"] = discount_percent
 
     # -------------------------------
-    # Save Progress Button (with timestamp and download)
+    # Save Progress Button (with Google Drive + Local Download)
     # -------------------------------
     if st.button("💾Save Progress"):
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
@@ -1032,14 +1204,24 @@ if df is not None and header_pdf_file:
                 if key.startswith("transport_")
             }
         }
+        
+        # Try to save to Google Drive first
+        drive_success = save_progress_to_google_drive(save_data, customer_name)
+        
+        # Always provide local download option
         json_data = json.dumps(save_data, indent=2)
-
         st.download_button(
-            label="Download Progress as JSON",
+            label="📥 Download Local Backup",
             data=json_data,
             file_name=filename,
-            mime="application/json"
+            mime="application/json",
+            help="Download a local backup file to your computer"
         )
+        
+        if drive_success:
+            st.info("💾 Progress saved to both Google Drive and available for local download!")
+        else:
+            st.warning("⚠️ Google Drive save failed, but local download is available.")
 
 
     # -------------------------------
@@ -2144,57 +2326,151 @@ st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
  #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
  #   st.session_state["scroll_to_load"] = False
 
-st.markdown("### Load Progress from a Progress JSON File")
+st.markdown("### Load Progress from Saved Files")
 
-uploaded_progress = st.file_uploader(
-    "Upload a Progress JSON", type=["json"], key="progress_json_upload"
-)
+# Create tabs for different load options
+tab1, tab2 = st.tabs(["📁 Google Drive Files", "📤 Upload Local File"])
 
-if uploaded_progress and st.button("Load Progress"):
-    try:
-        loaded_data = json.load(uploaded_progress)
-        source = "uploaded file"
-
-        # Clear ALL session state to avoid widget conflicts
-        keys_to_clear = []
-        for key in st.session_state.keys():
-            if (key.endswith("_discount") or 
-                key.startswith("price_") or 
-                key.startswith("transport_") or
-                key == "customer_name" or
-                key == "global_discount"):
-                keys_to_clear.append(key)
-        
-        for key in keys_to_clear:
-            del st.session_state[key]
-        
-        # Restore values to session state
-        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
-        
-        # Restore group discounts
-        for key, value in loaded_data.get("group_discounts", {}).items():
-            st.session_state[key] = value
+with tab1:
+    st.markdown("**Load from Google Drive:**")
+    
+    # List available files from Google Drive
+    if GOOGLE_DRIVE_AVAILABLE:
+        try:
+            drive_files = list_progress_files_from_google_drive()
             
-        # Restore custom prices using ItemCategory as key
-        custom_prices = loaded_data.get("custom_prices", {})
-        found_count = 0
-        if df is not None:
-            for idx, row in df.iterrows():
-                item_key = str(row["ItemCategory"])
-                price_key = f"price_{idx}"
-                if item_key in custom_prices:
-                    st.session_state[price_key] = custom_prices[item_key]
-                    found_count += 1
+            if drive_files:
+                # Create a more user-friendly display
+                file_options = {}
+                for file in drive_files:
+                    # Parse the filename for better display
+                    name = file['name']
+                    modified = file.get('modifiedTime', 'Unknown')
+                    size = file.get('size', 'Unknown')
                     
-        # Restore transport charges
-        for key, value in loaded_data.get("transport_charges", {}).items():
-            st.session_state[key] = value
+                    # Convert modified time to readable format
+                    try:
+                        from datetime import datetime
+                        dt = datetime.fromisoformat(modified.replace('Z', '+00:00'))
+                        formatted_time = dt.strftime('%Y-%m-%d %H:%M')
+                    except:
+                        formatted_time = modified
+                    
+                    display_name = f"{name} (Modified: {formatted_time})"
+                    file_options[display_name] = file['id']
+                
+                selected_file_display = st.selectbox(
+                    "Select a progress file:",
+                    options=list(file_options.keys()),
+                    key="drive_file_selector"
+                )
+                
+                if selected_file_display and st.button("📥 Load from Google Drive"):
+                    selected_file_id = file_options[selected_file_display]
+                    loaded_data = load_progress_from_google_drive(selected_file_id)
+                    
+                    if loaded_data:
+                        # Same loading logic as before
+                        source = "Google Drive"
+                        
+                        # Clear ALL session state to avoid widget conflicts
+                        keys_to_clear = []
+                        for key in st.session_state.keys():
+                            if (key.endswith("_discount") or 
+                                key.startswith("price_") or 
+                                key.startswith("transport_") or
+                                key == "customer_name" or
+                                key == "global_discount"):
+                                keys_to_clear.append(key)
+                        
+                        for key in keys_to_clear:
+                            del st.session_state[key]
+                        
+                        # Restore values to session state
+                        st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+                        st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+                        
+                        # Restore group discounts
+                        for key, value in loaded_data.get("group_discounts", {}).items():
+                            st.session_state[key] = value
+                            
+                        # Restore custom prices using ItemCategory as key
+                        custom_prices = loaded_data.get("custom_prices", {})
+                        found_count = 0
+                        if df is not None:
+                            for idx, row in df.iterrows():
+                                item_key = str(row["ItemCategory"])
+                                price_key = f"price_{idx}"
+                                if item_key in custom_prices:
+                                    st.session_state[price_key] = custom_prices[item_key]
+                                    found_count += 1
+                                    
+                        # Restore transport charges
+                        for key, value in loaded_data.get("transport_charges", {}).items():
+                            st.session_state[key] = value
+                            
+                        st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+                        st.rerun()
+            else:
+                st.info("No progress files found in Google Drive. Save some progress first!")
+                
+        except Exception as e:
+            st.error(f"Error accessing Google Drive: {e}")
+    else:
+        st.warning("Google Drive integration not available.")
+
+with tab2:
+    st.markdown("**Upload a local JSON file:**")
+    
+    uploaded_progress = st.file_uploader(
+        "Upload a Progress JSON", type=["json"], key="progress_json_upload"
+    )
+
+    if uploaded_progress and st.button("📤 Load Uploaded File"):
+        try:
+            loaded_data = json.load(uploaded_progress)
+            source = "uploaded file"
+
+            # Clear ALL session state to avoid widget conflicts
+            keys_to_clear = []
+            for key in st.session_state.keys():
+                if (key.endswith("_discount") or 
+                    key.startswith("price_") or 
+                    key.startswith("transport_") or
+                    key == "customer_name" or
+                    key == "global_discount"):
+                    keys_to_clear.append(key)
             
-        st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
-        st.rerun()
-    except Exception as e:
-        st.error(f"Failed to load progress: {e}")
+            for key in keys_to_clear:
+                del st.session_state[key]
+            
+            # Restore values to session state
+            st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+            st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+            
+            # Restore group discounts
+            for key, value in loaded_data.get("group_discounts", {}).items():
+                st.session_state[key] = value
+                
+            # Restore custom prices using ItemCategory as key
+            custom_prices = loaded_data.get("custom_prices", {})
+            found_count = 0
+            if df is not None:
+                for idx, row in df.iterrows():
+                    item_key = str(row["ItemCategory"])
+                    price_key = f"price_{idx}"
+                    if item_key in custom_prices:
+                        st.session_state[price_key] = custom_prices[item_key]
+                        found_count += 1
+                        
+            # Restore transport charges
+            for key, value in loaded_data.get("transport_charges", {}).items():
+                st.session_state[key] = value
+                
+            st.success(f"Progress loaded from {source}! {found_count} custom prices restored.")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Failed to load progress: {e}")
 
 import os
 st.write("Current working directory:", os.getcwd())

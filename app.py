@@ -115,13 +115,33 @@ def get_google_drive_service():
         
         credentials = service_account.Credentials.from_service_account_info(
             creds_info,
-            scopes=['https://www.googleapis.com/auth/drive.file']
+            scopes=[
+                'https://www.googleapis.com/auth/drive.file',
+                'https://www.googleapis.com/auth/drive'
+            ]
         )
         
         service = build('drive', 'v3', credentials=credentials)
         return service
     except Exception as e:
         st.error(f"Failed to initialize Google Drive service: {e}")
+        return None
+
+def find_or_create_shared_drive(service, drive_name):
+    """Find existing shared drive or provide instructions to create one"""
+    try:
+        # List shared drives
+        results = service.drives().list().execute()
+        drives = results.get('drives', [])
+        
+        for drive in drives:
+            if drive['name'] == drive_name:
+                return drive['id']
+        
+        # If drive not found, return None and let user know
+        return None
+    except Exception as e:
+        st.error(f"Error searching for shared drive: {e}")
         return None
 
 def find_or_create_folder(service, folder_name, parent_folder_id=None):
@@ -163,10 +183,22 @@ def save_progress_to_google_drive(progress_data, customer_name):
         if not service:
             return False
         
-        # Find or create main folder
-        main_folder_id = find_or_create_folder(service, "Net Rates App")
-        if not main_folder_id:
+        # Find the "Net Rates App" folder that you've shared with the service account
+        query = "name='Net Rates App' and mimeType='application/vnd.google-apps.folder'"
+        results = service.files().list(q=query).execute()
+        folders = results.get('files', [])
+        
+        if not folders:
+            st.warning("⚠️ 'Net Rates App' folder not found or not accessible.")
+            st.info("""
+            **Please ensure:**
+            1. You have created a folder named 'Net Rates App' in your Google Drive
+            2. You have shared it with: netrates-drive-access@netrates-driveapi.iam.gserviceaccount.com
+            3. The service account has 'Editor' permissions
+            """)
             return False
+        
+        main_folder_id = folders[0]['id']
         
         # Find or create Current_Saves subfolder
         current_saves_id = find_or_create_folder(service, "Current_Saves", main_folder_id)
@@ -217,8 +249,18 @@ def list_progress_files_from_google_drive():
         if not service:
             return []
         
+        # Find the "Net Rates App" folder that you've shared with the service account
+        query = "name='Net Rates App' and mimeType='application/vnd.google-apps.folder'"
+        results = service.files().list(q=query).execute()
+        folders = results.get('files', [])
+        
+        if not folders:
+            st.warning("⚠️ 'Net Rates App' folder not found. No files to load.")
+            return []
+        
+        main_folder_id = folders[0]['id']
+        
         # Find Current_Saves folder
-        main_folder_id = find_or_create_folder(service, "Net Rates App")
         current_saves_id = find_or_create_folder(service, "Current_Saves", main_folder_id)
         
         if not current_saves_id:

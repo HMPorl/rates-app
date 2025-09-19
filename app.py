@@ -2651,7 +2651,7 @@ load_expanded = show_load_section
 with st.expander("📁 Load Progress Options", expanded=load_expanded):
 
 # Create tabs for different load options
-tab1, tab2, tab3 = st.tabs(["� Local Files", "�📁 Google Drive Files", "📤 Upload File"])
+tab1, tab2, tab3 = st.tabs(["📁 Local Files", "☁️ Google Drive Files", "📤 Upload File"])
 
 with tab1:
     st.markdown("**Load from Local Files:**")

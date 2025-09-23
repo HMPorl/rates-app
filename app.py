@@ -1577,438 +1577,38 @@ if df is not None and header_pdf_file:
 
 
     # -------------------------------
-    # Export Net Rates
+    # Export Net Rates - Moved to Sidebar
     # -------------------------------
     st.markdown("### 📤 Export Net Rates")
+    st.info("📋 **Export functions have been moved to the sidebar** for better usability. Use the sidebar controls for:")
+    st.markdown("""
+    - **Excel - Admin**: Professional 3-sheet format for CRM integration
+    - **CSV - Customer**: Universal format for customer use  
+    - **PDF - Customer**: Branded quotes with headers and custom pricing
+    - **Email Options**: Direct sending with multiple recipient options
+    """)
+    st.markdown("➡️ **Look for the '📊 Export Options' section in the sidebar** on the left.")
     
-    # Create admin-friendly DataFrame with clear column names
-    admin_df = df[[
-        "ItemCategory", "EquipmentName", "HireRateWeekly", 
-        "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
-    ]].copy()
-    
-    # Format values for export (handle POA properly)
-    admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
-        lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
-    )
-    admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
-        lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-    )
-    admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-    )
-    
-    admin_df.columns = [
-        "Item Category", "Equipment Name", "Original Price (£)", 
-        "Net Price (£)", "Discount %", "Group", "Sub Section"
-    ]
-    admin_df["Customer Name"] = customer_name
-    admin_df["Date Created"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-    
-    # Reorder columns for admin convenience
-    admin_df = admin_df[[
-        "Customer Name", "Date Created", "Item Category", "Equipment Name", 
-        "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
-    ]]
-
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        # Enhanced Excel Export
-        output_excel = io.BytesIO()
-        with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-            # Main price list
-            admin_df.to_excel(writer, sheet_name='Price List', index=False)
-            
-            # Transport charges sheet
-            transport_df.to_excel(writer, sheet_name='Transport Charges', index=False)
-            
-            # Summary sheet
-            summary_data = {
-                'Customer': [customer_name],
-                'Total Items': [len(admin_df)],
-                'Global Discount %': [global_discount],
-                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
-                'Created By': ['Net Rates Calculator']
-            }
-            pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
-        
-        st.download_button(
-            label="📊 Download Excel (Admin Format)",
-            data=output_excel.getvalue(),
-            file_name=f"{customer_name}_admin_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-    
-    with col2:
-        # CSV Export (universal format)
-        csv_data = admin_df.to_csv(index=False)
-        st.download_button(
-            label="📄 Download CSV",
-            data=csv_data,
-            file_name=f"{customer_name}_pricelist_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv"
-        )
-    
-    with col3:
-        # JSON Export (for API integration)
-        json_export = {
-            "customer_info": {
-                "name": customer_name,
-                "date_created": datetime.now().isoformat(),
-                "global_discount": global_discount
-            },
-            "price_list": admin_df.to_dict('records'),
-            "transport_charges": transport_df.to_dict('records')
-        }
-        
-        st.download_button(
-            label="🔗 Download JSON (API)",
-            data=json.dumps(json_export, indent=2),
-            file_name=f"{customer_name}_api_data_{datetime.now().strftime('%Y%m%d')}.json",
-            mime="application/json"
-        )
+    if st.button("↗️ Legacy Export Functions", help="Access legacy export functions in admin area"):
+        st.info("🔧 Legacy export functions are available in the **Admin Area** at the bottom of this page.")
 
     # -------------------------------
     # Direct Email to Accounts Team
     # -------------------------------
+    # Email Net Rates - Moved to Sidebar
+    # -------------------------------
     st.markdown("### 📧 Email Net Rates to Accounts")
+    st.info("� **Email functions have been moved to the sidebar** for better usability. Use the sidebar controls for:")
+    st.markdown("""
+    - **Multiple Recipients**: Choose from preset accounts or add custom emails
+    - **PDF Attachments**: Optional professional PDF with headers
+    - **Email Configuration**: SendGrid, Gmail, Office365, and Custom SMTP support
+    - **Instant Sending**: One-click email delivery with confirmation
+    """)
+    st.markdown("➡️ **Look for the 'Email Options' dropdown in the sidebar** on the left.")
     
-    # Email Configuration Toggle
-    show_email_config = st.toggle("Email Config", value=False)
-    
-    if show_email_config:
-        # SMTP Configuration Section
-        with st.expander("⚙️ SMTP Configuration (Click to configure email sending)"):
-            st.markdown("#### Choose Email Provider")
-            
-            # Load saved settings
-            config = st.session_state.config
-            smtp_settings = config.get("smtp_settings", {})
-            
-            email_provider = st.selectbox(
-                "Email Service",
-                ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"],
-                index=["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"].index(smtp_settings.get("provider", "Not Configured")) if smtp_settings.get("provider", "Not Configured") in ["Not Configured", "SendGrid", "Gmail", "Outlook/Office365", "Custom SMTP"] else 0
-            )
-            
-            if email_provider == "SendGrid":
-                st.info("📋 **SendGrid API Configuration:**")
-                
-                # Check for saved settings first, then environment variables
-                saved_api_key = smtp_settings.get("sendgrid_api_key", "")
-                saved_from_email = smtp_settings.get("sendgrid_from_email", "")
-                
-                # Use saved settings or environment variables as defaults
-                default_api_key = saved_api_key or SENDGRID_API_KEY
-                default_from_email = saved_from_email or SENDGRID_FROM_EMAIL or "netrates@thehireman.co.uk"
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    # API Key input with default from saved/environment
-                    sg_api_key = st.text_input(
-                        "SendGrid API Key", 
-                        value=default_api_key,
-                        type="password",
-                        help="Get your API key from SendGrid dashboard → Settings → API Keys"
-                    )
-                    sg_from_email = st.text_input(
-                        "From Email Address", 
-                        value=default_from_email,
-                        help="Must be a verified sender in your SendGrid account"
-                    )
-                with col2:
-                    st.info("**SendGrid Settings:**\n- API-based email service\n- High deliverability\n- Advanced analytics\n- Free tier: 100 emails/day")
-                    
-                    if default_api_key:
-                        st.success(f"✅ API Key loaded: {default_api_key[:8]}...{default_api_key[-4:] if len(default_api_key) > 8 else '****'}")
-                
-                # Save settings button
-                if st.button("💾 Save SendGrid Settings"):
-                    config["smtp_settings"]["provider"] = "SendGrid"
-                    config["smtp_settings"]["sendgrid_api_key"] = sg_api_key
-                    config["smtp_settings"]["sendgrid_from_email"] = sg_from_email
-                    if save_config(config):
-                        st.session_state.config = config
-                        st.success("✅ SendGrid settings saved successfully!")
-                        st.rerun()
-                
-                # Configure SMTP settings if API key is provided
-                if sg_api_key and sg_from_email:
-                    smtp_config = {
-                        'enabled': True,
-                        'smtp_server': 'smtp.sendgrid.net',
-                        'smtp_port': 587,
-                        'username': 'apikey',
-                        'password': sg_api_key,
-                        'from_email': sg_from_email,
-                        'use_tls': True,
-                        'provider': 'SendGrid'
-                    }
-                    
-                    st.success("📋 **SendGrid is Ready!**")
-                    # Show current configuration (masking API key)
-                    st.markdown(f"**From Email:** `{sg_from_email}`")
-                    st.markdown(f"**API Key:** `{sg_api_key[:8]}...{sg_api_key[-4:] if len(sg_api_key) > 8 else '****'}`")
-                else:
-                    smtp_config = {'enabled': False}
-                    if not sg_api_key:
-                        st.warning("⚠️ Please enter your SendGrid API key")
-                    if not sg_from_email:
-                        st.warning("⚠️ Please enter a from email address")
-                    
-            elif email_provider == "Gmail":
-                st.warning("⚠️ **Gmail requires App Password** (not your regular password)")
-                st.markdown("""
-                1. Enable 2-Factor Authentication on your Google account
-                2. Go to Google Account → Security → App passwords
-                3. Generate an app password for 'Mail'
-                4. Use that 16-character password below
-                """)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    gmail_user = st.text_input("Gmail Address", value=smtp_settings.get("gmail_user", ""))
-                    gmail_password = st.text_input("App Password", type="password", value=smtp_settings.get("gmail_password", ""))
-                with col2:
-                    st.info("**Gmail Settings:**\n- Server: smtp.gmail.com\n- Port: 587\n- TLS: Enabled")
-                
-                # Save settings button
-                if st.button("💾 Save Gmail Settings"):
-                    config["smtp_settings"]["provider"] = "Gmail"
-                    config["smtp_settings"]["gmail_user"] = gmail_user
-                    config["smtp_settings"]["gmail_password"] = gmail_password
-                    if save_config(config):
-                        st.session_state.config = config
-                        st.success("✅ Gmail settings saved successfully!")
-                        st.rerun()
-                
-                if gmail_user and gmail_password:
-                    smtp_config = {
-                        'enabled': True,
-                        'smtp_server': 'smtp.gmail.com',
-                        'smtp_port': 587,
-                        'username': gmail_user,
-                        'password': gmail_password,
-                        'from_email': gmail_user,
-                        'use_tls': True,
-                        'provider': 'Gmail'
-                    }
-                else:
-                    smtp_config = {'enabled': False}
-                    
-            elif email_provider == "Outlook/Office365":
-                st.info("📋 **Office365/Outlook Setup:**")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    o365_user = st.text_input("Office365 Email", value=smtp_settings.get("o365_user", ""))
-                    o365_password = st.text_input("Password", type="password", value=smtp_settings.get("o365_password", ""))
-                with col2:
-                    st.info("**Office365 Settings:**\n- Server: smtp.office365.com\n- Port: 587\n- TLS: Enabled")
-                
-                # Save settings button
-                if st.button("💾 Save Office365 Settings"):
-                    config["smtp_settings"]["provider"] = "Outlook/Office365"
-                    config["smtp_settings"]["o365_user"] = o365_user
-                    config["smtp_settings"]["o365_password"] = o365_password
-                    if save_config(config):
-                        st.session_state.config = config
-                        st.success("✅ Office365 settings saved successfully!")
-                        st.rerun()
-                
-                if o365_user and o365_password:
-                    smtp_config = {
-                        'enabled': True,
-                        'smtp_server': 'smtp.office365.com',
-                        'smtp_port': 587,
-                        'username': o365_user,
-                        'password': o365_password,
-                        'from_email': o365_user,
-                        'use_tls': True,
-                        'provider': 'Office365'
-                    }
-                else:
-                    smtp_config = {'enabled': False}
-                    
-            elif email_provider == "Custom SMTP":
-                st.info("🔧 **Custom SMTP Configuration:**")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    custom_server = st.text_input("SMTP Server", value=smtp_settings.get("custom_server", ""))
-                    custom_port = st.number_input("SMTP Port", value=smtp_settings.get("custom_port", 587))
-                    custom_user = st.text_input("Username", value=smtp_settings.get("custom_user", ""))
-                with col2:
-                    custom_password = st.text_input("Password", type="password", value=smtp_settings.get("custom_password", ""))
-                    custom_from = st.text_input("From Email", value=smtp_settings.get("custom_from", ""))
-                    use_tls = st.checkbox("Use TLS", value=smtp_settings.get("custom_use_tls", True))
-                
-                # Save settings button
-                if st.button("💾 Save Custom SMTP Settings"):
-                    config["smtp_settings"]["provider"] = "Custom SMTP"
-                    config["smtp_settings"]["custom_server"] = custom_server
-                    config["smtp_settings"]["custom_port"] = custom_port
-                    config["smtp_settings"]["custom_user"] = custom_user
-                    config["smtp_settings"]["custom_password"] = custom_password
-                    config["smtp_settings"]["custom_from"] = custom_from
-                    config["smtp_settings"]["custom_use_tls"] = use_tls
-                    if save_config(config):
-                        st.session_state.config = config
-                        st.success("✅ Custom SMTP settings saved successfully!")
-                        st.rerun()
-                
-                if custom_server and custom_user and custom_password:
-                    smtp_config = {
-                        'enabled': True,
-                        'smtp_server': custom_server,
-                        'smtp_port': int(custom_port),
-                        'username': custom_user,
-                        'password': custom_password,
-                        'from_email': custom_from,
-                        'use_tls': use_tls,
-                        'provider': 'Custom'
-                    }
-                else:
-                    smtp_config = {'enabled': False}
-            else:
-                smtp_config = {'enabled': False}
-        
-        # Clear settings button
-        if email_provider != "Not Configured":
-            if st.button("🗑️ Clear Saved Settings"):
-                config["smtp_settings"] = {
-                    "provider": "",
-                    "sendgrid_api_key": "",
-                    "sendgrid_from_email": "",
-                    "gmail_user": "",
-                    "gmail_password": "",
-                    "o365_user": "",
-                    "o365_password": "",
-                    "custom_server": "",
-                    "custom_port": 587,
-                    "custom_user": "",
-                    "custom_password": "",
-                    "custom_from": "",
-                    "custom_use_tls": True
-                }
-                if save_config(config):
-                    st.session_state.config = config
-                    st.success("✅ Settings cleared successfully!")
-                    st.rerun()
-        
-        # Test Email Button
-        if smtp_config.get('enabled', False):
-            if st.button("🧪 Test Email Configuration"):
-                try:
-                    server = smtplib.SMTP(smtp_config['smtp_server'], smtp_config['smtp_port'])
-                    if smtp_config.get('use_tls', True):
-                        server.starttls()
-                    server.login(smtp_config['username'], smtp_config['password'])
-                    server.quit()
-                    st.success("✅ SMTP Configuration Test Successful!")
-                except Exception as e:
-                    st.error(f"❌ SMTP Test Failed: {str(e)}")
-    else:
-        # When email config is hidden, use default config
-        smtp_config = {'enabled': False}
-    
-    # Email Form
-    col1, col2 = st.columns(2)
-    with col1:
-        # Hard-coded admin email address
-        admin_email = st.text_input("Accounts Team Email", value="netrates@thehireman.co.uk")
-        # CC email input
-        cc_email = st.text_input("CC Email (optional)", placeholder="your.email@company.com", help="CC yourself or others on this email")
-    with col2:
-        include_transport = st.checkbox("Include Transport Charges", value=True)
-    
-    # Status indicator - SendGrid focused
-    config = st.session_state.get('config', {})
-    smtp_settings = config.get("smtp_settings", {})
-    saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
-    
-    if smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid':
-        st.success("✅ SendGrid configured - Perfect Excel attachments ready!")
-    elif saved_sendgrid_key or SENDGRID_API_KEY:
-        st.success("✅ SendGrid available - Reliable Excel attachment delivery!")
-    elif smtp_config.get('enabled', False):
-        st.warning(f"⚠️ {smtp_config.get('provider', 'SMTP')} configured - Excel attachments may have issues. SendGrid recommended.")
-    else:
-        st.info("📧 Configure SendGrid in Email Config above for best results")
-    
-    if st.button("📨 Send Email to Admin Team", type="primary") and admin_email:
-        if customer_name:
-            try:
-                # Priority 1: Use SendGrid API (best for attachments)
-                if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
-                    result = send_email_via_sendgrid_api(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        cc_email if cc_email and cc_email.strip() else None,
-                        global_discount,
-                        df,  # Pass the original DataFrame
-                        header_pdf_choice  # Pass the header choice
-                    )
-                # Priority 2: Use other SMTP if configured
-                elif smtp_config.get('enabled', False):
-                    result = send_email_with_pricelist(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        smtp_config,
-                        cc_email if cc_email and cc_email.strip() else None,
-                        global_discount,
-                        df,  # Pass the original DataFrame
-                        header_pdf_choice  # Pass the header choice
-                    )
-                else:
-                    # Fallback: prepare email data for manual sending
-                    result = send_email_with_pricelist(
-                        customer_name, 
-                        admin_df, 
-                        transport_df if include_transport else pd.DataFrame(), 
-                        admin_email,
-                        None,
-                        cc_email if cc_email and cc_email.strip() else None,
-                        global_discount,
-                        df,  # Pass the original DataFrame
-                        header_pdf_choice  # Pass the header choice
-                    )
-                
-                if result['status'] == 'sent':
-                    st.success(f"✅ {result['message']}")
-                    st.balloons()
-                elif result['status'] == 'saved':
-                    st.success(f"✅ Email data prepared successfully!")
-                    st.info("📁 Data saved locally. Admin will process this shortly.")
-                elif result['status'] == 'prepared':
-                    st.success(f"✅ Email prepared successfully!")
-                    st.info("📝 **Note**: Configure SMTP above to enable automatic sending.")
-                    
-                    # Show email preview
-                    with st.expander("📧 Email Preview"):
-                        email_obj = result.get('email_obj')
-                        if email_obj:
-                            st.text(f"To: {admin_email}")
-                            if cc_email and cc_email.strip():
-                                st.text(f"CC: {cc_email}")
-                            st.text(f"Subject: {email_obj['Subject']}")
-                            st.text("📎 Attachments:")
-                            st.text("   • Excel file with price list")
-                            st.text("   • JSON backup file for calculator")
-                else:
-                    st.error(f"❌ {result['message']}")
-                    st.info("💡 **Alternative**: Download the Excel file above and email it manually.")
-                    
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-                st.info("💡 **Alternative**: Download the Excel file above and email it manually.")
-        else:
-            st.warning("⚠️ Please enter a customer name first")
+    if st.button("↗️ Legacy Email Functions", help="Access legacy email functions in admin area"):
+        st.info("� Legacy email functions are available in the **Admin Area** at the bottom of this page.")
 
     # -------------------------------
     # Export Net Rates to PDF
@@ -2571,6 +2171,100 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
 
 # Footer
 st.markdown("---")
+
+# -------------------------------
+# Admin Area - Legacy Functions
+# -------------------------------
+with st.expander("🔧 **Admin Area** - Legacy Functions", expanded=False):
+    st.markdown("### 🛠️ Legacy Functions")
+    st.info("ℹ️ **Note**: Export and email functions have been moved to the sidebar for better usability. These are legacy versions kept for admin reference.")
+    
+    # Legacy Export Functions (moved from main body)
+    if customer_name and not df.empty:
+        st.markdown("### 📤 Legacy Export Functions")
+        st.warning("⚠️ **Legacy**: These functions are duplicated in the sidebar. Use sidebar for regular operations.")
+        
+        # Prepare data (same as before)
+        admin_df_legacy = df[[
+            "ItemCategory", "EquipmentName", "HireRateWeekly", 
+            "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
+        ]].copy()
+        
+        admin_df_legacy["HireRateWeekly"] = admin_df_legacy["HireRateWeekly"].apply(
+            lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+        )
+        admin_df_legacy["CustomPrice"] = admin_df_legacy["CustomPrice"].apply(
+            lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        )
+        admin_df_legacy["DiscountPercent"] = admin_df_legacy["DiscountPercent"].apply(
+            lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        )
+        
+        admin_df_legacy.columns = [
+            "Item Category", "Equipment Name", "Original Price (£)", 
+            "Net Price (£)", "Discount %", "Group", "Sub Section"
+        ]
+        admin_df_legacy["Customer Name"] = customer_name
+        admin_df_legacy["Date Created"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        admin_df_legacy = admin_df_legacy[[
+            "Customer Name", "Date Created", "Item Category", "Equipment Name", 
+            "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
+        ]]
+
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Enhanced Excel Export
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+                admin_df_legacy.to_excel(writer, sheet_name='Price List', index=False)
+                transport_df.to_excel(writer, sheet_name='Transport Charges', index=False)
+                summary_data = {
+                    'Customer': [customer_name],
+                    'Total Items': [len(admin_df_legacy)],
+                    'Global Discount %': [global_discount],
+                    'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
+                    'Created By': ['Net Rates Calculator']
+                }
+                pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+            
+            st.download_button(
+                label="📊 Excel (Legacy)",
+                data=output_excel.getvalue(),
+                file_name=f"{customer_name}_admin_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        
+        with col2:
+            # CSV Export
+            csv_data = admin_df_legacy.to_csv(index=False)
+            st.download_button(
+                label="📄 CSV (Legacy)",
+                data=csv_data,
+                file_name=f"{customer_name}_pricelist_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+        
+        with col3:
+            # JSON Export
+            json_export = {
+                "customer_info": {
+                    "name": customer_name,
+                    "date_created": datetime.now().isoformat(),
+                    "global_discount": global_discount
+                },
+                "price_list": admin_df_legacy.to_dict('records'),
+                "transport_charges": transport_df.to_dict('records')
+            }
+            
+            st.download_button(
+                label="🔗 JSON (Legacy)",
+                data=json.dumps(json_export, indent=2),
+                file_name=f"{customer_name}_api_data_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json"
+            )
+
 st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
 # Load Progress from Uploaded JSON Only
 # -------------------------------

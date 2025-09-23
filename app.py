@@ -2712,7 +2712,7 @@ with st.sidebar:
         
         # Direct download button (immediate like main body)
         st.download_button(
-            label="Export Excel (Admin Format)",
+            label="Excel - Admin",
             data=output_excel.getvalue(),
             file_name=f"{customer_name}_admin_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

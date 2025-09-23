@@ -2517,7 +2517,7 @@ with st.sidebar:
     st.markdown("### 💾 Download/Upload Method")
     
     # Save progress button
-    if st.button("?? Save Progress", use_container_width=True, help="Prepare progress file for download"):
+    if st.button("💾 Save Progress", use_container_width=True, help="Prepare progress file for download"):
         customer_name = st.session_state.get('customer_name', '')
         if customer_name:
             # Show progress bar

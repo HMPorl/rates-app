@@ -769,10 +769,11 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         # Prepare JSON save data (same format as Save Progress feature)
         # Use original_df if provided, otherwise fallback to a simple approach
         if original_df is not None and hasattr(original_df, 'iterrows'):
-            custom_prices = {
-                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
-                for idx, row in original_df.iterrows()
-            }
+            custom_prices = {}
+            for idx, row in original_df.iterrows():
+                price_key = f"price_{idx}"
+                item_key = str(row["ItemCategory"])
+                custom_prices[item_key] = st.session_state.get(price_key, "")
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {
@@ -922,10 +923,11 @@ Net Rates Calculator System
         
         # Use original_df if provided, otherwise fallback to a simple approach
         if original_df is not None and hasattr(original_df, 'iterrows'):
-            custom_prices = {
-                str(row["ItemCategory"]): st.session_state.get(f"price_{idx}", "")
-                for idx, row in original_df.iterrows()
-            }
+            custom_prices = {}
+            for idx, row in original_df.iterrows():
+                price_key = f"price_{idx}"
+                item_key = str(row["ItemCategory"])
+                custom_prices[item_key] = st.session_state.get(price_key, "")
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {

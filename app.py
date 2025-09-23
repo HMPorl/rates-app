@@ -2719,9 +2719,27 @@ with st.sidebar:
             use_container_width=True,
             help="Download Excel file with admin-formatted data"
         )
+        
+        # CSV Export (universal format)
+        csv_data = admin_df.to_csv(index=False)
+        st.download_button(
+            label="📄 Download CSV",
+            data=csv_data,
+            file_name=f"{customer_name}_pricelist_{get_uk_time().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True,
+            help="Download CSV file for universal compatibility"
+        )
     else:
         st.button(
             label="📤 Export Excel (Admin Format)",
+            use_container_width=True,
+            disabled=True,
+            help="Please enter a customer name and ensure data is loaded"
+        )
+        
+        st.button(
+            label="📄 Download CSV",
             use_container_width=True,
             disabled=True,
             help="Please enter a customer name and ensure data is loaded"

@@ -1013,6 +1013,9 @@ with col1:
         ["(Select Sales Person)"] + available_pdfs,
         help=f"Found {len(available_pdfs)} PDF files in the current directory"
     )
+    
+    # Store in session state for sidebar access
+    st.session_state['header_pdf_choice'] = header_pdf_choice
 
 with col2:
     if st.button("🔄 Refresh PDF List", help="Click to refresh the list of available PDF header files"):
@@ -3106,6 +3109,21 @@ with st.sidebar:
     # Email Section
     st.markdown("### 📧 Email Quote")
     
+    # Show email configuration status
+    config = st.session_state.get('config', {})
+    smtp_config = load_config().get('smtp', {})
+    smtp_settings = config.get("smtp_settings", {})
+    saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
+    
+    # Display email service status
+    if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
+        st.success("✅ SendGrid configured")
+    elif smtp_config.get('enabled', False):
+        st.warning(f"⚠️ {smtp_config.get('provider', 'SMTP')} configured")
+    else:
+        st.error("❌ No email service configured")
+        st.info("💡 Configure email in the main application Email Config section")
+    
     # Email recipient selection
     email_options = {
         "Authorise": "netratesauth@thehireman.co.uk",
@@ -3186,10 +3204,12 @@ with st.sidebar:
             
             try:
                 with st.spinner("📧 Sending email..."):
-                    # Try SendGrid first, then SMTP fallback
-                    saved_sendgrid_key = load_config().get('sendgrid_api_key')
-                    SENDGRID_API_KEY = st.secrets.get("SENDGRID_API_KEY")
+                    # Get email configuration (same as main body)
+                    config = st.session_state.get('config', {})
+                    smtp_settings = config.get("smtp_settings", {})
+                    saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
                     
+                    # Try SendGrid first, then SMTP fallback
                     if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
                         result = send_email_via_sendgrid_api(
                             customer_name,
@@ -3199,7 +3219,7 @@ with st.sidebar:
                             cc_email if cc_email and cc_email.strip() else None,
                             global_discount,
                             df,  # Pass original DataFrame
-                            header_pdf_choice if 'header_pdf_choice' in locals() else None
+                            st.session_state.get('header_pdf_choice', None)  # Get from session state
                         )
                     else:
                         result = send_email_with_pricelist(
@@ -3211,7 +3231,7 @@ with st.sidebar:
                             cc_email if cc_email and cc_email.strip() else None,
                             global_discount,
                             df,  # Pass original DataFrame
-                            header_pdf_choice if 'header_pdf_choice' in locals() else None
+                            st.session_state.get('header_pdf_choice', None)  # Get from session state
                         )
                     
                     if result['status'] == 'sent':

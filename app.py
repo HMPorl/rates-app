@@ -2020,21 +2020,21 @@ if df is not None and header_pdf_file:
     # Add a checkbox for including the custom price table
     # Add a checkbox for including the custom price table
     include_custom_table = st.checkbox(
-        "Include Special Rates at top of PDF", 
+        "Include Special Rates?", 
         value=st.session_state.get('include_custom_table', True), 
         key="include_custom_table"
     )
     
     # Add a checkbox for page break after special rates
     special_rates_pagebreak = st.checkbox(
-        "Separate Special Rates on their own page", 
+        "Separate Special Rates?", 
         value=st.session_state.get('special_rates_pagebreak', False), 
         key="special_rates_pagebreak"
     )
     
     # Add number input for spacing between special rates and main price list
     special_rates_spacing = st.number_input(
-        "Extra spacing after Special Rates (blank lines)", 
+        "Extra Spacing after Special Rates", 
         min_value=0, 
         max_value=20, 
         value=st.session_state.get('special_rates_spacing', 0),
@@ -3169,19 +3169,19 @@ with st.sidebar:
     # PDF Options (checkboxes to control special rates)
     st.markdown("#### 📄 PDF Options")
     include_custom_table_sidebar = st.checkbox(
-        "Include Special Rates at top of PDF", 
+        "Include Special Rates?", 
         value=st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True)),
         key="include_custom_table_sidebar",
         help="Add a special rates table at the beginning of the PDF"
     )
     special_rates_pagebreak_sidebar = st.checkbox(
-        "Separate Special Rates on their own page", 
+        "Separate Special Rates?", 
         value=st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False)),
         key="special_rates_pagebreak_sidebar",
         help="Put special rates table on a separate page"
     )
     special_rates_spacing_sidebar = st.number_input(
-        "Extra spacing after Special Rates (blank lines)", 
+        "Extra Spacing after Special Rates", 
         min_value=0, 
         max_value=20, 
         value=st.session_state.get('special_rates_spacing_sidebar', st.session_state.get('special_rates_spacing', 0)),
@@ -3197,15 +3197,6 @@ with st.sidebar:
     smtp_config = load_config().get('smtp', {})
     smtp_settings = config.get("smtp_settings", {})
     saved_sendgrid_key = smtp_settings.get("sendgrid_api_key", "")
-    
-    # Display email service status
-    if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
-        st.success("✅ SendGrid configured")
-    elif smtp_config.get('enabled', False):
-        st.warning(f"⚠️ {smtp_config.get('provider', 'SMTP')} configured")
-    else:
-        st.error("❌ No email service configured")
-        st.info("💡 Configure email in the main application Email Config section")
     
     # Email recipient selection
     email_options = {

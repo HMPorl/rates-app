@@ -1426,27 +1426,75 @@ if df is not None and header_pdf_file:
         st.session_state['trigger_export'] = False  # Clear the trigger
         
         customer_name = st.session_state.get('customer_name', 'Customer')
+        global_discount = st.session_state.get('global_discount', 0)
+        
         if customer_name and not df.empty:
-            # Create Excel export
+            # Create admin-friendly DataFrame with clear column names (same as main export)
+            admin_df = df[[
+                "ItemCategory", "EquipmentName", "HireRateWeekly", 
+                "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
+            ]].copy()
+            
+            # Format values for export (handle POA properly)
+            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
+                lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+            )
+            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
+                lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
+            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
+                lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
+            
+            admin_df.columns = [
+                "Item Category", "Equipment Name", "Original Price (£)", 
+                "Net Price (£)", "Discount %", "Group", "Sub Section"
+            ]
+            admin_df["Customer Name"] = customer_name
+            admin_df["Date Created"] = get_uk_time().strftime("%Y-%m-%d %H:%M")
+            
+            # Reorder columns for admin convenience
+            admin_df = admin_df[[
+                "Customer Name", "Date Created", "Item Category", "Equipment Name", 
+                "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
+            ]]
+            
+            # Create transport charges DataFrame
+            transport_inputs = []
+            transport_types = ["Delivery", "Collection", "Driver", "Maintenance"]
+            for transport_type in transport_types:
+                charge_key = f"transport_{transport_type.lower()}"
+                charge = st.session_state.get(charge_key, "")
+                if charge:  # Only include if there's a value
+                    transport_inputs.append({
+                        "Delivery or Collection type": transport_type,
+                        "Charge (£)": charge
+                    })
+            transport_df = pd.DataFrame(transport_inputs)
+            
+            # Create Excel export (same as main export)
             output_excel = io.BytesIO()
             with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
                 # Main price list
-                df.to_excel(writer, sheet_name='Price List', index=False)
+                admin_df.to_excel(writer, sheet_name='Price List', index=False)
+                
+                # Transport charges sheet
+                transport_df.to_excel(writer, sheet_name='Transport Charges', index=False)
                 
                 # Summary sheet
                 summary_data = {
                     'Customer': [customer_name],
-                    'Total Items': [len(df)],
-                    'Global Discount %': [st.session_state.get('global_discount', 0)],
+                    'Total Items': [len(admin_df)],
+                    'Global Discount %': [global_discount],
                     'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M")],
                     'Created By': ['Net Rates Calculator']
                 }
                 pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
             
             st.download_button(
-                label="📊 Download Excel File",
+                label="📊 Download Excel (Admin Format)",
                 data=output_excel.getvalue(),
-                file_name=f"{customer_name}_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
+                file_name=f"{customer_name}_admin_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )

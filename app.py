@@ -679,7 +679,7 @@ def load_excel_with_timestamp(file_path, timestamp):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0, original_df=None):
+def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None):
     """Send email with Excel attachment using SendGrid API - Clean implementation"""
     try:
         # Import SendGrid here to handle missing library gracefully
@@ -719,12 +719,16 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
         
+        # Extract salesperson from header choice (first 2 letters)
+        salesperson = header_pdf_choice[:2].upper() if header_pdf_choice and header_pdf_choice != "(Select Sales Person)" else "N/A"
+        
         # Create professional email content
         html_content = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
             <h2 style="color: #002D56;">New Net Rates Price List</h2>
             
+            <p><strong>Salesperson:</strong> {salesperson}</p>
             <p><strong>Customer:</strong> {customer_name}</p>
             <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             <p><strong>Total Items:</strong> {len(admin_df)}</p>
@@ -845,7 +849,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             'message': f'SendGrid API error: {str(e)}'
         }
 
-def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0, original_df=None):
+def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None):
     """Send price list via email to admin team"""
     try:
         # Create the email
@@ -862,12 +866,14 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
         # Email body
         cc_note = f"\n(CC: {cc_email})" if cc_email and cc_email.strip() else ""
         custom_prices_count = len([key for key in st.session_state.keys() if key.startswith('price_') and st.session_state.get(key, '').strip()])
+        salesperson = header_pdf_choice[:2].upper() if header_pdf_choice and header_pdf_choice != "(Select Sales Person)" else "N/A"
         body = f"""
 Hello Admin Team,
 
 Please find attached the price list for customer: {customer_name}
 
 Summary:
+- Salesperson: {salesperson}
 - Total Items: {len(admin_df)}
 - Global Discount: {global_discount}%
 - Custom Prices: {custom_prices_count}
@@ -1906,7 +1912,8 @@ if df is not None and header_pdf_file:
                         admin_email,
                         cc_email if cc_email and cc_email.strip() else None,
                         global_discount,
-                        df  # Pass the original DataFrame
+                        df,  # Pass the original DataFrame
+                        header_pdf_choice  # Pass the header choice
                     )
                 # Priority 2: Use other SMTP if configured
                 elif smtp_config.get('enabled', False):
@@ -1918,7 +1925,8 @@ if df is not None and header_pdf_file:
                         smtp_config,
                         cc_email if cc_email and cc_email.strip() else None,
                         global_discount,
-                        df  # Pass the original DataFrame
+                        df,  # Pass the original DataFrame
+                        header_pdf_choice  # Pass the header choice
                     )
                 else:
                     # Fallback: prepare email data for manual sending
@@ -1930,7 +1938,8 @@ if df is not None and header_pdf_file:
                         None,
                         cc_email if cc_email and cc_email.strip() else None,
                         global_discount,
-                        df  # Pass the original DataFrame
+                        df,  # Pass the original DataFrame
+                        header_pdf_choice  # Pass the header choice
                     )
                 
                 if result['status'] == 'sent':

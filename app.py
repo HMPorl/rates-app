@@ -3127,7 +3127,8 @@ with st.sidebar:
     # Email recipient selection
     email_options = {
         "Authorise": "netratesauth@thehireman.co.uk",
-        "Net Rates": "netrates@thehireman.co.uk",
+        "Accounts": "netrates@thehireman.co.uk",
+        "CRM": "netratescrm@thehireman.co.uk",
         "Custom Email": "custom"
     }
     

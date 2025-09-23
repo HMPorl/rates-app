@@ -3415,61 +3415,60 @@ with st.sidebar:
                             # Build PDF
                             doc.build(elements)
                             
-                            # Get header PDF file path
-                            header_pdf_choice = st.session_state.get('header_pdf_choice', None)
-                            if header_pdf_choice and header_pdf_choice != 'Select a PDF header':
-                                header_pdf_file = os.path.join(PDF_HEADERS_DIR, header_pdf_choice)
-                                
+                            # Get header PDF file from session state (same as sidebar)
+                            header_pdf_file = st.session_state.get('header_pdf_file', None)
+                            if header_pdf_file:
                                 # Merge with header (same logic as sidebar)
-                                if os.path.exists(header_pdf_file):
-                                    header_pdf = fitz.open(header_pdf_file)
-                                    page1 = header_pdf[0]
-                                    
-                                    # Add customer name and bespoke email to header
-                                    page_width = page1.rect.width
-                                    font_name = "helv"
-                                    font_size = 18
-                                    font_color = (0, 0, 0)
-                                    font = fitz.Font(fontname=font_name)
-                                    text_width = font.text_length(customer_name, fontsize=font_size)
-                                    text_y = 100
-                                    text_x = (page_width - text_width) / 2
-                                    page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+                                header_data = read_pdf_header(header_pdf_file)
+                                header_pdf = fitz.open(stream=header_data, filetype="pdf")
+                                
+                                # Ensure there are at least 3 pages
+                                while len(header_pdf) < 3:
+                                    header_pdf.new_page()
+                                
+                                # Add customer name and bespoke email to header
+                                page1 = header_pdf[0]
+                                page_width = page1.rect.width
+                                font_name = "helv"
+                                font_size = 22
+                                font_color = (0 / 255, 45 / 255, 86 / 255)
+                                font = fitz.Font(fontname=font_name)
+                                text_width = font.text_length(customer_name, fontsize=font_size)
+                                text_y = page1.rect.height / 3
+                                text_x = (page_width - text_width) / 2
+                                page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
 
-                                    bespoke_email = st.session_state.get('bespoke_email', '')
-                                    if bespoke_email and bespoke_email.strip():
-                                        email_font_size = 13
-                                        email_font_color = (0 / 255, 90 / 255, 156 / 255)
-                                        email_text_y = text_y + font_size + 6
-                                        email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
-                                        email_text_x = (page_width - email_text_width) / 2
-                                        page1.insert_text(
-                                            (email_text_x, email_text_y),
-                                            bespoke_email,
-                                            fontsize=email_font_size,
-                                            fontname=font_name,
-                                            fill=email_font_color
-                                        )
+                                bespoke_email = st.session_state.get('bespoke_email', '')
+                                if bespoke_email and bespoke_email.strip():
+                                    email_font_size = 13
+                                    email_font_color = (0 / 255, 90 / 255, 156 / 255)
+                                    email_text_y = text_y + font_size + 6
+                                    email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+                                    email_text_x = (page_width - email_text_width) / 2
+                                    page1.insert_text(
+                                        (email_text_x, email_text_y),
+                                        bespoke_email,
+                                        fontsize=email_font_size,
+                                        fontname=font_name,
+                                        fill=email_font_color
+                                    )
 
-                                    # Merge PDFs
-                                    modified_header = io.BytesIO()
-                                    header_pdf.save(modified_header)
-                                    header_pdf.close()
+                                # Merge PDFs
+                                modified_header = io.BytesIO()
+                                header_pdf.save(modified_header)
+                                header_pdf.close()
 
-                                    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
-                                    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
-                                    merged_pdf.insert_pdf(generated_pdf)
-                                    merged_output = io.BytesIO()
-                                    merged_pdf.save(merged_output)
-                                    merged_pdf.close()
-                                    generated_pdf.close()
-                                    
-                                    pdf_attachment_data = merged_output.getvalue()
-                                else:
-                                    # No header file, use basic PDF
-                                    pdf_attachment_data = pdf_buffer.getvalue()
+                                merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+                                generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+                                merged_pdf.insert_pdf(generated_pdf)
+                                merged_output = io.BytesIO()
+                                merged_pdf.save(merged_output)
+                                merged_pdf.close()
+                                generated_pdf.close()
+                                
+                                pdf_attachment_data = merged_output.getvalue()
                             else:
-                                # No header selected, use basic PDF
+                                # No header file, use basic PDF
                                 pdf_attachment_data = pdf_buffer.getvalue()
                     
                     # Get email configuration (same as main body)

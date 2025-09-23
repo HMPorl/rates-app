@@ -1537,7 +1537,7 @@ if df is not None and header_pdf_file:
             st.warning("⚠️ Google Drive save failed, but local download is available.")
 
     # -------------------------------
-    # Handle Download Save Trigger (One-click save to Downloads)
+    # Handle Download Save Trigger (Browser download method)
     # -------------------------------
     if st.session_state.get('trigger_download_save', False):
         st.session_state['trigger_download_save'] = False  # Clear the trigger
@@ -1568,23 +1568,18 @@ if df is not None and header_pdf_file:
             }
         }
         
-        # Save directly to Downloads folder
-        try:
-            import os
-            downloads_path = os.path.join(os.path.expanduser("~"), "Downloads", filename)
-            with open(downloads_path, 'w') as f:
-                json.dump(save_data, f, indent=2)
-            st.success(f"✅ Progress saved to Downloads: {filename}")
-        except Exception as e:
-            st.error(f"❌ Failed to save to Downloads: {e}")
-            # Fallback to download button
-            json_data = json.dumps(save_data, indent=2)
-            st.download_button(
-                label="📥 Download File",
-                data=json_data,
-                file_name=filename,
-                mime="application/json"
-            )
+        # Use browser download (works in web environment)
+        json_data = json.dumps(save_data, indent=2)
+        st.download_button(
+            label="📥 Download Progress File",
+            data=json_data,
+            file_name=filename,
+            mime="application/json",
+            use_container_width=True,
+            help=f"Download {filename} to your Downloads folder"
+        )
+        st.success(f"✅ Progress file ready for download: {filename}")
+        st.info("👆 Click the download button above to save the file to your Downloads folder")
 
     # -------------------------------
     # Handle Upload Load Trigger
@@ -2749,8 +2744,8 @@ with st.sidebar:
     # Method 1: Download/Upload (One-click implementation)
     st.markdown("### 💾 Download/Upload Method")
     
-    # One-click save to Downloads
-    if st.button("⬇️ Save to Downloads", use_container_width=True, help="One-click save to your Downloads folder"):
+    # Prepare download file
+    if st.button("📥 Prepare Download", use_container_width=True, help="Generate progress file for download"):
         customer_name = st.session_state.get('customer_name', '')
         if customer_name:
             st.session_state['trigger_download_save'] = True

@@ -1353,51 +1353,6 @@ if df is not None and header_pdf_file:
             st.warning("⚠️ Google Drive save failed, but local download is available.")
 
     # -------------------------------
-    # Handle Download Save Trigger (Browser download method)
-    # -------------------------------
-    if st.session_state.get('trigger_download_save', False):
-        st.session_state['trigger_download_save'] = False  # Clear the trigger
-        
-        safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"{safe_customer_name}_progress_{timestamp}.json"
-
-        custom_prices = {}
-        for idx, row in df.iterrows():
-            price_key = f"price_{idx}"
-            item_key = str(row["ItemCategory"])
-            custom_prices[item_key] = st.session_state.get(price_key, "")
-
-        save_data = {
-            "customer_name": customer_name,
-            "global_discount": global_discount,
-            "group_discounts": {
-                key: st.session_state[key]
-                for key in st.session_state
-                if key.endswith("_discount")
-            },
-            "custom_prices": custom_prices,
-            "transport_charges": {
-                key: st.session_state[key]
-                for key in st.session_state
-                if key.startswith("transport_")
-            }
-        }
-        
-        # Use browser download (works in web environment)
-        json_data = json.dumps(save_data, indent=2)
-        st.download_button(
-            label="📥 Download Progress File",
-            data=json_data,
-            file_name=filename,
-            mime="application/json",
-            use_container_width=True,
-            help=f"Download {filename} to your Downloads folder"
-        )
-        st.success(f"✅ Progress file ready for download: {filename}")
-        st.info("👆 Click the download button above to save the file to your Downloads folder")
-
-    # -------------------------------
     # Handle Upload Load Trigger
     # -------------------------------
     if st.session_state.get('trigger_upload_load', False):
@@ -2560,14 +2515,61 @@ with st.sidebar:
     # Method 1: Download/Upload (One-click implementation)
     st.markdown("### 💾 Download/Upload Method")
     
-    # Prepare download file
-    if st.button("📥 Prepare Download", use_container_width=True, help="Generate progress file for download"):
+    # Save progress button
+    if st.button("� Save Progress", use_container_width=True, help="Prepare progress file for download"):
         customer_name = st.session_state.get('customer_name', '')
         if customer_name:
             st.session_state['trigger_download_save'] = True
             st.rerun()
         else:
             st.error("Please enter a customer name first")
+    
+    # Download progress button (appears when save is prepared)
+    if st.session_state.get('trigger_download_save', False):
+        customer_name = st.session_state.get('customer_name', '')
+        safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{safe_customer_name}_progress_{timestamp}.json"
+        
+        # Collect all session state data
+        df = st.session_state.get('df', pd.DataFrame())
+        global_discount = st.session_state.get('global_discount', 0)
+        
+        custom_prices = {}
+        for idx, row in df.iterrows():
+            price_key = f"price_{idx}"
+            item_key = str(row["ItemCategory"])
+            custom_prices[item_key] = st.session_state.get(price_key, "")
+
+        save_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": {
+                key: st.session_state[key]
+                for key in st.session_state
+                if key.endswith("_discount")
+            },
+            "custom_prices": custom_prices,
+            "transport_charges": {
+                key: st.session_state[key]
+                for key in st.session_state
+                if key.startswith("transport_")
+            }
+        }
+        
+        json_data = json.dumps(save_data, indent=2)
+        
+        if st.download_button(
+            label="📥 Download Progress",
+            data=json_data,
+            file_name=filename,
+            mime="application/json",
+            use_container_width=True,
+            help=f"Download {filename} to your Downloads folder"
+        ):
+            st.session_state['trigger_download_save'] = False  # Clear trigger after download
+            st.success(f"✅ Downloaded: {filename}")
+            st.rerun()
     
     # Upload file to load
     uploaded_file = st.file_uploader(

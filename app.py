@@ -3171,33 +3171,35 @@ with st.sidebar:
             # Get configurations
             smtp_config = load_config().get('smtp', {})
             
-            # Prepare admin DataFrame with pricing
-            admin_df = df.copy()
-            for idx, row in admin_df.iterrows():
-                original_price = row["HireRateWeekly"]
-                discount_percent = global_discount
-                
-                # Check for group discount
-                group_key = f"{row['GroupName']}_discount"
-                if group_key in st.session_state:
-                    group_discount = st.session_state[group_key]
-                    if group_discount > discount_percent:
-                        discount_percent = group_discount
-                
-                # Apply custom price if available
-                custom_price_key = f"price_{idx}"
-                if custom_price_key in st.session_state and st.session_state[custom_price_key]:
-                    try:
-                        admin_df.at[idx, "FinalPrice"] = float(st.session_state[custom_price_key])
-                        admin_df.at[idx, "DiscountPercent"] = 0  # Custom price, no discount calculation
-                    except (ValueError, TypeError):
-                        # Fall back to discount calculation
-                        admin_df.at[idx, "FinalPrice"] = original_price * (1 - discount_percent / 100)
-                        admin_df.at[idx, "DiscountPercent"] = discount_percent
-                else:
-                    # Apply discount
-                    admin_df.at[idx, "FinalPrice"] = original_price * (1 - discount_percent / 100)
-                    admin_df.at[idx, "DiscountPercent"] = discount_percent
+            # Prepare admin DataFrame with pricing (same format as main body)
+            admin_df = df[[
+                "ItemCategory", "EquipmentName", "HireRateWeekly", 
+                "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
+            ]].copy()
+            
+            # Format values for export (handle POA properly)
+            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
+                lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+            )
+            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
+                lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
+            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
+                lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
+            
+            admin_df.columns = [
+                "Item Category", "Equipment Name", "Original Price (£)", 
+                "Net Price (£)", "Discount %", "Group", "Sub Section"
+            ]
+            admin_df["Customer Name"] = customer_name
+            admin_df["Date Created"] = get_uk_time().strftime("%Y-%m-%d %H:%M")
+            
+            # Reorder columns for admin convenience
+            admin_df = admin_df[[
+                "Customer Name", "Date Created", "Item Category", "Equipment Name", 
+                "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
+            ]]
             
             # Create empty transport DataFrame (no transport charges from sidebar)
             transport_df = pd.DataFrame()

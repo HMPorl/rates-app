@@ -2800,9 +2800,9 @@ with st.sidebar:
     
     # PDF Download (immediate generation)
     if customer_name and not df.empty and header_pdf_file:
-        # Generate PDF with same logic as main body - use session state values
-        include_custom_table = st.session_state.get('include_custom_table', True)
-        special_rates_pagebreak = st.session_state.get('special_rates_pagebreak', False)
+        # Generate PDF with same logic as main body - use sidebar values first, fallback to main values
+        include_custom_table = st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True))
+        special_rates_pagebreak = st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False))
         
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -3149,20 +3149,16 @@ with st.sidebar:
     st.markdown("#### 📄 PDF Options")
     include_custom_table_sidebar = st.checkbox(
         "Include Special Rates at top of PDF", 
-        value=st.session_state.get('include_custom_table', True),
+        value=st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True)),
         key="include_custom_table_sidebar",
         help="Add a special rates table at the beginning of the PDF"
     )
     special_rates_pagebreak_sidebar = st.checkbox(
         "Separate Special Rates on their own page", 
-        value=st.session_state.get('special_rates_pagebreak', False),
+        value=st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False)),
         key="special_rates_pagebreak_sidebar",
         help="Put special rates table on a separate page"
     )
-    
-    # Sync sidebar checkboxes with main checkboxes
-    st.session_state['include_custom_table'] = include_custom_table_sidebar
-    st.session_state['special_rates_pagebreak'] = special_rates_pagebreak_sidebar
 
     # Email Section
     st.markdown("### 📧 Email Options")
@@ -3279,8 +3275,8 @@ with st.sidebar:
                             # Use the same PDF generation logic as the sidebar download
                             # This ensures consistency with header, special rates, styling, etc.
                             
-                            include_custom_table = st.session_state.get('include_custom_table', True)
-                            special_rates_pagebreak = st.session_state.get('special_rates_pagebreak', False)
+                            include_custom_table = st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True))
+                            special_rates_pagebreak = st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False))
                             
                             pdf_buffer = io.BytesIO()
                             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)

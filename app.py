@@ -728,6 +728,8 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             <p><strong>Customer:</strong> {customer_name}</p>
             <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             <p><strong>Total Items:</strong> {len(admin_df)}</p>
+            <p><strong>Global Discount:</strong> {global_discount}%</p>
+            <p><strong>Custom Prices:</strong> {len([key for key in st.session_state.keys() if key.startswith('price_') and st.session_state.get(key, '').strip()])}</p>
             
             <h3 style="color: #002D56;">Summary</h3>
             <ul>
@@ -879,6 +881,7 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
         
         # Email body
         cc_note = f"\n(CC: {cc_email})" if cc_email and cc_email.strip() else ""
+        custom_prices_count = len([key for key in st.session_state.keys() if key.startswith('price_') and st.session_state.get(key, '').strip()])
         body = f"""
 Hello Admin Team,
 
@@ -886,6 +889,8 @@ Please find attached the price list for customer: {customer_name}
 
 Summary:
 - Total Items: {len(admin_df)}
+- Global Discount: {global_discount}%
+- Custom Prices: {custom_prices_count}
 - Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 - Created via: Net Rates Calculator{cc_note}
 

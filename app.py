@@ -2712,7 +2712,7 @@ with st.sidebar:
         
         # Direct download button (immediate like main body)
         st.download_button(
-            label="� Export Excel (Admin Format)",
+            label="Export Excel (Admin Format)",
             data=output_excel.getvalue(),
             file_name=f"{customer_name}_admin_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -2723,7 +2723,7 @@ with st.sidebar:
         # CSV Export (universal format)
         csv_data = admin_df.to_csv(index=False)
         st.download_button(
-            label="📄 Download CSV",
+            label="CSV - Customer",
             data=csv_data,
             file_name=f"{customer_name}_pricelist_{get_uk_time().strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -2732,14 +2732,14 @@ with st.sidebar:
         )
     else:
         st.button(
-            label="📤 Export Excel (Admin Format)",
+            label="Excel - Admin",
             use_container_width=True,
             disabled=True,
             help="Please enter a customer name and ensure data is loaded"
         )
         
         st.button(
-            label="📄 Download CSV",
+            label="CSV - Customer",
             use_container_width=True,
             disabled=True,
             help="Please enter a customer name and ensure data is loaded"

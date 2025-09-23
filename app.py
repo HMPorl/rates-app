@@ -1144,10 +1144,12 @@ header_pdf_file = None
 if uploaded_header_pdf is not None:
     # Use uploaded file (takes priority)
     header_pdf_file = uploaded_header_pdf
+    st.session_state['header_pdf_file'] = header_pdf_file  # Store in session state
 elif header_pdf_choice != "(Select Sales Person)":
     # Use selected file from folder
     with open(header_pdf_choice, "rb") as f:
         header_pdf_file = io.BytesIO(f.read())
+        st.session_state['header_pdf_file'] = header_pdf_file  # Store in session state
 
 if df is not None and header_pdf_file:
     required_columns = {"ItemCategory", "EquipmentName", "HireRateWeekly", "GroupName", "Sub Section", "Max Discount", "Include", "Order"}

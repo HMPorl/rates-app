@@ -3102,6 +3102,132 @@ with st.sidebar:
             disabled=True,
             help="Please enter customer name, load data, and select PDF header"
         )
+
+    # Email Section
+    st.markdown("### 📧 Email Quote")
+    
+    # Email recipient selection
+    email_options = {
+        "Authorise": "netratesauth@thehireman.co.uk",
+        "Net Rates": "netrates@thehireman.co.uk",
+        "Custom Email": "custom"
+    }
+    
+    email_choice = st.selectbox(
+        "Send To:",
+        list(email_options.keys()),
+        help="Select recipient or choose Custom Email to enter your own"
+    )
+    
+    # Handle custom email input
+    if email_choice == "Custom Email":
+        recipient_email = st.text_input(
+            "Enter Email Address:",
+            placeholder="example@company.com",
+            help="Enter the recipient's email address"
+        )
+    else:
+        recipient_email = email_options[email_choice]
+        st.info(f"📧 Sending to: {recipient_email}")
+    
+    # CC field
+    cc_email = st.text_input(
+        "CC (Optional):",
+        placeholder="additional@company.com",
+        help="Add additional recipients (separate multiple emails with commas)"
+    )
+    
+    # Send email button
+    if st.button("📤 Send Email", use_container_width=True, help="Send price list via email"):
+        customer_name = st.session_state.get('customer_name', '')
+        df = st.session_state.get('df', pd.DataFrame())
+        global_discount = st.session_state.get('global_discount', 0)
+        
+        if not customer_name:
+            st.error("Please enter a customer name first")
+        elif not recipient_email or (email_choice == "Custom Email" and not recipient_email.strip()):
+            st.error("Please select or enter a valid email address")
+        elif df.empty:
+            st.error("Please load data first")
+        else:
+            # Get configurations
+            smtp_config = load_config().get('smtp', {})
+            
+            # Prepare admin DataFrame with pricing
+            admin_df = df.copy()
+            for idx, row in admin_df.iterrows():
+                original_price = row["HireRateWeekly"]
+                discount_percent = global_discount
+                
+                # Check for group discount
+                group_key = f"{row['GroupName']}_discount"
+                if group_key in st.session_state:
+                    group_discount = st.session_state[group_key]
+                    if group_discount > discount_percent:
+                        discount_percent = group_discount
+                
+                # Apply custom price if available
+                custom_price_key = f"price_{idx}"
+                if custom_price_key in st.session_state and st.session_state[custom_price_key]:
+                    try:
+                        admin_df.at[idx, "FinalPrice"] = float(st.session_state[custom_price_key])
+                        admin_df.at[idx, "DiscountPercent"] = 0  # Custom price, no discount calculation
+                    except (ValueError, TypeError):
+                        # Fall back to discount calculation
+                        admin_df.at[idx, "FinalPrice"] = original_price * (1 - discount_percent / 100)
+                        admin_df.at[idx, "DiscountPercent"] = discount_percent
+                else:
+                    # Apply discount
+                    admin_df.at[idx, "FinalPrice"] = original_price * (1 - discount_percent / 100)
+                    admin_df.at[idx, "DiscountPercent"] = discount_percent
+            
+            # Create empty transport DataFrame (no transport charges from sidebar)
+            transport_df = pd.DataFrame()
+            
+            try:
+                with st.spinner("📧 Sending email..."):
+                    # Try SendGrid first, then SMTP fallback
+                    saved_sendgrid_key = load_config().get('sendgrid_api_key')
+                    SENDGRID_API_KEY = st.secrets.get("SENDGRID_API_KEY")
+                    
+                    if (smtp_config.get('enabled', False) and smtp_config.get('provider') == 'SendGrid') or saved_sendgrid_key or SENDGRID_API_KEY:
+                        result = send_email_via_sendgrid_api(
+                            customer_name,
+                            admin_df,
+                            transport_df,
+                            recipient_email,
+                            cc_email if cc_email and cc_email.strip() else None,
+                            global_discount,
+                            df,  # Pass original DataFrame
+                            header_pdf_choice if 'header_pdf_choice' in locals() else None
+                        )
+                    else:
+                        result = send_email_with_pricelist(
+                            customer_name,
+                            admin_df,
+                            transport_df,
+                            recipient_email,
+                            smtp_config if smtp_config.get('enabled', False) else None,
+                            cc_email if cc_email and cc_email.strip() else None,
+                            global_discount,
+                            df,  # Pass original DataFrame
+                            header_pdf_choice if 'header_pdf_choice' in locals() else None
+                        )
+                    
+                    if result['status'] == 'sent':
+                        st.success(f"✅ Email sent successfully to {recipient_email}!")
+                        if cc_email:
+                            st.info(f"📧 CC: {cc_email}")
+                        st.balloons()
+                    elif result['status'] == 'saved':
+                        st.success("✅ Email data prepared successfully!")
+                        st.info("💡 Check your email configuration to enable sending")
+                    else:
+                        st.error(f"❌ Email failed: {result.get('message', 'Unknown error')}")
+                        
+            except Exception as e:
+                st.error(f"❌ Email error: {str(e)}")
+
 # Main content area - simplified load progress section
 st.markdown("### Load Progress from Saved Files")
 if st.session_state.get('show_load_progress', False):

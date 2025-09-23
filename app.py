@@ -2031,6 +2031,16 @@ if df is not None and header_pdf_file:
         value=st.session_state.get('special_rates_pagebreak', False), 
         key="special_rates_pagebreak"
     )
+    
+    # Add number input for spacing between special rates and main price list
+    special_rates_spacing = st.number_input(
+        "Extra spacing after Special Rates (blank lines)", 
+        min_value=0, 
+        max_value=20, 
+        value=st.session_state.get('special_rates_spacing', 0),
+        key="special_rates_spacing",
+        help="Add blank lines between Special Rates and Main Price List to improve pagination"
+    )
 
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -2122,6 +2132,11 @@ if df is not None and header_pdf_file:
             if special_rates_pagebreak:
                 from reportlab.platypus import PageBreak
                 elements.append(PageBreak())
+            # Add extra spacing after special rates if specified
+            elif special_rates_spacing > 0:
+                # Add the specified number of blank lines (each line is approximately 12 points)
+                for _ in range(special_rates_spacing):
+                    elements.append(Spacer(1, 12))
     else:
         # If not including custom table, still show the main title
         customer_title = customer_name if customer_name else "Customer"
@@ -2803,6 +2818,7 @@ with st.sidebar:
         # Generate PDF with same logic as main body - use sidebar values first, fallback to main values
         include_custom_table = st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True))
         special_rates_pagebreak = st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False))
+        special_rates_spacing = st.session_state.get('special_rates_spacing_sidebar', st.session_state.get('special_rates_spacing', 0))
         
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -2887,6 +2903,11 @@ with st.sidebar:
                 if special_rates_pagebreak:
                     from reportlab.platypus import PageBreak
                     elements.append(PageBreak())
+                # Add extra spacing after special rates if specified
+                elif special_rates_spacing > 0:
+                    # Add the specified number of blank lines (each line is approximately 12 points)
+                    for _ in range(special_rates_spacing):
+                        elements.append(Spacer(1, 12))
         else:
             customer_title = customer_name if customer_name else "Customer"
             elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
@@ -3159,6 +3180,14 @@ with st.sidebar:
         key="special_rates_pagebreak_sidebar",
         help="Put special rates table on a separate page"
     )
+    special_rates_spacing_sidebar = st.number_input(
+        "Extra spacing after Special Rates (blank lines)", 
+        min_value=0, 
+        max_value=20, 
+        value=st.session_state.get('special_rates_spacing_sidebar', st.session_state.get('special_rates_spacing', 0)),
+        key="special_rates_spacing_sidebar",
+        help="Add blank lines between Special Rates and Main Price List to improve pagination"
+    )
 
     # Email Section
     st.markdown("### 📧 Email Options")
@@ -3277,6 +3306,7 @@ with st.sidebar:
                             
                             include_custom_table = st.session_state.get('include_custom_table_sidebar', st.session_state.get('include_custom_table', True))
                             special_rates_pagebreak = st.session_state.get('special_rates_pagebreak_sidebar', st.session_state.get('special_rates_pagebreak', False))
+                            special_rates_spacing = st.session_state.get('special_rates_spacing_sidebar', st.session_state.get('special_rates_spacing', 0))
                             
                             pdf_buffer = io.BytesIO()
                             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -3365,6 +3395,11 @@ with st.sidebar:
                                     if special_rates_pagebreak:
                                         from reportlab.platypus import PageBreak
                                         elements.append(PageBreak())
+                                    # Add extra spacing after special rates if specified
+                                    elif special_rates_spacing > 0:
+                                        # Add the specified number of blank lines (each line is approximately 12 points)
+                                        for _ in range(special_rates_spacing):
+                                            elements.append(Spacer(1, 12))
                                 else:
                                     customer_title = customer_name if customer_name else "Customer"
                                     elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))

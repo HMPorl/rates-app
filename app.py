@@ -3247,81 +3247,230 @@ with st.sidebar:
                     pdf_attachment_data = None
                     if add_pdf_attachment:
                         with st.spinner("📄 Generating PDF..."):
-                            # Generate PDF using the same logic as the sidebar download
+                            # Use the same PDF generation logic as the sidebar download
+                            # This ensures consistency with header, special rates, styling, etc.
+                            
+                            include_custom_table = True  # Default to including special rates
+                            special_rates_pagebreak = False  # Default to no page break
+                            
                             pdf_buffer = io.BytesIO()
                             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
-                            
-                            # Build PDF content (reuse existing PDF generation logic)
                             elements = []
                             styles = getSampleStyleSheet()
-                            
-                            # Get header info for title
-                            selected_pdf = st.session_state.get('header_pdf_choice', 'Select a PDF header')
-                            header_text = "Net Rates Calculator"
-                            if selected_pdf != 'Select a PDF header':
-                                header_text = selected_pdf.replace('.pdf', '').replace('_', ' ').title()
-                            
-                            # Title
-                            title_style = ParagraphStyle(
-                                'CustomTitle',
-                                parent=styles['Heading1'],
-                                fontSize=18,
-                                spaceAfter=30,
-                                alignment=1,  # Center
-                                textColor=colors.HexColor("#005a9c")
-                            )
-                            elements.append(Paragraph(f"Price List for {customer_name}", title_style))
-                            elements.append(Spacer(1, 12))
-                            
-                            # Create table data
-                            table_data = [["Equipment Name", "Weekly Rate", "Discount %", "Net Price"]]
-                            
-                            for _, row in df.iterrows():
-                                equipment_name = str(row["EquipmentName"])
-                                hire_rate = row["HireRateWeekly"]
-                                custom_price = row.get("CustomPrice", "")
-                                discount = row.get("DiscountPercent", "")
-                                
-                                # Format hire rate
-                                if is_poa_value(hire_rate):
-                                    hire_rate_str = "POA"
+
+                            from reportlab.lib.enums import TA_LEFT
+                            from reportlab.lib.styles import ParagraphStyle
+
+                            # Add custom styles (same as sidebar)
+                            styles.add(ParagraphStyle(
+                                name='LeftHeading2',
+                                parent=styles['Heading2'],
+                                alignment=TA_LEFT,
+                                spaceBefore=6,
+                                spaceAfter=6,
+                                textColor='#002D56'
+                            ))
+                            styles.add(ParagraphStyle(
+                                name='LeftHeading3',
+                                parent=styles['Heading3'],
+                                alignment=TA_LEFT,
+                                spaceBefore=2,
+                                spaceAfter=4,
+                                textColor='#002D56'
+                            ))
+
+                            # Update BarHeading2 style to use Helvetica-Bold
+                            styles.add(ParagraphStyle(
+                                name='BarHeading2',
+                                parent=styles['Heading2'],
+                                fontName='Helvetica-Bold',
+                                alignment=TA_LEFT,
+                                spaceBefore=12,
+                                spaceAfter=6,
+                                textColor='white',
+                                fontSize=14,
+                                leftIndent=0,
+                                rightIndent=0,
+                                backColor='#002D56',
+                                borderPadding=8,
+                                padding=0,
+                                leading=18,
+                            ))
+
+                            # --- Custom Price Products Table at the Top (optional) ---
+                            if include_custom_table:
+                                custom_price_rows = []
+                                for idx, row in df.iterrows():
+                                    price_key = f"price_{idx}"
+                                    user_input = str(st.session_state.get(price_key, "")).strip()
+                                    if user_input:
+                                        # Only include numeric prices in Special Rates section
+                                        if not is_poa_value(user_input):
+                                            try:
+                                                entered_price = float(user_input)
+                                                custom_price_rows.append([
+                                                    row["ItemCategory"],
+                                                    Paragraph(row["EquipmentName"], styles['BodyText']),
+                                                    f"£{entered_price:.2f}"
+                                                ])
+                                            except ValueError:
+                                                continue
+
+                                if custom_price_rows:
+                                    customer_title = customer_name if customer_name else "Customer"
+                                    elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+                                    elements.append(Spacer(1, 12))
+                                    elements.append(Paragraph("Special Rates", styles['Heading2']))
+                                    elements.append(Spacer(1, 6))
+                                    table_data = [["Category", "Equipment", "Special (£)"]]
+                                    table_data.extend(custom_price_rows)
+                                    row_styles = [
+                                        ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),
+                                        ('BACKGROUND', (0, 1), (-1, -1), '#FFF2B8'),
+                                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                                        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                                    ]
+                                    table = Table(table_data, colWidths=[60, 380, 60])
+                                    table.setStyle(TableStyle(row_styles))
+                                    elements.append(table)
+                                    elements.append(Spacer(1, 12))
                                 else:
-                                    hire_rate_str = f"£{float(hire_rate):.2f}"
-                                
-                                # Format discount
-                                if discount == "POA" or is_poa_value(discount):
-                                    discount_str = "POA"
-                                else:
-                                    discount_str = f"{float(discount):.1f}%"
-                                
-                                # Format net price
-                                if custom_price and str(custom_price).strip() and custom_price != "POA":
-                                    if is_poa_value(custom_price):
-                                        net_price_str = "POA"
-                                    else:
-                                        net_price_str = f"£{float(custom_price):.2f}"
-                                else:
-                                    net_price_str = hire_rate_str
-                                
-                                table_data.append([equipment_name, hire_rate_str, discount_str, net_price_str])
-                            
-                            # Create table
-                            table = Table(table_data)
-                            table.setStyle(TableStyle([
-                                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#005a9c")),
-                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                ('FONTSIZE', (0, 0), (-1, 0), 12),
-                                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-                            ]))
-                            
-                            elements.append(table)
+                                    customer_title = customer_name if customer_name else "Customer"
+                                    elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+                                    elements.append(Spacer(1, 12))
+                            else:
+                                customer_title = customer_name if customer_name else "Customer"
+                                elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+                                elements.append(Spacer(1, 12))
+
+                            # --- Main Price List Tables (same logic as sidebar) ---
+                            table_col_widths = [60, 380, 60]
+                            bar_width = sum(table_col_widths)
+
+                            for group, group_df in df.groupby("GroupName"):
+                                # Group header bar
+                                bar_table = Table(
+                                    [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],
+                                    colWidths=[bar_width]
+                                )
+                                bar_table.setStyle(TableStyle([
+                                    ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
+                                    ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
+                                    ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                                    ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                ]))
+
+                                elements.append(bar_table)
+                                elements.append(Spacer(1, 2))
+
+                                # Subsections
+                                for subsection, sub_df in group_df.groupby("Sub Section"):
+                                    subsection_title = str(subsection) if pd.notna(subsection) and str(subsection).strip() else "Untitled"
+                                    
+                                    # Build table data for this subsection
+                                    table_data = [["Category", "Equipment", "Rate (£)"]]
+                                    for idx, row in sub_df.iterrows():
+                                        price_key = f"price_{idx}"
+                                        user_input = str(st.session_state.get(price_key, "")).strip()
+                                        
+                                        if user_input and not is_poa_value(user_input):
+                                            try:
+                                                display_price = f"£{float(user_input):.2f}"
+                                            except ValueError:
+                                                display_price = f"£{float(row['HireRateWeekly']):.2f}"
+                                        elif is_poa_value(row['HireRateWeekly']):
+                                            display_price = "POA"
+                                        else:
+                                            display_price = f"£{float(row['HireRateWeekly']):.2f}"
+                                        
+                                        table_data.append([
+                                            row["ItemCategory"],
+                                            Paragraph(row["EquipmentName"], styles['BodyText']),
+                                            display_price
+                                        ])
+
+                                    # Create and style table
+                                    table = Table(table_data, colWidths=table_col_widths)
+                                    table.setStyle(TableStyle([
+                                        ('BACKGROUND', (0, 0), (-1, 0), '#E6F3FF'),
+                                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                                        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                                        ('GRID', (0, 0), (-1, -1), 1, '#CCCCCC'),
+                                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                    ]))
+
+                                    elements.append(Paragraph(subsection_title, styles['LeftHeading3']))
+                                    elements.append(table)
+                                    elements.append(Spacer(1, 6))
+
+                                elements.append(Spacer(1, 12))
+
+                            # Build PDF
                             doc.build(elements)
                             
-                            pdf_attachment_data = pdf_buffer.getvalue()
+                            # Get header PDF file path
+                            header_pdf_choice = st.session_state.get('header_pdf_choice', None)
+                            if header_pdf_choice and header_pdf_choice != 'Select a PDF header':
+                                header_pdf_file = os.path.join(PDF_HEADERS_DIR, header_pdf_choice)
+                                
+                                # Merge with header (same logic as sidebar)
+                                if os.path.exists(header_pdf_file):
+                                    header_pdf = fitz.open(header_pdf_file)
+                                    page1 = header_pdf[0]
+                                    
+                                    # Add customer name and bespoke email to header
+                                    page_width = page1.rect.width
+                                    font_name = "helv"
+                                    font_size = 18
+                                    font_color = (0, 0, 0)
+                                    font = fitz.Font(fontname=font_name)
+                                    text_width = font.text_length(customer_name, fontsize=font_size)
+                                    text_y = 100
+                                    text_x = (page_width - text_width) / 2
+                                    page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+
+                                    bespoke_email = st.session_state.get('bespoke_email', '')
+                                    if bespoke_email and bespoke_email.strip():
+                                        email_font_size = 13
+                                        email_font_color = (0 / 255, 90 / 255, 156 / 255)
+                                        email_text_y = text_y + font_size + 6
+                                        email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+                                        email_text_x = (page_width - email_text_width) / 2
+                                        page1.insert_text(
+                                            (email_text_x, email_text_y),
+                                            bespoke_email,
+                                            fontsize=email_font_size,
+                                            fontname=font_name,
+                                            fill=email_font_color
+                                        )
+
+                                    # Merge PDFs
+                                    modified_header = io.BytesIO()
+                                    header_pdf.save(modified_header)
+                                    header_pdf.close()
+
+                                    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+                                    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+                                    merged_pdf.insert_pdf(generated_pdf)
+                                    merged_output = io.BytesIO()
+                                    merged_pdf.save(merged_output)
+                                    merged_pdf.close()
+                                    generated_pdf.close()
+                                    
+                                    pdf_attachment_data = merged_output.getvalue()
+                                else:
+                                    # No header file, use basic PDF
+                                    pdf_attachment_data = pdf_buffer.getvalue()
+                            else:
+                                # No header selected, use basic PDF
+                                pdf_attachment_data = pdf_buffer.getvalue()
                     
                     # Get email configuration (same as main body)
                     config = st.session_state.get('config', {})

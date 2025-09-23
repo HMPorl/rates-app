@@ -22,6 +22,7 @@ from email import encoders
 import tempfile
 import base64
 from datetime import datetime
+import time
 import glob
 from reportlab.lib.utils import ImageReader
 
@@ -2516,10 +2517,42 @@ with st.sidebar:
     st.markdown("### 💾 Download/Upload Method")
     
     # Save progress button
-    if st.button("� Save Progress", use_container_width=True, help="Prepare progress file for download"):
+    if st.button("?? Save Progress", use_container_width=True, help="Prepare progress file for download"):
         customer_name = st.session_state.get('customer_name', '')
         if customer_name:
+            # Show progress bar
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            # Step 1: Initialize
+            status_text.text("🔄 Initializing save process...")
+            progress_bar.progress(20)
+            
+            # Step 2: Collect data
+            status_text.text("📊 Collecting session data...")
+            progress_bar.progress(40)
+            
+            # Step 3: Process custom prices
+            status_text.text("💰 Processing custom prices...")
+            progress_bar.progress(60)
+            
+            # Step 4: Prepare JSON
+            status_text.text("📄 Preparing download file...")
+            progress_bar.progress(80)
+            
+            # Step 5: Complete
+            status_text.text("✅ Save complete! Download ready.")
+            progress_bar.progress(100)
+            
+            # Set trigger and clear progress indicators
             st.session_state['trigger_download_save'] = True
+            
+            # Small delay to show completion
+            time.sleep(0.5)
+            
+            # Clear progress indicators and rerun
+            progress_bar.empty()
+            status_text.empty()
             st.rerun()
         else:
             st.error("Please enter a customer name first")

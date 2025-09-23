@@ -2019,10 +2019,18 @@ if df is not None and header_pdf_file:
 
     # Add a checkbox for including the custom price table
     # Add a checkbox for including the custom price table
-    include_custom_table = st.checkbox("Include Special Rates at top of PDF", value=True)
+    include_custom_table = st.checkbox(
+        "Include Special Rates at top of PDF", 
+        value=st.session_state.get('include_custom_table', True), 
+        key="include_custom_table"
+    )
     
     # Add a checkbox for page break after special rates
-    special_rates_pagebreak = st.checkbox("Separate Special Rates on their own page", value=False)
+    special_rates_pagebreak = st.checkbox(
+        "Separate Special Rates on their own page", 
+        value=st.session_state.get('special_rates_pagebreak', False), 
+        key="special_rates_pagebreak"
+    )
 
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -2792,9 +2800,9 @@ with st.sidebar:
     
     # PDF Download (immediate generation)
     if customer_name and not df.empty and header_pdf_file:
-        # Generate PDF with same logic as main body
-        include_custom_table = True  # Default to including special rates
-        special_rates_pagebreak = False  # Default to no page break
+        # Generate PDF with same logic as main body - use session state values
+        include_custom_table = st.session_state.get('include_custom_table', True)
+        special_rates_pagebreak = st.session_state.get('special_rates_pagebreak', False)
         
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -3137,6 +3145,25 @@ with st.sidebar:
             help="Please enter customer name, load data, and select PDF header"
         )
 
+    # PDF Options (checkboxes to control special rates)
+    st.markdown("#### 📄 PDF Options")
+    include_custom_table_sidebar = st.checkbox(
+        "Include Special Rates at top of PDF", 
+        value=st.session_state.get('include_custom_table', True),
+        key="include_custom_table_sidebar",
+        help="Add a special rates table at the beginning of the PDF"
+    )
+    special_rates_pagebreak_sidebar = st.checkbox(
+        "Separate Special Rates on their own page", 
+        value=st.session_state.get('special_rates_pagebreak', False),
+        key="special_rates_pagebreak_sidebar",
+        help="Put special rates table on a separate page"
+    )
+    
+    # Sync sidebar checkboxes with main checkboxes
+    st.session_state['include_custom_table'] = include_custom_table_sidebar
+    st.session_state['special_rates_pagebreak'] = special_rates_pagebreak_sidebar
+
     # Email Section
     st.markdown("### 📧 Email Options")
     
@@ -3252,8 +3279,8 @@ with st.sidebar:
                             # Use the same PDF generation logic as the sidebar download
                             # This ensures consistency with header, special rates, styling, etc.
                             
-                            include_custom_table = True  # Default to including special rates
-                            special_rates_pagebreak = False  # Default to no page break
+                            include_custom_table = st.session_state.get('include_custom_table', True)
+                            special_rates_pagebreak = st.session_state.get('special_rates_pagebreak', False)
                             
                             pdf_buffer = io.BytesIO()
                             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
@@ -3338,6 +3365,10 @@ with st.sidebar:
                                     table.setStyle(TableStyle(row_styles))
                                     elements.append(table)
                                     elements.append(Spacer(1, 12))
+                                    # Insert a page break if the user wants the special rates table on its own page
+                                    if special_rates_pagebreak:
+                                        from reportlab.platypus import PageBreak
+                                        elements.append(PageBreak())
                                 else:
                                     customer_title = customer_name if customer_name else "Customer"
                                     elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))

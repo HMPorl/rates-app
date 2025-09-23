@@ -2279,45 +2279,9 @@ with st.sidebar:
     # Method 1: Saving & Loading (One-click implementation)
     st.markdown("### 💾 Saving & Loading")
     
-    # Save progress button
-    if st.button("💾 Save Progress", use_container_width=True, help="Prepare progress file for download"):
-        customer_name = st.session_state.get('customer_name', '')
-        if customer_name:
-            # Set saving state to show immediate feedback
-            st.session_state['is_saving'] = True
-            st.session_state['save_message'] = "💾 Saving progress... Please wait"
-            
-            # Force immediate rerun to show saving state
-            st.rerun()
-        else:
-            st.error("Please enter a customer name first")
-    
-    # Show saving state if active
-    if st.session_state.get('is_saving', False):
-        with st.spinner('💾 Saving progress... Please wait'):
-            st.info("📋 Preparing your progress file for download...")
-            
-            # Simulate processing time
-            time.sleep(1.5)
-            
-            # Complete the save
-            st.session_state['trigger_download_save'] = True
-            st.session_state['last_save_time'] = get_uk_time().strftime("%H:%M")
-            st.session_state['is_saving'] = False
-            
-            # Show completion and rerun
-            st.success("✅ Progress saved! Download button ready below.")
-            time.sleep(0.5)
-            st.rerun()
-    
-    # Download progress button (appears when save is prepared)
-    if st.session_state.get('trigger_download_save', False):
-        # Show last save time
-        last_save_time = st.session_state.get('last_save_time', '')
-        if last_save_time:
-            st.caption(f"⏰ Last save: {last_save_time}")
-        
-        customer_name = st.session_state.get('customer_name', '')
+    # Combined Save & Download Progress button
+    customer_name = st.session_state.get('customer_name', '')
+    if customer_name:
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
@@ -2363,17 +2327,20 @@ with st.sidebar:
         
         json_data = json.dumps(save_data, indent=2)
         
+        # One-click Save & Download button
         if st.download_button(
-            label="📥 Download Progress",
+            label="� Save & Download Progress",
             data=json_data,
             file_name=filename,
             mime="application/json",
             use_container_width=True,
-            help=f"Download {filename} to your Downloads folder"
+            help=f"Save and download {filename} in one click!"
         ):
-            st.session_state['trigger_download_save'] = False  # Clear trigger after download
-            st.success(f"✅ Downloaded: {filename}")
-            st.rerun()
+            st.success(f"✅ Progress saved and downloaded: {filename}")
+            st.balloons()
+    else:
+        st.info("💡 Enter a customer name above to enable progress saving")
+        st.button("💾 Save & Download Progress", disabled=True, use_container_width=True, help="Enter customer name first")
     
     # Upload file to load
     uploaded_file = st.file_uploader(

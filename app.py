@@ -998,7 +998,7 @@ Net Rates Calculator System
 # Customer name input
 customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
 
-bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
+bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
 
 # --- Move PDF header selection ABOVE Excel upload ---
@@ -2259,9 +2259,6 @@ if df is not None and header_pdf_file:
                 fontname=font_name,
                 fill=email_font_color
             )
-            # Add underline
-            underline_y = email_text_y + email_font_size + 2
-            page1.draw_line((email_text_x, underline_y), (email_text_x + email_text_width, underline_y), color=email_font_color, width=1)
 
     if logo_file:
         logo_image = Image.open(logo_file)
@@ -3007,9 +3004,6 @@ with st.sidebar:
                     fontname=font_name,
                     fill=email_font_color
                 )
-                # Add underline
-                underline_y = email_text_y + email_font_size + 2
-                page1.draw_line((email_text_x, underline_y), (email_text_x + email_text_width, underline_y), color=email_font_color, width=1)
 
         logo_file = st.session_state.get('logo_file', None)
         if logo_file:

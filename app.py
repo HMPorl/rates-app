@@ -2069,7 +2069,8 @@ if df is not None and header_pdf_file:
             table_data = [["Category", "Equipment", "Special (£)"]]
             table_data.extend(custom_price_rows)
             row_styles = [
-                ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Updated yellow color
+                ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Yellow header
+                ('BACKGROUND', (0, 1), (-1, -1), '#FFF2B8'),  # Light yellow background for data rows
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                 ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
                 # Removed GRID line to eliminate cell borders
@@ -2835,7 +2836,8 @@ with st.sidebar:
                 table_data = [["Category", "Equipment", "Special (£)"]]
                 table_data.extend(custom_price_rows)
                 row_styles = [
-                    ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),
+                    ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Yellow header
+                    ('BACKGROUND', (0, 1), (-1, -1), '#FFF2B8'),  # Light yellow background for data rows
                     ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
                     ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),

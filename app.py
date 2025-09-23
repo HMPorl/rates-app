@@ -2709,17 +2709,6 @@ with st.sidebar:
             st.session_state['trigger_upload_load'] = True
             st.rerun()
     
-    # Show Excel download button if prepared (from Export Excel button)
-    if st.session_state.get('show_excel_download', False):
-        st.download_button(
-            label="📊 Download Excel (Admin Format)",
-            data=st.session_state['excel_data'],
-            file_name=st.session_state['excel_filename'],
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-            on_click=lambda: st.session_state.update({'show_excel_download': False})
-        )
-    
     st.markdown("---")
     
     # Method 2: SharePoint (Placeholder buttons)
@@ -2739,6 +2728,17 @@ with st.sidebar:
     if st.button("📤 Export Excel", use_container_width=True):
         st.session_state['trigger_export'] = True
         st.rerun()
+    
+    # Show Excel download button if prepared (appears right after Export Excel button)
+    if st.session_state.get('show_excel_download', False):
+        st.download_button(
+            label="📊 Download Excel (Admin Format)",
+            data=st.session_state['excel_data'],
+            file_name=st.session_state['excel_filename'],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            on_click=lambda: st.session_state.update({'show_excel_download': False})
+        )
     
     if st.button("📄 Generate PDF", use_container_width=True):
         st.session_state['trigger_pdf_export'] = True

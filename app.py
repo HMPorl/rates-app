@@ -2745,9 +2745,351 @@ with st.sidebar:
             help="Please enter a customer name and ensure data is loaded"
         )
     
-    if st.button("📄 Generate PDF", use_container_width=True):
-        st.session_state['trigger_pdf_export'] = True
-        st.rerun()
+    # PDF Download (immediate generation)
+    if customer_name and not df.empty and header_pdf_file:
+        # Generate PDF with same logic as main body
+        include_custom_table = True  # Default to including special rates
+        special_rates_pagebreak = False  # Default to no page break
+        
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+
+        from reportlab.lib.enums import TA_LEFT
+        from reportlab.lib.styles import ParagraphStyle
+
+        # Add custom styles
+        styles.add(ParagraphStyle(
+            name='LeftHeading2',
+            parent=styles['Heading2'],
+            alignment=TA_LEFT,
+            spaceBefore=6,
+            spaceAfter=6,
+            textColor='#002D56'
+        ))
+        styles.add(ParagraphStyle(
+            name='LeftHeading3',
+            parent=styles['Heading3'],
+            alignment=TA_LEFT,
+            spaceBefore=2,
+            spaceAfter=4,
+            textColor='#002D56'
+        ))
+        styles.add(ParagraphStyle(
+            name='BarHeading2',
+            parent=styles['Heading2'],
+            fontName='Helvetica-Bold',
+            alignment=TA_LEFT,
+            spaceBefore=12,
+            spaceAfter=6,
+            textColor='white',
+            fontSize=14,
+            leftIndent=0,
+            rightIndent=0,
+            backColor='#002D56',
+            borderPadding=8,
+            padding=0,
+            leading=18,
+        ))
+
+        # Custom Price Products Table at the Top
+        if include_custom_table:
+            custom_price_rows = []
+            for idx, row in df.iterrows():
+                price_key = f"price_{idx}"
+                user_input = str(st.session_state.get(price_key, "")).strip()
+                if user_input:
+                    if not is_poa_value(user_input):
+                        try:
+                            entered_price = float(user_input)
+                            custom_price_rows.append([
+                                row["ItemCategory"],
+                                Paragraph(row["EquipmentName"], styles['BodyText']),
+                                f"£{entered_price:.2f}"
+                            ])
+                        except ValueError:
+                            continue
+
+            if custom_price_rows:
+                customer_title = customer_name if customer_name else "Customer"
+                elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+                elements.append(Spacer(1, 12))
+                elements.append(Paragraph("Special Rates", styles['Heading2']))
+                elements.append(Spacer(1, 6))
+                table_data = [["Category", "Equipment", "Special (£)"]]
+                table_data.extend(custom_price_rows)
+                row_styles = [
+                    ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                    ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                ]
+                table = Table(table_data, colWidths=[60, 380, 60])
+                table.setStyle(TableStyle(row_styles))
+                elements.append(table)
+                elements.append(Spacer(1, 12))
+                if special_rates_pagebreak:
+                    from reportlab.platypus import PageBreak
+                    elements.append(PageBreak())
+        else:
+            customer_title = customer_name if customer_name else "Customer"
+            elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+            elements.append(Spacer(1, 12))
+
+        # Main Price List Tables
+        table_col_widths = [60, 380, 60]
+        bar_width = sum(table_col_widths)
+
+        for group, group_df in df.groupby("GroupName"):
+            group_elements = []
+
+            # Group header bar
+            bar_table = Table(
+                [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],
+                colWidths=[bar_width]
+            )
+            bar_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
+                ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ]))
+            group_spacer = Spacer(1, 2)
+            group_subsection_blocks = []
+
+            for subsection, sub_df in group_df.groupby("Sub Section"):
+                if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
+                    subsection_title = "Untitled"
+                else:
+                    subsection_title = str(subsection)
+
+                header_row = [
+                    '',
+                    Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),
+                    ''
+                ]
+
+                table_data = [header_row]
+                special_rate_rows = []
+                
+                for row_idx, (_, row) in enumerate(sub_df.iterrows(), start=1):
+                    if is_poa_value(row['CustomPrice']) or row['CustomPrice'] == "POA":
+                        price_text = "POA"
+                        has_special_rate = False
+                    else:
+                        try:
+                            price_text = f"£{float(row['CustomPrice']):.2f}"
+                            price_key = f"price_{row.name}"
+                            user_input = str(st.session_state.get(price_key, "")).strip()
+                            has_special_rate = bool(user_input and not is_poa_value(user_input))
+                        except (ValueError, TypeError):
+                            price_text = "POA"
+                            has_special_rate = False
+                    
+                    if has_special_rate:
+                        special_rate_rows.append(row_idx)
+                    
+                    table_data.append([
+                        row["ItemCategory"],
+                        Paragraph(row["EquipmentName"], styles['BodyText']),
+                        price_text
+                    ])
+
+                table_with_repeat_header = Table(
+                    table_data,
+                    colWidths=table_col_widths,
+                    repeatRows=1
+                )
+                
+                table_style = [
+                    ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
+                    ('LEFTPADDING', (0, 0), (-1, 0), 8),
+                    ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+                    ('TOPPADDING', (0, 0), (-1, 0), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+                    ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                    ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ]
+                
+                for row_num in special_rate_rows:
+                    table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFD51D'))
+                
+                table_with_repeat_header.setStyle(TableStyle(table_style))
+
+                group_subsection_blocks.append(
+                    [table_with_repeat_header, Spacer(1, 12)]
+                )
+
+            if group_subsection_blocks:
+                group_elements.append(
+                    KeepTogether([
+                        bar_table,
+                        group_spacer,
+                        *group_subsection_blocks[0]
+                    ])
+                )
+                for block in group_subsection_blocks[1:]:
+                    group_elements.append(KeepTogether(block))
+            else:
+                group_elements.append(
+                    KeepTogether([
+                        bar_table,
+                        group_spacer
+                    ])
+                )
+
+            elements.extend(group_elements)
+
+        doc.build(elements, onFirstPage=add_footer_logo, onLaterPages=add_footer_logo)
+        pdf_buffer.seek(0)
+
+        # Merge Header PDF with Generated PDF
+        header_data = read_pdf_header(header_pdf_file)
+        header_pdf = fitz.open(stream=header_data, filetype="pdf")
+
+        while len(header_pdf) < 3:
+            header_pdf.new_page()
+
+        # Add customer name and logo to first page
+        page1 = header_pdf[0]
+        if customer_name:
+            font_size = 22
+            font_color = (0 / 255, 45 / 255, 86 / 255)
+            font_name = "helv"
+            page_width = page1.rect.width
+            page_height = page1.rect.height
+            text_y = page_height / 3
+            font = fitz.Font(fontname=font_name)
+            text_width = font.text_length(customer_name, fontsize=font_size)
+            text_x = (page_width - text_width) / 2
+            page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+
+            bespoke_email = st.session_state.get('bespoke_email', '')
+            if bespoke_email and bespoke_email.strip():
+                email_font_size = 13
+                email_font_color = (0 / 255, 45 / 255, 86 / 255)
+                email_text_y = text_y + font_size + 6
+                email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+                email_text_x = (page_width - email_text_width) / 2
+                page1.insert_text(
+                    (email_text_x, email_text_y),
+                    bespoke_email,
+                    fontsize=email_font_size,
+                    fontname=font_name,
+                    fill=email_font_color
+                )
+
+        logo_file = st.session_state.get('logo_file', None)
+        if logo_file:
+            logo_image = Image.open(logo_file)
+            logo_bytes = io.BytesIO()
+            logo_image.save(logo_bytes, format="PNG")
+            logo_bytes.seek(0)
+            logo_width = 100
+            logo_height = logo_image.height * (logo_width / logo_image.width)
+            logo_x = (page_width - logo_width) / 2
+            bespoke_email = st.session_state.get('bespoke_email', '')
+            if bespoke_email and bespoke_email.strip():
+                logo_y = text_y + font_size + 13 + 20
+            else:
+                logo_y = text_y + font_size + 20
+            rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+            page1.insert_image(rect_logo, stream=logo_bytes.read())
+
+        # Draw Transport Charges table on page 3
+        page3 = header_pdf[2]
+        page_width = page3.rect.width
+        page_height = page3.rect.height
+
+        # Get transport data from session state
+        transport_types = [
+            "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+            "Tower", "Powered Access", "Low-level Access", "Long Distance"
+        ]
+        default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+        
+        transport_data = []
+        for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+            charge = st.session_state.get(f"transport_{i}", default_value)
+            transport_data.append([transport_type, charge])
+
+        row_height = 22
+        col_widths = [300, 100]
+        font_size = 10
+        text_padding_x = 6
+        text_offset_y = 2
+
+        num_rows = len(transport_data) + 1
+        table_height = num_rows * row_height
+        bottom_margin_cm = 28.35
+        margin_y = bottom_margin_cm + table_height
+        table_width = sum(col_widths)
+        margin_x = (page_width - table_width) / 2
+        header_fill_color = (125 / 255, 166 / 255, 219 / 255)
+
+        # Draw header row
+        headers = ["Delivery or Collection type", "Charge (£)"]
+        for col_index, header in enumerate(headers):
+            x0 = margin_x + sum(col_widths[:col_index])
+            x1 = x0 + col_widths[col_index]
+            y_text = page_height - margin_y + text_offset_y
+            y_rect = page_height - margin_y - 14
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
+            page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
+
+        # Draw data rows
+        for row_index, row in enumerate(transport_data):
+            for col_index, cell in enumerate(row):
+                x0 = margin_x + sum(col_widths[:col_index])
+                x1 = x0 + col_widths[col_index]
+                y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
+                y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
+                page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
+                page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
+
+        # Merge PDFs
+        modified_header = io.BytesIO()
+        header_pdf.save(modified_header)
+        header_pdf.close()
+
+        merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+        generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+        merged_pdf.insert_pdf(generated_pdf)
+        merged_output = io.BytesIO()
+        merged_pdf.save(merged_output)
+        merged_pdf.close()
+
+        # Generate filename
+        now = datetime.now()
+        month_year = now.strftime("%B %Y")
+        safe_customer_name = customer_name.strip() if customer_name else "Customer"
+        filename = f'Price List for {safe_customer_name} {month_year}.pdf'
+
+        # PDF Download Button
+        st.download_button(
+            label="PDF - Customer",
+            data=merged_output.getvalue(),
+            file_name=filename,
+            mime="application/pdf",
+            use_container_width=True,
+            help="Download PDF price list with customer branding"
+        )
+    else:
+        st.button(
+            label="PDF - Customer",
+            use_container_width=True,
+            disabled=True,
+            help="Please enter customer name, load data, and select PDF header"
+        )
 # Main content area - simplified load progress section
 st.markdown("### Load Progress from Saved Files")
 if st.session_state.get('show_load_progress', False):

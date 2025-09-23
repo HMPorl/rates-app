@@ -1130,6 +1130,9 @@ if df is not None and header_pdf_file:
     # -------------------------------
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
+    
+    # Store DataFrame in session state for sidebar access
+    st.session_state['df'] = df
 
     # -------------------------------
     # Global and Group-Level Discounts
@@ -2574,10 +2577,23 @@ with st.sidebar:
         global_discount = st.session_state.get('global_discount', 0)
         
         custom_prices = {}
-        for idx, row in df.iterrows():
-            price_key = f"price_{idx}"
-            item_key = str(row["ItemCategory"])
-            custom_prices[item_key] = st.session_state.get(price_key, "")
+        if not df.empty:
+            # Primary method: Use DataFrame to properly map custom prices
+            for idx, row in df.iterrows():
+                price_key = f"price_{idx}"
+                item_key = str(row["ItemCategory"])
+                price_value = st.session_state.get(price_key, "")
+                if price_value:  # Only include non-empty prices
+                    custom_prices[item_key] = price_value
+        else:
+            # Fallback method: Get all price_ keys from session state
+            for key in st.session_state:
+                if key.startswith("price_"):
+                    price_value = st.session_state.get(key, "")
+                    if price_value:  # Only include non-empty prices
+                        # Use the index as the key since we don't have ItemCategory
+                        item_key = key.replace("price_", "index_")
+                        custom_prices[item_key] = price_value
 
         save_data = {
             "customer_name": customer_name,

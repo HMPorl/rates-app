@@ -1491,16 +1491,24 @@ if df is not None and header_pdf_file:
                 }
                 pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
             
-            st.download_button(
-                label="📊 Download Excel (Admin Format)",
-                data=output_excel.getvalue(),
-                file_name=f"{customer_name}_admin_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True
-            )
-            st.success("✅ Excel export ready for download!")
+            # Store the Excel data in session state for download
+            st.session_state['excel_data'] = output_excel.getvalue()
+            st.session_state['excel_filename'] = f"{customer_name}_admin_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx"
+            st.session_state['show_excel_download'] = True
+            st.success("✅ Excel file prepared! Download button available below.")
         else:
             st.error("❌ Please enter a customer name and ensure data is loaded")
+    
+    # Show download button if Excel is prepared
+    if st.session_state.get('show_excel_download', False):
+        st.download_button(
+            label="📊 Download Excel (Admin Format)",
+            data=st.session_state['excel_data'],
+            file_name=st.session_state['excel_filename'],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            on_click=lambda: st.session_state.update({'show_excel_download': False})
+        )
 
     if st.session_state.get('trigger_pdf_export', False):
         st.session_state['trigger_pdf_export'] = False  # Clear the trigger

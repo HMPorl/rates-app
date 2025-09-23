@@ -679,7 +679,7 @@ def load_excel_with_timestamp(file_path, timestamp):
 def read_pdf_header(file):
     return file.read()
 
-def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None):
+def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient_email, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None, pdf_attachment=None):
     """Send email with Excel attachment using SendGrid API - Clean implementation"""
     try:
         # Import SendGrid here to handle missing library gracefully
@@ -820,8 +820,23 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             Disposition('attachment')
         )
         
-        # Add both attachments to message
-        message.attachment = [excel_attachment, json_attachment]
+        # Prepare attachments list
+        attachments = [excel_attachment, json_attachment]
+        
+        # Add PDF attachment if provided
+        if pdf_attachment:
+            pdf_base64 = base64.b64encode(pdf_attachment).decode()
+            pdf_filename = f"{customer_name}_quote_{timestamp}.pdf"
+            pdf_attachment_obj = Attachment(
+                FileContent(pdf_base64),
+                FileName(pdf_filename),
+                FileType('application/pdf'),
+                Disposition('attachment')
+            )
+            attachments.append(pdf_attachment_obj)
+        
+        # Add all attachments to message
+        message.attachment = attachments
         
         # Send email
         response = sg.send(message)
@@ -850,7 +865,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             'message': f'SendGrid API error: {str(e)}'
         }
 
-def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None):
+def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_email, smtp_config=None, cc_email=None, global_discount=0, original_df=None, header_pdf_choice=None, pdf_attachment=None):
     """Send price list via email to admin team"""
     try:
         # Create the email
@@ -966,6 +981,18 @@ Net Rates Calculator System
             f'attachment; filename={json_filename}'
         )
         msg.attach(json_part)
+        
+        # Add PDF attachment if provided
+        if pdf_attachment:
+            pdf_filename = f"{customer_name}_quote_{timestamp}.pdf"
+            pdf_part = MIMEBase('application', 'pdf')
+            pdf_part.set_payload(pdf_attachment)
+            encoders.encode_base64(pdf_part)
+            pdf_part.add_header(
+                'Content-Disposition',
+                f'attachment; filename={pdf_filename}'
+            )
+            msg.attach(pdf_part)
         
         # Send email if SMTP is configured
         if smtp_config and smtp_config.get('enabled', False):
@@ -3158,6 +3185,13 @@ with st.sidebar:
         help="Add additional recipients (separate multiple emails with commas)"
     )
     
+    # PDF attachment checkbox
+    add_pdf_attachment = st.checkbox(
+        "📄 Add PDF", 
+        value=False,
+        help="Include PDF quote as email attachment"
+    )
+    
     # Send email button
     if st.button("📤 Send Email", use_container_width=True, help="Send price list via email"):
         customer_name = st.session_state.get('customer_name', '')
@@ -3209,6 +3243,86 @@ with st.sidebar:
             
             try:
                 with st.spinner("📧 Sending email..."):
+                    # Generate PDF attachment if requested
+                    pdf_attachment_data = None
+                    if add_pdf_attachment:
+                        with st.spinner("📄 Generating PDF..."):
+                            # Generate PDF using the same logic as the sidebar download
+                            pdf_buffer = io.BytesIO()
+                            doc = SimpleDocTemplate(pdf_buffer, pagesize=A4)
+                            
+                            # Build PDF content (reuse existing PDF generation logic)
+                            elements = []
+                            styles = getSampleStyleSheet()
+                            
+                            # Get header info for title
+                            selected_pdf = st.session_state.get('header_pdf_choice', 'Select a PDF header')
+                            header_text = "Net Rates Calculator"
+                            if selected_pdf != 'Select a PDF header':
+                                header_text = selected_pdf.replace('.pdf', '').replace('_', ' ').title()
+                            
+                            # Title
+                            title_style = ParagraphStyle(
+                                'CustomTitle',
+                                parent=styles['Heading1'],
+                                fontSize=18,
+                                spaceAfter=30,
+                                alignment=1,  # Center
+                                textColor=colors.HexColor("#005a9c")
+                            )
+                            elements.append(Paragraph(f"Price List for {customer_name}", title_style))
+                            elements.append(Spacer(1, 12))
+                            
+                            # Create table data
+                            table_data = [["Equipment Name", "Weekly Rate", "Discount %", "Net Price"]]
+                            
+                            for _, row in df.iterrows():
+                                equipment_name = str(row["EquipmentName"])
+                                hire_rate = row["HireRateWeekly"]
+                                custom_price = row.get("CustomPrice", "")
+                                discount = row.get("DiscountPercent", "")
+                                
+                                # Format hire rate
+                                if is_poa_value(hire_rate):
+                                    hire_rate_str = "POA"
+                                else:
+                                    hire_rate_str = f"£{float(hire_rate):.2f}"
+                                
+                                # Format discount
+                                if discount == "POA" or is_poa_value(discount):
+                                    discount_str = "POA"
+                                else:
+                                    discount_str = f"{float(discount):.1f}%"
+                                
+                                # Format net price
+                                if custom_price and str(custom_price).strip() and custom_price != "POA":
+                                    if is_poa_value(custom_price):
+                                        net_price_str = "POA"
+                                    else:
+                                        net_price_str = f"£{float(custom_price):.2f}"
+                                else:
+                                    net_price_str = hire_rate_str
+                                
+                                table_data.append([equipment_name, hire_rate_str, discount_str, net_price_str])
+                            
+                            # Create table
+                            table = Table(table_data)
+                            table.setStyle(TableStyle([
+                                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#005a9c")),
+                                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                            ]))
+                            
+                            elements.append(table)
+                            doc.build(elements)
+                            
+                            pdf_attachment_data = pdf_buffer.getvalue()
+                    
                     # Get email configuration (same as main body)
                     config = st.session_state.get('config', {})
                     smtp_settings = config.get("smtp_settings", {})
@@ -3224,7 +3338,8 @@ with st.sidebar:
                             cc_email if cc_email and cc_email.strip() else None,
                             global_discount,
                             df,  # Pass original DataFrame
-                            st.session_state.get('header_pdf_choice', None)  # Get from session state
+                            st.session_state.get('header_pdf_choice', None),  # Get from session state
+                            pdf_attachment_data  # Add PDF attachment
                         )
                     else:
                         result = send_email_with_pricelist(
@@ -3236,7 +3351,8 @@ with st.sidebar:
                             cc_email if cc_email and cc_email.strip() else None,
                             global_discount,
                             df,  # Pass original DataFrame
-                            st.session_state.get('header_pdf_choice', None)  # Get from session state
+                            st.session_state.get('header_pdf_choice', None),  # Get from session state
+                            pdf_attachment_data  # Add PDF attachment
                         )
                     
                     if result['status'] == 'sent':

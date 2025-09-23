@@ -46,7 +46,7 @@ try:
     # Try Streamlit secrets first (for cloud deployment)
     SENDGRID_API_KEY = st.secrets.get("sendgrid", {}).get("SENDGRID_API_KEY", "") or os.getenv("SENDGRID_API_KEY", "")
     SENDGRID_FROM_EMAIL = st.secrets.get("sendgrid", {}).get("SENDGRID_FROM_EMAIL", "") or os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
-except AttributeError:
+except (AttributeError, KeyError, Exception):
     # Fallback to environment variables (for local development)
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
     SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "netrates@thehireman.co.uk")
@@ -503,68 +503,6 @@ def add_footer_logo(canvas, doc):
     except Exception:
         pass  # If logo not found, skip
 
-# --- Weather: Current + Daily Summary 1 ---
-def get_weather_and_forecast(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        f"&current_weather=true"
-        f"&hourly=temperature_2m,weathercode"
-        f"&timezone=Europe/London"
-    )
-    try:
-        resp = requests.get(url, timeout=5)
-        data = resp.json()
-        current = data["current_weather"]
-        times = data["hourly"]["time"]
-        temps = data["hourly"]["temperature_2m"]
-        codes = data["hourly"]["weathercode"]
-        return current, times, temps, codes
-    except Exception:
-        return None, [], [], []
-
-# Add this toggle before the weather section
-show_weather = st.checkbox("Show weather information", value=False)
-
-if show_weather:
-    city = "London"
-    lat, lon = 51.5074, -0.1278
-
-    current, times, temps, codes = get_weather_and_forecast(lat, lon)
-
-    weather_icons = {
-        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-        51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
-        61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
-        71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
-        81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
-        96: "⛈️", 99: "⛈️"
-    }
-
-    if current:
-        # Current weather
-        icon = weather_icons.get(current["weathercode"], "❓")
-        st.markdown(
-            f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
-        )
-
-        # Daily summary
-        today = datetime.now().strftime("%Y-%m-%d")
-        today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
-        today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
-        if today_temps:
-            min_temp = min(today_temps)
-            max_temp = max(today_temps)
-            # Most common weather code for the day
-            from collections import Counter
-            main_code = Counter(today_codes).most_common(1)[0][0]
-            main_icon = weather_icons.get(main_code, "❓")
-            st.markdown(
-                f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
-            )
-    else:
-        st.markdown("### 🌦️ Weather: Unable to fetch data")
-
 # -------------------------------
 # Security: PIN Authentication
 # -------------------------------
@@ -599,120 +537,11 @@ if not st.session_state.authenticated:
     st.stop()  # Stop execution here if not authenticated
 
 # -------------------------------
-# Navigation Bar
+# Main Application Header
 # -------------------------------
-def render_navbar():
-    """Render the main navigation bar with key actions"""
-    st.markdown("""
-    <style>
-    .navbar {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        border: 1px solid #e1e5e9;
-    }
-    .nav-title {
-        color: #1f77b4;
-        font-weight: bold;
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Create navbar container
-    with st.container():
-        st.markdown('<div class="navbar">', unsafe_allow_html=True)
-        
-        # Title row
-        col_title, col_help = st.columns([4, 1])
-        with col_title:
-            st.markdown('<div class="nav-title">🚀 Net Rates Calculator</div>', unsafe_allow_html=True)
-            st.caption("*Production Version - Enhanced Features*")
-        with col_help:
-            if st.button("❓ Help Guide", key="navbar_help", type="secondary"):
-                st.session_state.show_help = not st.session_state.get('show_help', False)
-        
-        # Action buttons row
-        col1, col2, col3, col4, col5, col6 = st.columns([1, 1, 1, 1, 1, 2])
-        
-        with col1:
-            save_progress = st.button("💾 Save Progress", key="navbar_save", help="Save current progress to file")
-        
-        with col2:
-            load_progress = st.button("📁 Load Progress", key="navbar_load", help="Load saved progress file")
-        
-        with col3:
-            export_excel = st.button("📊 Excel Export", key="navbar_excel", help="Export to Excel format")
-        
-        with col4:
-            export_pdf = st.button("📄 PDF Quote", key="navbar_pdf", help="Generate PDF quote")
-        
-        with col5:
-            email_quote = st.button("📧 Email Quote", key="navbar_email", help="Email quote directly")
-        
-        with col6:
-            # Customer name input in navbar
-            customer_name = st.text_input("Customer Name:", key="navbar_customer", placeholder="Enter customer name")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    return {
-        'save_progress': save_progress,
-        'load_progress': load_progress,
-        'export_excel': export_excel,
-        'export_pdf': export_pdf,
-        'email_quote': email_quote,
-        'customer_name': customer_name
-    }
-
-# Render navbar and get button states
-navbar_actions = render_navbar()
-
-# -------------------------------
-# Handle Navbar Actions
-# -------------------------------
-# Sync customer name between navbar and main form
-if navbar_actions['customer_name']:
-    safe_set_session_state('customer_name', navbar_actions['customer_name'])
-
-# Handle Save Progress from navbar
-if navbar_actions['save_progress']:
-    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
-    if customer_name:
-        st.session_state['trigger_save'] = True
-    else:
-        st.error("Please enter a customer name before saving.")
-
-# Handle Load Progress from navbar  
-if navbar_actions['load_progress']:
-    st.info("👈 **Load Progress:** Use the sidebar on the left to load saved progress files!")
-    st.balloons()  # Fun visual feedback
-
-# Handle Excel Export from navbar
-if navbar_actions['export_excel']:
-    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
-    if customer_name:
-        st.session_state['trigger_excel_export'] = True
-    else:
-        st.error("Please enter a customer name before exporting.")
-
-# Handle PDF Export from navbar
-if navbar_actions['export_pdf']:
-    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
-    if customer_name:
-        st.session_state['trigger_pdf_export'] = True
-    else:
-        st.error("Please enter a customer name before generating PDF.")
-
-# Handle Email Quote from navbar
-if navbar_actions['email_quote']:
-    customer_name = st.session_state.get('customer_name', navbar_actions['customer_name'])
-    if customer_name:
-        st.session_state['trigger_email'] = True
-    else:
-        st.error("Please enter a customer name before emailing.")
+st.markdown("# 🚀 Net Rates Calculator")
+st.markdown("*Production Version - Enhanced Features*")
+st.markdown("---")
 
 # Built-in Help System
 if st.session_state.get('show_help', False):
@@ -766,10 +595,6 @@ if st.session_state.get('show_help', False):
         - ✅ **Reliable Delivery**: SendGrid ensures best attachment support
         
         ### 6️⃣ **Advanced Features**
-        
-        #### Weather Display
-        - Toggle on/off for London weather info
-        - Shows current conditions and daily forecast
         
         #### Admin Options
         - Upload custom Excel templates
@@ -1163,13 +988,8 @@ Net Rates Calculator System
     except Exception as e:
         return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
-# Customer name input (synced with navbar)
-navbar_customer_name = st.session_state.get('navbar_customer', '')
-customer_name = st.text_input("⭐Enter Customer Name", value=navbar_customer_name, key="customer_name")
-
-# Sync back to navbar if main input changes
-if customer_name != navbar_customer_name:
-    safe_set_session_state('navbar_customer', customer_name)
+# Customer name input
+customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
 
 bespoke_email = st.text_input("⭐ Bespoke email address (optional)")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
@@ -1487,11 +1307,7 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Save Progress Button (with Google Drive + Local Download)
     # -------------------------------
-    navbar_save_trigger = st.session_state.get('trigger_save', False)
-    if st.button("💾Save Progress") or navbar_save_trigger:
-        if navbar_save_trigger:
-            st.session_state['trigger_save'] = False  # Clear the trigger
-        
+    if st.button("💾Save Progress"):
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"

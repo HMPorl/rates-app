@@ -2248,7 +2248,7 @@ if df is not None and header_pdf_file:
         # Add bespoke email address below customer name if provided
         if bespoke_email.strip():
             email_font_size = 13
-            email_font_color = (0 / 255, 45 / 255, 86 / 255)  # #002D56
+            email_font_color = (0 / 255, 90 / 255, 156 / 255)  # #005a9c
             email_text_y = text_y + font_size + 6  # Slightly below customer name
             email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
             email_text_x = (page_width - email_text_width) / 2
@@ -2259,6 +2259,9 @@ if df is not None and header_pdf_file:
                 fontname=font_name,
                 fill=email_font_color
             )
+            # Add underline
+            underline_y = email_text_y + email_font_size + 2
+            page1.draw_line((email_text_x, underline_y), (email_text_x + email_text_width, underline_y), color=email_font_color, width=1)
 
     if logo_file:
         logo_image = Image.open(logo_file)
@@ -2993,7 +2996,7 @@ with st.sidebar:
             bespoke_email = st.session_state.get('bespoke_email', '')
             if bespoke_email and bespoke_email.strip():
                 email_font_size = 13
-                email_font_color = (0 / 255, 45 / 255, 86 / 255)
+                email_font_color = (0 / 255, 90 / 255, 156 / 255)  # #005a9c
                 email_text_y = text_y + font_size + 6
                 email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
                 email_text_x = (page_width - email_text_width) / 2
@@ -3004,6 +3007,9 @@ with st.sidebar:
                     fontname=font_name,
                     fill=email_font_color
                 )
+                # Add underline
+                underline_y = email_text_y + email_font_size + 2
+                page1.draw_line((email_text_x, underline_y), (email_text_x + email_text_width, underline_y), color=email_font_color, width=1)
 
         logo_file = st.session_state.get('logo_file', None)
         if logo_file:

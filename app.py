@@ -26,6 +26,19 @@ import time
 import glob
 from reportlab.lib.utils import ImageReader
 
+# Timezone support
+try:
+    from zoneinfo import ZoneInfo
+    def get_uk_time():
+        return datetime.now(ZoneInfo("Europe/London"))
+except ImportError:
+    # Fallback for older Python versions
+    from datetime import timezone, timedelta
+    def get_uk_time():
+        # UK is UTC+0 in winter, UTC+1 in summer (BST)
+        # Simple approximation - you might want to install pytz for better handling
+        return datetime.now(timezone.utc) + timedelta(hours=1)
+
 # Google Drive API imports
 try:
     from googleapiclient.discovery import build
@@ -2513,8 +2526,8 @@ st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
 with st.sidebar:
     st.markdown("## 🎛️ Controls")
     
-    # Method 1: Download/Upload (One-click implementation)
-    st.markdown("### 💾 Download/Upload Method")
+    # Method 1: Saving & Loading (One-click implementation)
+    st.markdown("### 💾 Saving & Loading")
     
     # Save progress button
     if st.button("💾 Save Progress", use_container_width=True, help="Prepare progress file for download"):
@@ -2539,7 +2552,7 @@ with st.sidebar:
             
             # Complete the save
             st.session_state['trigger_download_save'] = True
-            st.session_state['last_save_time'] = datetime.now().strftime("%H:%M")
+            st.session_state['last_save_time'] = get_uk_time().strftime("%H:%M")
             st.session_state['is_saving'] = False
             
             # Show completion and rerun
@@ -2601,7 +2614,7 @@ with st.sidebar:
     
     # Upload file to load
     uploaded_file = st.file_uploader(
-        "⬆️ Upload Progress File", 
+        "📁 Load Progress", 
         type=['json'], 
         key="sidebar_upload",
         help="Upload a previously saved progress file"

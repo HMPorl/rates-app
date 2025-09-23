@@ -1419,6 +1419,44 @@ if df is not None and header_pdf_file:
             except Exception as e:
                 st.error(f"❌ Failed to load progress: {e}")
 
+    # -------------------------------
+    # Handle Export Triggers from Sidebar
+    # -------------------------------
+    if st.session_state.get('trigger_export', False):
+        st.session_state['trigger_export'] = False  # Clear the trigger
+        
+        customer_name = st.session_state.get('customer_name', 'Customer')
+        if customer_name and not df.empty:
+            # Create Excel export
+            output_excel = io.BytesIO()
+            with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
+                # Main price list
+                df.to_excel(writer, sheet_name='Price List', index=False)
+                
+                # Summary sheet
+                summary_data = {
+                    'Customer': [customer_name],
+                    'Total Items': [len(df)],
+                    'Global Discount %': [st.session_state.get('global_discount', 0)],
+                    'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M")],
+                    'Created By': ['Net Rates Calculator']
+                }
+                pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
+            
+            st.download_button(
+                label="📊 Download Excel File",
+                data=output_excel.getvalue(),
+                file_name=f"{customer_name}_pricelist_{get_uk_time().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+            st.success("✅ Excel export ready for download!")
+        else:
+            st.error("❌ Please enter a customer name and ensure data is loaded")
+
+    if st.session_state.get('trigger_pdf_export', False):
+        st.session_state['trigger_pdf_export'] = False  # Clear the trigger
+        st.info("📄 PDF generation is available in the main export section below. Please scroll down to the PDF export area.")
 
     # -------------------------------
     # Final Price List Display

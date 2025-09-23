@@ -3107,7 +3107,7 @@ with st.sidebar:
         )
 
     # Email Section
-    st.markdown("### 📧 Email Quote")
+    st.markdown("### 📧 Email Options")
     
     # Show email configuration status
     config = st.session_state.get('config', {})

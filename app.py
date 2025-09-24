@@ -1414,14 +1414,19 @@ if df is not None and header_pdf_file:
     # Handle Upload Load Trigger
     # -------------------------------
     if st.session_state.get('trigger_upload_load', False):
+        st.info("🔄 Loading trigger activated...")
         st.session_state['trigger_upload_load'] = False  # Clear the trigger
         
         uploaded_file = st.session_state.get('uploaded_file_to_load', None)
+        st.info(f"📁 Uploaded file object: {uploaded_file}")
+        
         if uploaded_file:
             try:
+                st.info("📖 Attempting to read file...")
                 # Reset file pointer to beginning before reading
                 uploaded_file.seek(0)
                 loaded_data = json.load(uploaded_file)
+                st.info(f"✅ File read successfully. Keys found: {list(loaded_data.keys())}")
                 
                 # Clear existing session state more thoroughly by setting to default values
                 # This ensures widgets visually reset to empty/default state
@@ -1429,6 +1434,7 @@ if df is not None and header_pdf_file:
                 # Clear basic fields to defaults
                 st.session_state["customer_name"] = ""
                 st.session_state["global_discount"] = 0.0
+                st.info("🧹 Cleared basic fields")
                 
                 # Clear all discount keys
                 keys_to_clear = []
@@ -1438,6 +1444,7 @@ if df is not None and header_pdf_file:
                 
                 for key in keys_to_clear:
                     st.session_state[key] = 0.0  # Set to default instead of deleting
+                st.info(f"🧹 Cleared {len(keys_to_clear)} discount keys")
                 
                 # Clear all transport keys
                 transport_keys = []
@@ -1447,29 +1454,42 @@ if df is not None and header_pdf_file:
                 
                 for key in transport_keys:
                     st.session_state[key] = 0.0  # Set to default instead of deleting
+                st.info(f"🧹 Cleared {len(transport_keys)} transport keys")
                 
                 # Clear ALL price keys to empty (most important for your issue)
                 df = st.session_state.get('df', pd.DataFrame())
                 if not df.empty:
+                    price_keys_cleared = 0
                     for idx in range(len(df)):
                         price_key = f"price_{idx}"
                         st.session_state[price_key] = ""  # Set to empty string instead of deleting
+                        price_keys_cleared += 1
+                    st.info(f"🧹 Cleared {price_keys_cleared} price keys")
+                else:
+                    st.warning("⚠️ DataFrame is empty, cannot clear price keys")
                 
                 # Now restore data from loaded file
                 st.session_state["customer_name"] = loaded_data.get("customer_name", "")
                 st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+                st.info("✅ Restored basic data")
                 
                 # Restore group discounts
-                for key, value in loaded_data.get("group_discounts", {}).items():
+                group_discounts = loaded_data.get("group_discounts", {})
+                for key, value in group_discounts.items():
                     st.session_state[key] = value
+                st.info(f"✅ Restored {len(group_discounts)} group discounts")
                     
                 # Restore transport charges
-                for key, value in loaded_data.get("transport_charges", {}).items():
+                transport_charges = loaded_data.get("transport_charges", {})
+                for key, value in transport_charges.items():
                     st.session_state[key] = value
+                st.info(f"✅ Restored {len(transport_charges)} transport charges")
                 
                 # Restore custom prices - only set the ones that exist in the file
                 custom_prices = loaded_data.get("custom_prices", {})
                 restored_count = 0
+                st.info(f"📋 Found {len(custom_prices)} custom prices in file: {list(custom_prices.keys())}")
+                
                 if not df.empty:
                     for idx, row in df.iterrows():
                         item_key = str(row["ItemCategory"])
@@ -1477,12 +1497,22 @@ if df is not None and header_pdf_file:
                         if item_key in custom_prices and custom_prices[item_key]:
                             st.session_state[price_key] = custom_prices[item_key]
                             restored_count += 1
+                            st.info(f"✅ Restored price for {item_key}: {custom_prices[item_key]}")
                 
                 st.success(f"✅ Progress loaded successfully! {restored_count} custom prices restored.")
+                
+                # Add a small delay before rerun
+                import time
+                time.sleep(1)
                 st.rerun()
                 
             except Exception as e:
                 st.error(f"❌ Failed to load progress: {e}")
+                st.error(f"Exception type: {type(e).__name__}")
+                import traceback
+                st.error(f"Traceback: {traceback.format_exc()}")
+        else:
+            st.error("❌ No uploaded file found in session state")
 
 
 

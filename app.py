@@ -538,8 +538,10 @@ def load_progress_from_local_file(filepath):
 def get_available_pdf_files():
     """Get list of available PDF files - not cached to always show latest files"""
     try:
-        pdf_files = glob.glob("*.pdf")
-        return sorted(pdf_files)  # Sort alphabetically for consistent order
+        pdf_pattern = os.path.join(SCRIPT_DIR, "*.pdf")
+        pdf_files = glob.glob(pdf_pattern)
+        # Return just the filenames, not the full paths
+        return sorted([os.path.basename(pdf_file) for pdf_file in pdf_files])
     except Exception as e:
         st.error(f"Error scanning for PDF files: {e}")
         return []
@@ -708,13 +710,19 @@ if not os.path.exists("progress_saves"):
 # -------------------------------
 # File Uploads and Inputs
 # -------------------------------
-DEFAULT_EXCEL_PATH = "Net rates Webapp.xlsx"  # Change this to your actual default file name
+# Configuration
+# -------------------------------
+import os
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_EXCEL_PATH = os.path.join(SCRIPT_DIR, "Net rates Webapp.xlsx")
 
 def get_available_pdf_files():
     """Get list of available PDF files - not cached to always show latest files"""
     try:
-        pdf_files = glob.glob("*.pdf")
-        return sorted(pdf_files)  # Sort alphabetically for consistent order
+        pdf_pattern = os.path.join(SCRIPT_DIR, "*.pdf")
+        pdf_files = glob.glob(pdf_pattern)
+        # Return just the filenames, not the full paths
+        return sorted([os.path.basename(pdf_file) for pdf_file in pdf_files])
     except Exception as e:
         st.error(f"Error scanning for PDF files: {e}")
         return []
@@ -1249,8 +1257,44 @@ if st.session_state.get('loading_error'):
     st.error(f"❌ Error loading progress file: {st.session_state['loading_error']}")
     del st.session_state['loading_error']
 else:
-    st.error(f"❌ No Excel file found. Please upload a file or ensure {DEFAULT_EXCEL_PATH} exists.")
-    st.stop()
+    # Show debug information for troubleshooting
+    st.error(f"❌ No Excel file found.")
+    st.error(f"**Script directory:** `{SCRIPT_DIR}`")
+    st.error(f"**Looking for file:** `{DEFAULT_EXCEL_PATH}`")
+    st.error(f"**File exists:** `{os.path.exists(DEFAULT_EXCEL_PATH)}`")
+    
+    # Try to list files in the script directory
+    try:
+        files_in_dir = os.listdir(SCRIPT_DIR)
+        excel_files = [f for f in files_in_dir if f.endswith('.xlsx')]
+        st.error(f"**Files in script directory:** {len(files_in_dir)} files")
+        st.error(f"**Excel files found:** {excel_files}")
+    except Exception as e:
+        st.error(f"**Error listing directory:** {e}")
+    
+    st.error("**Solution:** Please upload an Excel file using the admin section above.")
+    
+    # Instead of stopping, create a placeholder dataframe or show file upload prominently
+    st.markdown("---")
+    st.markdown("## 📤 Upload Excel File Required")
+    st.info("👆 Please use the **Admin section** above to upload your Excel file, then refresh the page.")
+    
+    # Optional: Show a sample of what the Excel should contain
+    st.markdown("### Expected Excel Format")
+    st.markdown("""
+    Your Excel file should contain these columns:
+    - **ItemCategory**
+    - **EquipmentName** 
+    - **HireRateWeekly**
+    - **GroupName**
+    - **Sub Section**
+    - **Max Discount**
+    - **Include**
+    - **Order**
+    """)
+    
+    # Don't completely stop - let the admin upload section work
+    df = None
 
 header_pdf_file = None
 if uploaded_header_pdf is not None:
@@ -1259,7 +1303,8 @@ if uploaded_header_pdf is not None:
     st.session_state['header_pdf_file'] = header_pdf_file  # Store in session state
 elif header_pdf_choice != "(Select Sales Person)":
     # Use selected file from folder
-    with open(header_pdf_choice, "rb") as f:
+    pdf_full_path = os.path.join(SCRIPT_DIR, header_pdf_choice)
+    with open(pdf_full_path, "rb") as f:
         header_pdf_file = io.BytesIO(f.read())
         st.session_state['header_pdf_file'] = header_pdf_file  # Store in session state
 

@@ -1023,7 +1023,13 @@ Net Rates Calculator System
         return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
 # Customer name input
+if "customer_name" not in st.session_state:
+    st.session_state["customer_name"] = ""
+
 customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
+
+if "bespoke_email" not in st.session_state:
+    st.session_state["bespoke_email"] = ""
 
 bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
 logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
@@ -1169,9 +1175,11 @@ if df is not None and header_pdf_file:
     # -------------------------------
     # Global and Group-Level Discounts
     # -------------------------------
-    # Get global discount from session state if available, otherwise use default
-    global_discount_value = st.session_state.get("global_discount", 0.0)
-    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, value=global_discount_value, step=0.01, key="global_discount")
+    # Initialize global discount in session state if not present
+    if "global_discount" not in st.session_state:
+        st.session_state["global_discount"] = 0.0
+    
+    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, step=0.01, key="global_discount")
 
     # Check if global discount has changed
     previous_global_discount = st.session_state.get("previous_global_discount", global_discount)

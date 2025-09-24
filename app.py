@@ -1413,9 +1413,9 @@ if df is not None and header_pdf_file:
             try:
                 loaded_data = json.load(uploaded_file)
                 
-                # Clear existing session state
+                # Clear existing session state more thoroughly
                 keys_to_clear = []
-                for key in st.session_state.keys():
+                for key in list(st.session_state.keys()):  # Convert to list to avoid modification during iteration
                     if (key.endswith("_discount") or 
                         key.startswith("price_") or 
                         key.startswith("transport_") or
@@ -1424,7 +1424,16 @@ if df is not None and header_pdf_file:
                         keys_to_clear.append(key)
                 
                 for key in keys_to_clear:
-                    del st.session_state[key]
+                    if key in st.session_state:
+                        del st.session_state[key]
+                
+                # Also clear ALL possible price keys for current DataFrame to ensure complete reset
+                df = st.session_state.get('df', pd.DataFrame())
+                if not df.empty:
+                    for idx in range(len(df)):
+                        price_key = f"price_{idx}"
+                        if price_key in st.session_state:
+                            del st.session_state[price_key]
                 
                 # Restore basic data
                 safe_set_session_state("customer_name", loaded_data.get("customer_name", ""))
@@ -1441,7 +1450,7 @@ if df is not None and header_pdf_file:
                 # Restore custom prices - populate the text input fields
                 custom_prices = loaded_data.get("custom_prices", {})
                 restored_count = 0
-                if df is not None:
+                if not df.empty:
                     for idx, row in df.iterrows():
                         item_key = str(row["ItemCategory"])
                         price_key = f"price_{idx}"

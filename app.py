@@ -1419,6 +1419,8 @@ if df is not None and header_pdf_file:
         uploaded_file = st.session_state.get('uploaded_file_to_load', None)
         if uploaded_file:
             try:
+                # Reset file pointer to beginning before reading
+                uploaded_file.seek(0)
                 loaded_data = json.load(uploaded_file)
                 
                 # Clear existing session state more thoroughly by setting to default values

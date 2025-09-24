@@ -1287,6 +1287,14 @@ if df is not None and header_pdf_file:
     # Adjust Prices by Group and Sub Section
     # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
+    
+    # Initialize all price keys to empty strings if they don't exist
+    # This ensures widgets start with empty values unless specifically set
+    for idx, row in df.iterrows():
+        price_key = f"price_{idx}"
+        if price_key not in st.session_state:
+            st.session_state[price_key] = ""
+    
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():

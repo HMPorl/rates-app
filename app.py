@@ -1251,13 +1251,8 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
     except Exception as e:
         st.error(f"❌ Failed to load default Excel: {e}")
         st.stop()
-        
-# Show any loading errors
-if st.session_state.get('loading_error'):
-    st.error(f"❌ Error loading progress file: {st.session_state['loading_error']}")
-    del st.session_state['loading_error']
 else:
-    # Show debug information for troubleshooting
+    # Show debug information for troubleshooting - only when file doesn't exist
     st.error(f"❌ No Excel file found.")
     st.error(f"**Script directory:** `{SCRIPT_DIR}`")
     st.error(f"**Looking for file:** `{DEFAULT_EXCEL_PATH}`")
@@ -1295,6 +1290,11 @@ else:
     
     # Don't completely stop - let the admin upload section work
     df = None
+        
+# Show any loading errors (separate from file existence)
+if st.session_state.get('loading_error'):
+    st.error(f"❌ Error loading progress file: {st.session_state['loading_error']}")
+    del st.session_state['loading_error']
 
 header_pdf_file = None
 if uploaded_header_pdf is not None:

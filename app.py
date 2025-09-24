@@ -158,6 +158,60 @@ def safe_set_session_state(key, value):
 initialize_session_state()
 
 # -------------------------------
+# Handle File Loading (BEFORE any widgets are created)
+# -------------------------------
+def handle_file_loading():
+    """Handle file loading before any widgets are instantiated"""
+    if st.session_state.get('trigger_upload_load', False):
+        st.session_state['trigger_upload_load'] = False  # Clear the trigger
+        
+        uploaded_file = st.session_state.get('uploaded_file_to_load', None)
+        if uploaded_file:
+            try:
+                # Reset file pointer to beginning before reading
+                uploaded_file.seek(0)
+                loaded_data = json.load(uploaded_file)
+                
+                # Clear existing session state by setting to default values
+                # This must happen BEFORE widgets are created
+                st.session_state["customer_name"] = loaded_data.get("customer_name", "")
+                st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
+                
+                # Clear all discount keys
+                for key in list(st.session_state.keys()):
+                    if key.endswith("_discount"):
+                        st.session_state[key] = 0.0
+                
+                # Restore group discounts
+                for key, value in loaded_data.get("group_discounts", {}).items():
+                    st.session_state[key] = value
+                
+                # Clear all transport keys
+                for key in list(st.session_state.keys()):
+                    if key.startswith("transport_"):
+                        st.session_state[key] = 0.0
+                
+                # Restore transport charges
+                for key, value in loaded_data.get("transport_charges", {}).items():
+                    st.session_state[key] = value
+                
+                # Clear and restore custom prices
+                # We need to do this after the DataFrame is loaded
+                st.session_state['pending_custom_prices'] = loaded_data.get("custom_prices", {})
+                st.session_state['loading_success'] = True
+                
+                return True
+                
+            except Exception as e:
+                st.session_state['loading_error'] = str(e)
+                return False
+    
+    return False
+
+# Process file loading
+loading_happened = handle_file_loading()
+
+# -------------------------------
 # Google Drive Integration Functions
 # -------------------------------
 
@@ -1121,6 +1175,30 @@ if uploaded_file:
     try:
         df = load_excel(uploaded_file)
         excel_source = "uploaded"
+        
+        # Handle loaded custom prices after DataFrame is available
+        if st.session_state.get('pending_custom_prices') and st.session_state.get('loading_success'):
+            try:
+                pending_prices = st.session_state['pending_custom_prices']
+                
+                # Clear ALL existing custom price keys first
+                for key in list(st.session_state.keys()):
+                    if key.startswith("price_"):
+                        del st.session_state[key]
+                
+                # Now set only the prices from the loaded file
+                for price_key, price_value in pending_prices.items():
+                    if price_value:  # Only set non-empty values
+                        st.session_state[price_key] = price_value
+                
+                # Clear the pending data and show success
+                del st.session_state['pending_custom_prices']
+                st.session_state['loading_success'] = False
+                st.success("✅ Progress loaded successfully!")
+                
+            except Exception as e:
+                st.error(f"Error applying custom prices: {e}")
+        
         st.success(f"✅ Excel file uploaded: {uploaded_file.name}")
         
     except Exception as e:
@@ -1137,11 +1215,39 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
         df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
         excel_source = "default"
         
+        # Handle loaded custom prices after DataFrame is available
+        if st.session_state.get('pending_custom_prices') and st.session_state.get('loading_success'):
+            try:
+                pending_prices = st.session_state['pending_custom_prices']
+                
+                # Clear ALL existing custom price keys first
+                for key in list(st.session_state.keys()):
+                    if key.startswith("price_"):
+                        del st.session_state[key]
+                
+                # Now set only the prices from the loaded file
+                for price_key, price_value in pending_prices.items():
+                    if price_value:  # Only set non-empty values
+                        st.session_state[price_key] = price_value
+                
+                # Clear the pending data and show success
+                del st.session_state['pending_custom_prices']
+                st.session_state['loading_success'] = False
+                st.success("✅ Progress loaded successfully!")
+                
+            except Exception as e:
+                st.error(f"Error applying custom prices: {e}")
+        
         st.success(f"✅ Using default Excel data (Last modified: {mod_time_readable})")
         
     except Exception as e:
         st.error(f"❌ Failed to load default Excel: {e}")
         st.stop()
+        
+# Show any loading errors
+if st.session_state.get('loading_error'):
+    st.error(f"❌ Error loading progress file: {st.session_state['loading_error']}")
+    del st.session_state['loading_error']
 else:
     st.error(f"❌ No Excel file found. Please upload a file or ensure {DEFAULT_EXCEL_PATH} exists.")
     st.stop()
@@ -2313,60 +2419,10 @@ with st.sidebar:
     
     if uploaded_file:
         if st.button("📁 Load from Upload", use_container_width=True):
-            try:
-                # Reset file pointer to beginning before reading
-                uploaded_file.seek(0)
-                loaded_data = json.load(uploaded_file)
-                
-                # Clear existing session state by setting to default values
-                st.session_state["customer_name"] = ""
-                st.session_state["global_discount"] = 0.0
-                
-                # Clear all discount keys
-                for key in list(st.session_state.keys()):
-                    if key.endswith("_discount"):
-                        st.session_state[key] = 0.0
-                
-                # Clear all transport keys
-                for key in list(st.session_state.keys()):
-                    if key.startswith("transport_"):
-                        st.session_state[key] = 0.0
-                
-                # Clear ALL price keys to empty
-                df = st.session_state.get('df', pd.DataFrame())
-                if not df.empty:
-                    for idx in range(len(df)):
-                        price_key = f"price_{idx}"
-                        st.session_state[price_key] = ""
-                
-                # Now restore data from loaded file
-                st.session_state["customer_name"] = loaded_data.get("customer_name", "")
-                st.session_state["global_discount"] = loaded_data.get("global_discount", 0.0)
-                
-                # Restore group discounts
-                for key, value in loaded_data.get("group_discounts", {}).items():
-                    st.session_state[key] = value
-                    
-                # Restore transport charges
-                for key, value in loaded_data.get("transport_charges", {}).items():
-                    st.session_state[key] = value
-                
-                # Restore custom prices
-                custom_prices = loaded_data.get("custom_prices", {})
-                restored_count = 0
-                if not df.empty:
-                    for idx, row in df.iterrows():
-                        item_key = str(row["ItemCategory"])
-                        price_key = f"price_{idx}"
-                        if item_key in custom_prices and custom_prices[item_key]:
-                            st.session_state[price_key] = custom_prices[item_key]
-                            restored_count += 1
-                
-                st.success(f"✅ Progress loaded! {restored_count} custom prices restored.")
-                st.rerun()
-                
-            except Exception as e:
-                st.error(f"❌ Failed to load progress: {e}")
+            # Store the file and trigger loading for next rerun
+            st.session_state['uploaded_file_to_load'] = uploaded_file
+            st.session_state['trigger_upload_load'] = True
+            st.rerun()
     
     st.markdown("---")
     

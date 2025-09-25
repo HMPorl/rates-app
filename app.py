@@ -1202,24 +1202,46 @@ if uploaded_file:
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
-                # Now map the loaded prices to DataFrame indices
+                # Now map the loaded prices to DataFrame indices - OPTIMIZED FOR LARGE DATASETS
+                # Create a reverse lookup dictionary for O(1) performance instead of O(n²)
+                item_category_to_index = {}
+                for idx, row in df.iterrows():
+                    item_category_to_index[str(row["ItemCategory"])] = idx
+                
                 prices_set = 0
                 debug_shown = 0
+                total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
-                # Create a mapping from ItemCategory to DataFrame index
-                for idx, row in df.iterrows():
-                    item_category = str(row["ItemCategory"])
-                    if item_category in pending_prices and pending_prices[item_category]:
+                # Show progress indicator for large datasets
+                if total_to_process > 20:
+                    progress_placeholder = st.empty()
+                    progress_placeholder.info(f"🔄 Processing {total_to_process} custom prices...")
+                
+                # Process all custom prices efficiently - handles 100+ prices
+                for item_category, price_value in pending_prices.items():
+                    if item_category in item_category_to_index and price_value:
+                        idx = item_category_to_index[item_category]
                         price_key = f"price_{idx}"
-                        price_value = pending_prices[item_category]
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
-                        # Only show first 3 mappings for debug, but process all
+                        
+                        # Smart debug output - avoid spam for large datasets
                         if debug_shown < 3:
                             st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
                             debug_shown += 1
+                        elif debug_shown == 3 and total_to_process > 10:
+                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
+                            debug_shown += 1
                 
-                st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                # Clear progress indicator
+                if total_to_process > 20:
+                    progress_placeholder.empty()
+                
+                # Smart final summary based on dataset size
+                if prices_set <= 10:
+                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                else:
+                    st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']
@@ -1265,24 +1287,46 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
-                # Now map the loaded prices to DataFrame indices
+                # Now map the loaded prices to DataFrame indices - OPTIMIZED FOR LARGE DATASETS
+                # Create a reverse lookup dictionary for O(1) performance instead of O(n²)
+                item_category_to_index = {}
+                for idx, row in df.iterrows():
+                    item_category_to_index[str(row["ItemCategory"])] = idx
+                
                 prices_set = 0
                 debug_shown = 0
+                total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
-                # Create a mapping from ItemCategory to DataFrame index
-                for idx, row in df.iterrows():
-                    item_category = str(row["ItemCategory"])
-                    if item_category in pending_prices and pending_prices[item_category]:
+                # Show progress indicator for large datasets
+                if total_to_process > 20:
+                    progress_placeholder = st.empty()
+                    progress_placeholder.info(f"🔄 Processing {total_to_process} custom prices...")
+                
+                # Process all custom prices efficiently - handles 100+ prices
+                for item_category, price_value in pending_prices.items():
+                    if item_category in item_category_to_index and price_value:
+                        idx = item_category_to_index[item_category]
                         price_key = f"price_{idx}"
-                        price_value = pending_prices[item_category]
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
-                        # Only show first 3 mappings for debug, but process all
+                        
+                        # Smart debug output - avoid spam for large datasets
                         if debug_shown < 3:
                             st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
                             debug_shown += 1
+                        elif debug_shown == 3 and total_to_process > 10:
+                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
+                            debug_shown += 1
                 
-                st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                # Clear progress indicator
+                if total_to_process > 20:
+                    progress_placeholder.empty()
+                
+                # Smart final summary based on dataset size
+                if prices_set <= 10:
+                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                else:
+                    st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']

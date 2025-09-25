@@ -1204,7 +1204,7 @@ if uploaded_file:
                 
                 # Now map the loaded prices to DataFrame indices
                 prices_set = 0
-                prices_mapped = 0
+                debug_shown = 0
                 
                 # Create a mapping from ItemCategory to DataFrame index
                 for idx, row in df.iterrows():
@@ -1214,10 +1214,10 @@ if uploaded_file:
                         price_value = pending_prices[item_category]
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
-                        st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
-                        prices_mapped += 1
-                        if prices_mapped >= 3:  # Only show first 3 mappings
-                            break
+                        # Only show first 3 mappings for debug, but process all
+                        if debug_shown < 3:
+                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                            debug_shown += 1
                 
                 st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
                 
@@ -1267,7 +1267,7 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                 
                 # Now map the loaded prices to DataFrame indices
                 prices_set = 0
-                prices_mapped = 0
+                debug_shown = 0
                 
                 # Create a mapping from ItemCategory to DataFrame index
                 for idx, row in df.iterrows():
@@ -1277,10 +1277,10 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                         price_value = pending_prices[item_category]
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
-                        st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
-                        prices_mapped += 1
-                        if prices_mapped >= 3:  # Only show first 3 mappings
-                            break
+                        # Only show first 3 mappings for debug, but process all
+                        if debug_shown < 3:
+                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                            debug_shown += 1
                 
                 st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
                 

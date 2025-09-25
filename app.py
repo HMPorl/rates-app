@@ -1412,6 +1412,13 @@ if df is not None and header_pdf_file:
     df = df[df["Include"] == True].copy()
     df.sort_values(by=["GroupName", "Sub Section", "Order"], inplace=True)
     
+    # Initialize CustomPrice and DiscountPercent columns to prevent KeyError
+    # These columns are needed by export functions regardless of PDF header selection
+    if 'CustomPrice' not in df.columns:
+        df['CustomPrice'] = None
+    if 'DiscountPercent' not in df.columns:
+        df['DiscountPercent'] = None
+    
     # Store DataFrame in session state for sidebar access
     st.session_state['df'] = df
 
@@ -1667,10 +1674,10 @@ if df is not None and header_pdf_file:
     # Format the display columns for better readability
     display_df["HireRateWeekly"] = display_df["HireRateWeekly"].apply(format_price_display)
     display_df["CustomPrice"] = display_df["CustomPrice"].apply(
-        lambda x: "POA" if is_poa_value(x) or x == "POA" else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(
-        lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
     )
     
     # Rename columns for better display
@@ -2398,10 +2405,10 @@ with st.expander("🔧 **Admin Area** - Legacy Functions", expanded=False):
             lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
         )
         admin_df_legacy["CustomPrice"] = admin_df_legacy["CustomPrice"].apply(
-            lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
         )
         admin_df_legacy["DiscountPercent"] = admin_df_legacy["DiscountPercent"].apply(
-            lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
         )
         
         admin_df_legacy.columns = [
@@ -2588,15 +2595,15 @@ with st.sidebar:
             "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
         ]].copy()
         
-        # Format values for export (handle POA properly)
+        # Format values for export (handle POA and None values properly)
         admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
             lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
         )
         admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
-            lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
         )
         admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-            lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
         )
         
         admin_df.columns = [
@@ -3125,15 +3132,15 @@ with st.sidebar:
                 "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
             ]].copy()
             
-            # Format values for export (handle POA properly)
+            # Format values for export (handle POA and None values properly)
             admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
                 lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
             )
             admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
-                lambda x: "POA" if is_poa_value(x) or x == "POA" else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+                lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
             )
             admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-                lambda x: "POA" if x == "POA" or is_poa_value(x) else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+                lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
             )
             
             admin_df.columns = [

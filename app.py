@@ -1202,17 +1202,24 @@ if uploaded_file:
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
-                # Now set only the prices from the loaded file
+                # Now map the loaded prices to DataFrame indices
                 prices_set = 0
-                for price_key, price_value in pending_prices.items():
-                    if price_value:  # Only set non-empty values
-                        # Ensure the key is in the right format (price_X)
-                        if not price_key.startswith("price_"):
-                            price_key = f"price_{price_key}"
-                        st.session_state[price_key] = price_value
-                        prices_set += 1
+                prices_mapped = 0
                 
-                st.info(f"🔧 DEBUG: Set {prices_set} custom prices")
+                # Create a mapping from ItemCategory to DataFrame index
+                for idx, row in df.iterrows():
+                    item_category = str(row["ItemCategory"])
+                    if item_category in pending_prices and pending_prices[item_category]:
+                        price_key = f"price_{idx}"
+                        price_value = pending_prices[item_category]
+                        st.session_state[price_key] = str(price_value)
+                        prices_set += 1
+                        st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                        prices_mapped += 1
+                        if prices_mapped >= 3:  # Only show first 3 mappings
+                            break
+                
+                st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']
@@ -1258,17 +1265,24 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
-                # Now set only the prices from the loaded file
+                # Now map the loaded prices to DataFrame indices
                 prices_set = 0
-                for price_key, price_value in pending_prices.items():
-                    if price_value:  # Only set non-empty values
-                        # Ensure the key is in the right format (price_X)
-                        if not price_key.startswith("price_"):
-                            price_key = f"price_{price_key}"
-                        st.session_state[price_key] = price_value
-                        prices_set += 1
+                prices_mapped = 0
                 
-                st.info(f"🔧 DEBUG: Set {prices_set} custom prices")
+                # Create a mapping from ItemCategory to DataFrame index
+                for idx, row in df.iterrows():
+                    item_category = str(row["ItemCategory"])
+                    if item_category in pending_prices and pending_prices[item_category]:
+                        price_key = f"price_{idx}"
+                        price_value = pending_prices[item_category]
+                        st.session_state[price_key] = str(price_value)
+                        prices_set += 1
+                        st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                        prices_mapped += 1
+                        if prices_mapped >= 3:  # Only show first 3 mappings
+                            break
+                
+                st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']

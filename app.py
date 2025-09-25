@@ -1189,15 +1189,30 @@ if uploaded_file:
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
+                # Debug: Show what we're trying to load
+                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
+                for key, value in list(pending_prices.items())[:3]:  # Show first 3
+                    st.info(f"🔧 Loading: {key} = {value}")
+                
                 # Clear ALL existing custom price keys first
+                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
+                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
+                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
                 # Now set only the prices from the loaded file
+                prices_set = 0
                 for price_key, price_value in pending_prices.items():
                     if price_value:  # Only set non-empty values
+                        # Ensure the key is in the right format (price_X)
+                        if not price_key.startswith("price_"):
+                            price_key = f"price_{price_key}"
                         st.session_state[price_key] = price_value
+                        prices_set += 1
+                
+                st.info(f"🔧 DEBUG: Set {prices_set} custom prices")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']
@@ -1206,6 +1221,8 @@ if uploaded_file:
                 
             except Exception as e:
                 st.error(f"Error applying custom prices: {e}")
+                import traceback
+                st.error(f"Traceback: {traceback.format_exc()}")
         
         st.success(f"✅ Excel file uploaded: {uploaded_file.name}")
         
@@ -1228,15 +1245,30 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
+                # Debug: Show what we're trying to load
+                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
+                for key, value in list(pending_prices.items())[:3]:  # Show first 3
+                    st.info(f"🔧 Loading: {key} = {value}")
+                
                 # Clear ALL existing custom price keys first
+                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
+                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
+                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
                 
                 # Now set only the prices from the loaded file
+                prices_set = 0
                 for price_key, price_value in pending_prices.items():
                     if price_value:  # Only set non-empty values
+                        # Ensure the key is in the right format (price_X)
+                        if not price_key.startswith("price_"):
+                            price_key = f"price_{price_key}"
                         st.session_state[price_key] = price_value
+                        prices_set += 1
+                
+                st.info(f"🔧 DEBUG: Set {prices_set} custom prices")
                 
                 # Clear the pending data and show success
                 del st.session_state['pending_custom_prices']
@@ -1245,6 +1277,8 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                 
             except Exception as e:
                 st.error(f"Error applying custom prices: {e}")
+                import traceback
+                st.error(f"Traceback: {traceback.format_exc()}")
         
         st.success(f"✅ Using default Excel data (Last modified: {mod_time_readable})")
         

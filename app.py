@@ -316,7 +316,7 @@ def save_progress_to_google_drive(progress_data, customer_name):
     """Save progress data to Google Drive (with local fallback)"""
     # Always save locally first as backup
     safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{safe_customer_name}_progress_{timestamp}.json"
     json_content = json.dumps(progress_data, indent=2)
     
@@ -754,7 +754,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             summary_data = {
                 'Customer': [customer_name],
                 'Total Items': [len(admin_df)],
-                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
+                'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M BST")],
                 'Created By': ['Net Rates Calculator']
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
@@ -775,7 +775,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         
         # Encode Excel file as base64 for attachment
         excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
         excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
         
         # Extract salesperson from header choice (first 2 letters)
@@ -789,7 +789,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             
             <p><strong>Salesperson:</strong> {salesperson}</p>
             <p><strong>Customer:</strong> {customer_name}</p>
-            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p><strong>Generated:</strong> {get_uk_time().strftime('%Y-%m-%d %H:%M:%S BST')}</p>
             <p><strong>Total Items:</strong> {len(admin_df)}</p>
             <p><strong>Global Discount:</strong> {global_discount}%</p>
             <p><strong>Custom Prices:</strong> {len([key for key in st.session_state.keys() if key.startswith('price_') and st.session_state.get(key, '').strip()])}</p>
@@ -814,7 +814,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         message = Mail(
             from_email=sendgrid_from_email,
             to_emails=to_emails,
-            subject=f"Net Rates Price List - {customer_name} ({datetime.now().strftime('%Y-%m-%d')})",
+            subject=f"Net Rates Price List - {customer_name} ({get_uk_time().strftime('%Y-%m-%d')})",
             html_content=html_content
         )
         
@@ -823,7 +823,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             message.cc = cc_emails
         
         # Create JSON save file for backup/reload capability
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
         
         # Prepare JSON save data (same format as Save Progress feature)
         # Use original_df if provided, otherwise fallback to a simple approach
@@ -936,7 +936,7 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
         if cc_email and cc_email.strip():
             msg['Cc'] = cc_email.strip()
             
-        msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
+        msg['Subject'] = f"Price List for {customer_name} - {get_uk_time().strftime('%Y-%m-%d')}"
         
         # Email body
         cc_note = f"\n(CC: {cc_email})" if cc_email and cc_email.strip() else ""
@@ -952,7 +952,7 @@ Summary:
 - Total Items: {len(admin_df)}
 - Global Discount: {global_discount}%
 - Custom Prices: {custom_prices_count}
-- Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+- Date Created: {get_uk_time().strftime('%Y-%m-%d %H:%M BST')}
 - Created via: Net Rates Calculator{cc_note}
 
 The attached files contain:
@@ -977,7 +977,7 @@ Net Rates Calculator System
             summary_data = {
                 'Customer': [customer_name],
                 'Total Items': [len(admin_df)],
-                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
+                'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M BST")],
                 'Created By': ['Net Rates Calculator']
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
@@ -988,12 +988,12 @@ Net Rates Calculator System
         encoders.encode_base64(part)
         part.add_header(
             'Content-Disposition',
-            f'attachment; filename={customer_name}_pricelist_{datetime.now().strftime("%Y%m%d")}.xlsx'
+            f'attachment; filename={customer_name}_pricelist_{get_uk_time().strftime("%Y%m%d")}.xlsx'
         )
         msg.attach(part)
         
         # Create and attach JSON save file
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
         
         # Use original_df if provided, otherwise fallback to a simple approach
         if original_df is not None and hasattr(original_df, 'iterrows'):
@@ -1081,19 +1081,7 @@ Net Rates Calculator System
     except Exception as e:
         return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
-# Customer name input
-if "customer_name" not in st.session_state:
-    st.session_state["customer_name"] = ""
-
-customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
-
-if "bespoke_email" not in st.session_state:
-    st.session_state["bespoke_email"] = ""
-
-bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
-logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
-
-# --- Move PDF header selection ABOVE Excel upload ---
+# --- PDF Header Selection (moved to top) ---
 # Add refresh button for PDF headers
 col1, col2 = st.columns([4, 1])
 
@@ -1112,6 +1100,18 @@ with col1:
 with col2:
     if st.button("🔄 Refresh PDF List", help="Click to refresh the list of available PDF header files"):
         st.rerun()
+
+# Customer name input
+if "customer_name" not in st.session_state:
+    st.session_state["customer_name"] = ""
+
+customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
+
+if "bespoke_email" not in st.session_state:
+    st.session_state["bespoke_email"] = ""
+
+bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
+logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
 
 # Toggle for admin options (hide by default)
 show_admin_uploads = st.toggle("Show Admin Upload Options", value=False)
@@ -1186,15 +1186,7 @@ if uploaded_file:
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
-                # Debug: Show what we're trying to load
-                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
-                for key, value in list(pending_prices.items())[:3]:  # Show first 3
-                    st.info(f"🔧 Loading: {key} = {value}")
-                
                 # Clear ALL existing custom price keys first
-                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
-                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
-                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
@@ -1206,7 +1198,6 @@ if uploaded_file:
                     item_category_to_index[str(row["ItemCategory"])] = idx
                 
                 prices_set = 0
-                debug_shown = 0
                 total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
                 # Show progress indicator for large datasets
@@ -1222,22 +1213,12 @@ if uploaded_file:
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
                         
-                        # Smart debug output - avoid spam for large datasets
-                        if debug_shown < 3:
-                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
-                            debug_shown += 1
-                        elif debug_shown == 3 and total_to_process > 10:
-                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
-                            debug_shown += 1
                 
                 # Clear progress indicator
                 if total_to_process > 20:
                     progress_placeholder.empty()
                 
-                # Smart final summary based on dataset size
-                if prices_set <= 10:
-                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
-                else:
+                # Show success message
                     st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
@@ -1260,7 +1241,7 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
         # Get file modification time for cache invalidation
         import os
         mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
-        mod_time_readable = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
+        mod_time_readable = datetime.fromtimestamp(mod_time, tz=get_uk_time().tzinfo).strftime("%Y-%m-%d %H:%M:%S BST")
         
         # Use timestamp-aware loading to auto-refresh when file changes
         df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
@@ -1271,15 +1252,7 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
-                # Debug: Show what we're trying to load
-                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
-                for key, value in list(pending_prices.items())[:3]:  # Show first 3
-                    st.info(f"🔧 Loading: {key} = {value}")
-                
                 # Clear ALL existing custom price keys first
-                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
-                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
-                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
@@ -1291,7 +1264,6 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                     item_category_to_index[str(row["ItemCategory"])] = idx
                 
                 prices_set = 0
-                debug_shown = 0
                 total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
                 # Show progress indicator for large datasets
@@ -1307,22 +1279,12 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
                         
-                        # Smart debug output - avoid spam for large datasets
-                        if debug_shown < 3:
-                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
-                            debug_shown += 1
-                        elif debug_shown == 3 and total_to_process > 10:
-                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
-                            debug_shown += 1
                 
                 # Clear progress indicator
                 if total_to_process > 20:
                     progress_placeholder.empty()
                 
-                # Smart final summary based on dataset size
-                if prices_set <= 10:
-                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
-                else:
+                # Show success message
                     st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
@@ -1883,7 +1845,7 @@ with st.sidebar:
     customer_name = st.session_state.get('customer_name', '')
     if customer_name:
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
         
         # Collect all session state data

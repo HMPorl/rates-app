@@ -699,9 +699,6 @@ if st.session_state.get('show_help', False):
         *Net Rates Calculator - The Hireman | Version: August 2025*
         """)
 
-#if st.button("📂 Go to Load Progress Section"):
-#    st.session_state["scroll_to_load"] = True
-
 # Ensure progress_saves folder exists
 if not os.path.exists("progress_saves"):
     os.makedirs("progress_saves")
@@ -1799,9 +1796,6 @@ if df is not None and header_pdf_file:
     - **Email Options**: Direct sending with multiple recipient options
     """)
     st.markdown("➡️ **Look for the '📊 Export Options' section in the sidebar** on the left.")
-    
-    if st.button("↗️ Legacy Export Functions", help="Access legacy export functions in admin area"):
-        st.info("🔧 Legacy export functions are available in the **Admin Area** at the bottom of this page.")
 
     # -------------------------------
     # Direct Email to Accounts Team
@@ -1817,9 +1811,6 @@ if df is not None and header_pdf_file:
     - **Instant Sending**: One-click email delivery with confirmation
     """)
     st.markdown("➡️ **Look for the 'Email Options' dropdown in the sidebar** on the left.")
-    
-    if st.button("↗️ Legacy Email Functions", help="Access legacy email functions in admin area"):
-        st.info("� Legacy email functions are available in the **Admin Area** at the bottom of this page.")
 
     # -------------------------------
     # Export Net Rates to PDF
@@ -2382,106 +2373,7 @@ with st.expander("🔧 Admin Dashboard & Integration Settings"):
 
 # Footer
 st.markdown("---")
-
-# -------------------------------
-# Admin Area - Legacy Functions
-# -------------------------------
-with st.expander("🔧 **Admin Area** - Legacy Functions", expanded=False):
-    st.markdown("### 🛠️ Legacy Functions")
-    st.info("ℹ️ **Note**: Export and email functions have been moved to the sidebar for better usability. These are legacy versions kept for admin reference.")
-    
-    # Legacy Export Functions (moved from main body)
-    if customer_name and not df.empty:
-        st.markdown("### 📤 Legacy Export Functions")
-        st.warning("⚠️ **Legacy**: These functions are duplicated in the sidebar. Use sidebar for regular operations.")
-        
-        # Prepare data (same as before)
-        admin_df_legacy = df[[
-            "ItemCategory", "EquipmentName", "HireRateWeekly", 
-            "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
-        ]].copy()
-        
-        admin_df_legacy["HireRateWeekly"] = admin_df_legacy["HireRateWeekly"].apply(
-            lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
-        )
-        admin_df_legacy["CustomPrice"] = admin_df_legacy["CustomPrice"].apply(
-            lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-        )
-        admin_df_legacy["DiscountPercent"] = admin_df_legacy["DiscountPercent"].apply(
-            lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-        )
-        
-        admin_df_legacy.columns = [
-            "Item Category", "Equipment Name", "Original Price (£)", 
-            "Net Price (£)", "Discount %", "Group", "Sub Section"
-        ]
-        admin_df_legacy["Customer Name"] = customer_name
-        admin_df_legacy["Date Created"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        
-        admin_df_legacy = admin_df_legacy[[
-            "Customer Name", "Date Created", "Item Category", "Equipment Name", 
-            "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
-        ]]
-
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            # Enhanced Excel Export
-            output_excel = io.BytesIO()
-            with pd.ExcelWriter(output_excel, engine='openpyxl') as writer:
-                admin_df_legacy.to_excel(writer, sheet_name='Price List', index=False)
-                transport_df.to_excel(writer, sheet_name='Transport Charges', index=False)
-                summary_data = {
-                    'Customer': [customer_name],
-                    'Total Items': [len(admin_df_legacy)],
-                    'Global Discount %': [global_discount],
-                    'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
-                    'Created By': ['Net Rates Calculator']
-                }
-                pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
-            
-            st.download_button(
-                label="📊 Excel (Legacy)",
-                data=output_excel.getvalue(),
-                file_name=f"{customer_name}_admin_pricelist_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        
-        with col2:
-            # CSV Export
-            csv_data = admin_df_legacy.to_csv(index=False)
-            st.download_button(
-                label="📄 CSV (Legacy)",
-                data=csv_data,
-                file_name=f"{customer_name}_pricelist_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-        
-        with col3:
-            # JSON Export
-            json_export = {
-                "customer_info": {
-                    "name": customer_name,
-                    "date_created": datetime.now().isoformat(),
-                    "global_discount": global_discount
-                },
-                "price_list": admin_df_legacy.to_dict('records'),
-                "transport_charges": transport_df.to_dict('records')
-            }
-            
-            st.download_button(
-                label="🔗 JSON (Legacy)",
-                data=json.dumps(json_export, indent=2),
-                file_name=f"{customer_name}_api_data_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json"
-            )
-
-st.markdown("*Net Rates Calculator - Admin Integration v2.0*")
-# Load Progress from Uploaded JSON Only
-# -------------------------------
-#if st.session_state.get("scroll_to_load"):
- #   st.markdown("## <span style='color:#1976d2'>📂 <b>Load Progress Section</b></span>", unsafe_allow_html=True)
- #   st.session_state["scroll_to_load"] = False
+st.markdown("*Net Rates Calculator v2.0 - The Hireman*")
 
 # Sidebar for Load Progress and other actions
 with st.sidebar:

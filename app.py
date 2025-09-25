@@ -2732,6 +2732,91 @@ with st.sidebar:
                                         fill=email_font_color
                                     )
 
+                                # Add logo to header if provided
+                                logo_file = st.session_state.get('logo_file', None)
+                                if logo_file:
+                                    logo_image = Image.open(logo_file)
+                                    logo_bytes = io.BytesIO()
+                                    logo_image.save(logo_bytes, format="PNG")
+                                    logo_bytes.seek(0)
+                                    logo_width = 100
+                                    logo_height = logo_image.height * (logo_width / logo_image.width)
+                                    logo_x = (page_width - logo_width) / 2
+                                    bespoke_email = st.session_state.get('bespoke_email', '')
+                                    if bespoke_email and bespoke_email.strip():
+                                        logo_y = text_y + font_size + 13 + 20
+                                    else:
+                                        logo_y = text_y + font_size + 20
+                                    rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+                                    page1.insert_image(rect_logo, stream=logo_bytes.read())
+
+                                # Draw Transport Charges table on page 3
+                                page3 = header_pdf[2]
+                                page_width = page3.rect.width
+                                page_height = page3.rect.height
+
+                                # Get transport data from session state
+                                transport_types = [
+                                    "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+                                    "Tower", "Powered Access", "Low-level Access", "Long Distance"
+                                ]
+                                default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+                                
+                                transport_data = []
+                                for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+                                    charge = st.session_state.get(f"transport_{i}", default_value)
+                                    transport_data.append([transport_type, charge])
+
+                                row_height = 22
+                                col_widths = [300, 100]
+                                font_size_transport = 10
+                                text_padding_x = 6
+                                text_offset_y = 2
+
+                                num_rows = len(transport_data) + 1
+                                table_height = num_rows * row_height
+                                bottom_margin_cm = 28.35
+                                margin_y = bottom_margin_cm + table_height
+                                table_width = sum(col_widths)
+                                margin_x = (page_width - table_width) / 2
+                                header_fill_color = (125 / 255, 166 / 255, 219 / 255)
+
+                                # Draw header row
+                                headers = ["Delivery or Collection type", "Charge (£)"]
+                                for col_index, header in enumerate(headers):
+                                    x_start = margin_x + sum(col_widths[:col_index])
+                                    x_end = x_start + col_widths[col_index]
+                                    y_start = margin_y - row_height
+                                    y_end = margin_y
+                                    rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                    page3.draw_rect(rect, color=header_fill_color, fill=header_fill_color)
+                                    page3.draw_rect(rect, color=(0, 0, 0), width=0.5)
+                                    text_x = x_start + text_padding_x
+                                    text_y = y_start + (row_height / 2) + text_offset_y
+                                    page3.insert_text((text_x, text_y), header, fontsize=font_size_transport, 
+                                                    fontname=font_name, fill=(0, 0, 0))
+
+                                # Draw data rows
+                                for row_index, row_data in enumerate(transport_data):
+                                    for col_index, cell_data in enumerate(row_data):
+                                        x_start = margin_x + sum(col_widths[:col_index])
+                                        x_end = x_start + col_widths[col_index]
+                                        y_start = margin_y - (row_index + 2) * row_height
+                                        y_end = y_start + row_height
+                                        rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                        page3.draw_rect(rect, color=(0, 0, 0), width=0.5)
+                                        if col_index == 0:
+                                            text_x = x_start + text_padding_x
+                                        else:
+                                            if str(cell_data).replace('.', '', 1).isdigit():
+                                                text_x = x_end - text_padding_x - fitz.Font(fontname=font_name).text_length(
+                                                    str(cell_data), fontsize=font_size_transport)
+                                            else:
+                                                text_x = x_start + text_padding_x
+                                        text_y = y_start + (row_height / 2) + text_offset_y
+                                        page3.insert_text((text_x, text_y), str(cell_data), fontsize=font_size_transport, 
+                                                        fontname=font_name, fill=(0, 0, 0))
+
                                 # Merge PDFs
                                 modified_header = io.BytesIO()
                                 header_pdf.save(modified_header)

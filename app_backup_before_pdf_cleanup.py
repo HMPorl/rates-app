@@ -1732,7 +1732,334 @@ if df is not None and header_pdf_file:
     # Direct Email to Accounts Team
     # -------------------------------
     # Email Net Rates - Moved to Sidebar
+
+    # -------------------------------
+
+
+            elements.append(Spacer(1, 12))
+            elements.append(Paragraph("Special Rates", styles['Heading2']))
+            elements.append(Spacer(1, 6))
+            table_data = [["Category", "Equipment", "Special (£)"]]
+            table_data.extend(custom_price_rows)
+            row_styles = [
+                ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Yellow header
+                ('BACKGROUND', (0, 1), (-1, -1), '#FFF2B8'),  # Light yellow background for data rows
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                # Removed GRID line to eliminate cell borders
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ]
+            table = Table(table_data, colWidths=[60, 380, 60])
+            table.setStyle(TableStyle(row_styles))
+            elements.append(table)
+            elements.append(Spacer(1, 12))
+            # Insert a page break if the user wants the special rates table on its own page
+            if special_rates_pagebreak:
+                from reportlab.platypus import PageBreak
+                elements.append(PageBreak())
+            # Add extra spacing after special rates if specified
+            elif special_rates_spacing > 0:
+                # Add the specified number of blank lines (each line is approximately 12 points)
+                for _ in range(special_rates_spacing):
+                    elements.append(Spacer(1, 12))
+    else:
+        # If not including custom table, still show the main title
+        customer_title = customer_name if customer_name else "Customer"
+        elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+        elements.append(Spacer(1, 12))
+
+    # --- Main Price List Tables ---
+    table_col_widths = [60, 380, 60]
+    bar_width = sum(table_col_widths)
+
+    for group, group_df in df.groupby("GroupName"):
+        group_elements = []
+
+        # Group header bar (dark blue)
+        bar_table = Table(
+            [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],
+            colWidths=[bar_width]
+        )
+        bar_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
+        group_spacer = Spacer(1, 2)
+        group_subsection_blocks = []
+
+        # Subsection header bar (light blue) - ensure same width and padding as group bar
+        for subsection, sub_df in group_df.groupby("Sub Section"):
+            if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
+                subsection_title = "Untitled"
+            else:
+                subsection_title = str(subsection)
+
+            # Subsection header row (subtitle in the second/wide cell)
+            header_row = [
+                '',  # Empty cell for ItemCategory (narrow)
+                Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),  # Subtitle in wide cell
+                ''   # Empty cell for Price column
+            ]
+
+            # Table data (no header, no grid)
+            table_data = [header_row]
+            special_rate_rows = []  # Track rows with special rates for highlighting
+            
+            for row_idx, (_, row) in enumerate(sub_df.iterrows(), start=1):  # start=1 because header is row 0
+                # Handle POA values in PDF generation
+                if is_poa_value(row['CustomPrice']) or row['CustomPrice'] == "POA":
+                    price_text = "POA"
+                    has_special_rate = False
+                else:
+                    try:
+                        price_text = f"£{float(row['CustomPrice']):.2f}"
+                        # Check if this is a special rate (user entered custom price)
+                        price_key = f"price_{row.name}"  # row.name is the original DataFrame index
+                        user_input = str(st.session_state.get(price_key, "")).strip()
+                        has_special_rate = bool(user_input and not is_poa_value(user_input))
+                    except (ValueError, TypeError):
+                        price_text = "POA"
+                        has_special_rate = False
+                
+                # Track rows with special rates for highlighting
+                if has_special_rate:
+                    special_rate_rows.append(row_idx)
+                
+                table_data.append([
+                    row["ItemCategory"],
+                    Paragraph(row["EquipmentName"], styles['BodyText']),
+                    price_text
+                ])
+
+            table_with_repeat_header = Table(
+                table_data,
+                colWidths=table_col_widths,
+                repeatRows=1
+            )
+            
+            # Build table style with yellow highlighting for special rates
+            table_style = [
+                # Style for the header row
+                ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
+                ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
+                ('LEFTPADDING', (0, 0), (-1, 0), 8),
+                ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Align subtitle left in the wide cell
+                # Style for the rest of the table
+                ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ]
+            
+            # Add yellow highlighting for special rate rows
+            for row_num in special_rate_rows:
+                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFD51D'))  # Updated yellow color
+            
+            table_with_repeat_header.setStyle(TableStyle(table_style))
+
+            group_subsection_blocks.append(
+                [table_with_repeat_header, Spacer(1, 12)]
+            )
+
+        # Now, for the first subsection, wrap group bar + first subsection in KeepTogether
+        if group_subsection_blocks:
+            group_elements.append(
+                KeepTogether([
+                    bar_table,
+                    group_spacer,
+                    *group_subsection_blocks[0]
+                ])
+            )
+            # Add the rest of the subsections as normal (each in their own KeepTogether)
+            for block in group_subsection_blocks[1:]:
+                group_elements.append(KeepTogether(block))
+        else:
+            group_elements.append(
+                KeepTogether([
+                    bar_table,
+                    group_spacer
+                ])
+            )
+
+        elements.extend(group_elements)
+
+    # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
+    # We skip adding it here to avoid duplication.
+
+    doc.build(elements, onFirstPage=add_footer_logo, onLaterPages=add_footer_logo)
+    pdf_buffer.seek(0)
+
+
+    # -------------------------------
+    # Merge Header PDF with Generated PDF doc
+    # -------------------------------
+    header_data = read_pdf_header(header_pdf_file)
+    header_pdf = fitz.open(stream=header_data, filetype="pdf")
+
+    # Ensure there are at least 3 pages
+    while len(header_pdf) < 3:
+        header_pdf.new_page()
+
+    # Add customer name and logo to the first page
+    page1 = header_pdf[0]
+    if customer_name:
+        font_size = 22
+        font_color = (0 / 255, 45 / 255, 86 / 255)
+        font_name = "helv"
+        page_width = page1.rect.width
+        page_height = page1.rect.height
+        text_y = page_height / 3
+        font = fitz.Font(fontname=font_name)
+        text_width = font.text_length(customer_name, fontsize=font_size)
+        text_x = (page_width - text_width) / 2
+        page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+
+        # Add bespoke email address below customer name if provided
+        if bespoke_email.strip():
+            email_font_size = 13
+            email_font_color = (0 / 255, 90 / 255, 156 / 255)  # #005a9c
+            email_text_y = text_y + font_size + 6  # Slightly below customer name
+            email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+            email_text_x = (page_width - email_text_width) / 2
+            page1.insert_text(
+                (email_text_x, email_text_y),
+                bespoke_email,
+                fontsize=email_font_size,
+                fontname=font_name,
+                fill=email_font_color
+            )
+
+    if logo_file:
+        logo_image = Image.open(logo_file)
+        logo_bytes = io.BytesIO()
+        logo_image.save(logo_bytes, format="PNG")
+        logo_bytes.seek(0)
+        logo_width = 100
+        logo_height = logo_image.height * (logo_width / logo_image.width)
+        logo_x = (page_width - logo_width) / 2
+        # Place logo below the email if present, otherwise below the name
+        if bespoke_email.strip():
+            logo_y = email_text_y + email_font_size + 20
+        else:
+            logo_y = text_y + font_size + 20
+        rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+        page1.insert_image(rect_logo, stream=logo_bytes.read())
+
+
+    # Draw Transport Charges table as a grid on page 3
+    page3 = header_pdf[2]
+    page_width = page3.rect.width
+    page_height = page3.rect.height
+
+    row_height = 22
+    col_widths = [300, 100]
+    font_size = 10
+    text_padding_x = 6
+    text_offset_y = 2  # Adjust text vertical alignment
+
+    # Calculate total table height
+    num_rows = len(transport_df) + 1  # +1 for header
+    table_height = num_rows * row_height
+
+    # Position table so its bottom is ~1 cm (28.35 pts) from bottom of page
+    bottom_margin_cm = 28.35
+    margin_y = bottom_margin_cm + table_height
+
+    # Center table horizontally
+    table_width = sum(col_widths)
+    margin_x = (page_width - table_width) / 2
+
+    # Header color: #7DA6DB → RGB
+    header_fill_color = (125 / 255, 166 / 255, 219 / 255)
+
+    # Table header
+    headers = ["Delivery or Collection type", "Charge (£)"]
+    data_rows = transport_df.values.tolist()
+
+    # Draw header row
+    for col_index, header in enumerate(headers):
+        x0 = margin_x + sum(col_widths[:col_index])
+        x1 = x0 + col_widths[col_index]
+        y_text = page_height - margin_y + text_offset_y
+        y_rect = page_height - margin_y - 14 #height
+        page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
+        page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
+
+    # Draw data rows
+    for row_index, row in enumerate(data_rows):
+        for col_index, cell in enumerate(row):
+            x0 = margin_x + sum(col_widths[:col_index])
+            x1 = x0 + col_widths[col_index]
+            y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
+            y_rect = page_height - margin_y + row_height * (row_index + 1) - 14 #height
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
+            page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
+
+
+
+
+    # Merge with generated PDF
+    modified_header = io.BytesIO()
+    header_pdf.save(modified_header)
+    header_pdf.close()
+
+    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+    merged_pdf.insert_pdf(generated_pdf)
+    merged_output = io.BytesIO()
+    merged_pdf.save(merged_output)
+    merged_pdf.close()
+
+    # PDF Download Button
+    # Generate filename: Price List for "Customer Name" Month Year.pdf
+    from datetime import datetime
+    now = datetime.now()
+    month_year = now.strftime("%B %Y")
+    safe_customer_name = customer_name.strip() if customer_name else "Customer"
+    filename = f'Price List for {safe_customer_name} {month_year}.pdf'
+
+    # Make PDF download button prominent and red
+    st.markdown("---")
+    st.markdown("#### 🎯 **Download Your PDF Price List**")
+    st.download_button(
+        label="📄 Download as PDF",
+        data=merged_output.getvalue(),
+        file_name=filename,
+        mime="application/pdf",
+        type="primary",
+        help="Download your customized price list as a PDF document"
+    )
     
+    # Add custom CSS to make the button red
+    st.markdown("""
+    <style>
+    .stDownloadButton > button {
+        background-color: #ff4444 !important;
+        color: white !important;
+        border: 2px solid #ff4444 !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        padding: 12px 24px !important;
+        margin: 10px 0 !important;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #cc0000 !important;
+        border-color: #cc0000 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# -------------------------------
 # Admin Dashboard (Collapsible)
 # -------------------------------
 st.markdown("---")
@@ -2834,7 +3161,11 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"❌ Email error: {str(e)}")
 
-
+# Main content area - simplified load progress section
+st.markdown("### Load Progress from Saved Files")
+if st.session_state.get('show_load_progress', False):
+    st.info("👈 Use the sidebar to load progress from saved files.")
+    st.session_state['show_load_progress'] = False
 
 
 

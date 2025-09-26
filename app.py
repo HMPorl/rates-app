@@ -2342,8 +2342,8 @@ with st.sidebar:
             x1 = x0 + col_widths[col_index]
             y_text = page_height - margin_y + text_offset_y
             y_rect = page_height - margin_y - 14
-            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
-            page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
+            # Remove border drawing and make text bold
+            page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="hebo")  # hebo = Helvetica Bold
 
         # Draw data rows
         for row_index, row in enumerate(transport_data):
@@ -2352,8 +2352,16 @@ with st.sidebar:
                 x1 = x0 + col_widths[col_index]
                 y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
                 y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
-                page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
-                page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
+                # Remove border drawing and format cell content
+                cell_text = str(cell)
+                if col_index == 1:  # Charge column
+                    # Add £ symbol if it's a numeric value
+                    if cell_text.replace('.', '').replace('-', '').isdigit():
+                        cell_text = f"£{cell_text}"
+                    elif cell_text.lower() not in ['negotiable', 'poa', 'n/a']:
+                        # Add £ to any value that isn't a special text
+                        cell_text = f"£{cell_text}"
+                page3.insert_text((x0 + text_padding_x, y_text), cell_text, fontsize=font_size, fontname="helv")
 
         # Merge PDFs
         modified_header = io.BytesIO()
@@ -2788,13 +2796,11 @@ with st.sidebar:
                                     x_end = x_start + col_widths[col_index]
                                     y_start = margin_y - row_height
                                     y_end = margin_y
-                                    rect = fitz.Rect(x_start, y_start, x_end, y_end)
-                                    page3.draw_rect(rect, color=header_fill_color, fill=header_fill_color)
-                                    page3.draw_rect(rect, color=(0, 0, 0), width=0.5)
                                     text_x = x_start + text_padding_x
                                     text_y = y_start + (row_height / 2) + text_offset_y
+                                    # Remove border drawing and make text bold
                                     page3.insert_text((text_x, text_y), header, fontsize=font_size_transport, 
-                                                    fontname=font_name, fill=(0, 0, 0))
+                                                    fontname="hebo", fill=(0, 0, 0))  # hebo = Helvetica Bold
 
                                 # Draw data rows
                                 for row_index, row_data in enumerate(transport_data):
@@ -2803,18 +2809,26 @@ with st.sidebar:
                                         x_end = x_start + col_widths[col_index]
                                         y_start = margin_y - (row_index + 2) * row_height
                                         y_end = y_start + row_height
-                                        rect = fitz.Rect(x_start, y_start, x_end, y_end)
-                                        page3.draw_rect(rect, color=(0, 0, 0), width=0.5)
+                                        # Remove border drawing and format cell content
+                                        cell_text = str(cell_data)
+                                        if col_index == 1:  # Charge column
+                                            # Add £ symbol if it's a numeric value
+                                            if cell_text.replace('.', '').replace('-', '').isdigit():
+                                                cell_text = f"£{cell_text}"
+                                            elif cell_text.lower() not in ['negotiable', 'poa', 'n/a']:
+                                                # Add £ to any value that isn't a special text
+                                                cell_text = f"£{cell_text}"
+                                        
                                         if col_index == 0:
                                             text_x = x_start + text_padding_x
                                         else:
-                                            if str(cell_data).replace('.', '', 1).isdigit():
+                                            if cell_text.replace('£', '').replace('.', '', 1).isdigit():
                                                 text_x = x_end - text_padding_x - fitz.Font(fontname=font_name).text_length(
-                                                    str(cell_data), fontsize=font_size_transport)
+                                                    cell_text, fontsize=font_size_transport)
                                             else:
                                                 text_x = x_start + text_padding_x
                                         text_y = y_start + (row_height / 2) + text_offset_y
-                                        page3.insert_text((text_x, text_y), str(cell_data), fontsize=font_size_transport, 
+                                        page3.insert_text((text_x, text_y), cell_text, fontsize=font_size_transport, 
                                                         fontname=font_name, fill=(0, 0, 0))
 
                                 # Merge PDFs

@@ -1406,6 +1406,65 @@ if df is not None and header_pdf_file:
         non_custom_count = len(df) - custom_price_count
         
         st.success(f"✅ Applied {global_discount_to_apply}% discount to {non_custom_count} non-custom items. {custom_price_count} custom prices preserved.")
+    
+    # Process "Set All Groups to Global Discount" action
+    if st.session_state.get('set_all_groups_to_global', False):
+        st.session_state['set_all_groups_to_global'] = False  # Clear the trigger
+        
+        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
+        group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+        for group, subsection in group_keys:
+            discount_key = f"{group}_{subsection}_discount"
+            st.session_state[discount_key] = global_discount_to_apply
+        
+        st.success(f"✅ All group discounts set to {global_discount_to_apply}%")
+    
+    # Process "Update Group Discounts Only" action
+    if st.session_state.get('update_group_discounts_only', False):
+        st.session_state['update_group_discounts_only'] = False  # Clear the trigger
+        
+        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
+        group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+        for group, subsection in group_keys:
+            discount_key = f"{group}_{subsection}_discount"
+            st.session_state[discount_key] = global_discount_to_apply
+        
+        st.success(f"✅ Group discounts updated to {global_discount_to_apply}% (custom prices preserved)")
+    
+    # Process "Update All & Clear Custom Prices" action
+    if st.session_state.get('update_all_and_clear_custom', False):
+        st.session_state['update_all_and_clear_custom'] = False  # Clear the trigger
+        
+        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
+        group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+        
+        # Update group discounts
+        for group, subsection in group_keys:
+            discount_key = f"{group}_{subsection}_discount"
+            st.session_state[discount_key] = global_discount_to_apply
+        
+        # Clear all custom prices
+        cleared_count = 0
+        for idx, row in df.iterrows():
+            price_key = f"price_{idx}"
+            if st.session_state.get(price_key, "").strip():
+                st.session_state[price_key] = ""
+                cleared_count += 1
+        
+        st.success(f"✅ All discounts updated to {global_discount_to_apply}% and {cleared_count} custom prices cleared")
+    
+    # Process "Clear All Custom Prices" action
+    if st.session_state.get('clear_all_custom_prices', False):
+        st.session_state['clear_all_custom_prices'] = False  # Clear the trigger
+        
+        cleared_count = 0
+        for idx, row in df.iterrows():
+            price_key = f"price_{idx}"
+            if st.session_state.get(price_key, "").strip():
+                st.session_state[price_key] = ""
+                cleared_count += 1
+        
+        st.success(f"✅ Cleared {cleared_count} custom prices")
 
     # -------------------------------
     # Global and Group-Level Discounts
@@ -1429,29 +1488,13 @@ if df is not None and header_pdf_file:
         with col1:
             # Option 1: Update group discounts only (preserves custom prices)
             if st.button(f"🔄 Update Group Discounts Only", type="primary"):
-                group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-                for group, subsection in group_keys:
-                    discount_key = f"{group}_{subsection}_discount"
-                    st.session_state[discount_key] = global_discount
-                st.success(f"✅ Group discounts updated to {global_discount}% (custom prices preserved)")
+                st.session_state['update_group_discounts_only'] = True
                 st.rerun()
         
         with col2:
             # Option 2: Update everything including custom prices
             if st.button(f"⚠️ Update All & Clear Custom Prices", type="secondary"):
-                # Update group discounts
-                group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-                for group, subsection in group_keys:
-                    discount_key = f"{group}_{subsection}_discount"
-                    st.session_state[discount_key] = global_discount
-                
-                # Clear all custom prices to apply new discount
-                for idx, row in df.iterrows():
-                    price_key = f"price_{idx}"
-                    if price_key in st.session_state:
-                        del st.session_state[price_key]
-                
-                st.success(f"✅ All discounts updated to {global_discount}% and custom prices cleared")
+                st.session_state['update_all_and_clear_custom'] = True
                 st.rerun()
 
     st.markdown("### Group-Level Discounts")
@@ -1463,20 +1506,14 @@ if df is not None and header_pdf_file:
     
     with col1:
         if st.button("🔄 Set All Groups to Global Discount"):
-            for group, subsection in group_keys:
-                discount_key = f"{group}_{subsection}_discount"
-                st.session_state[discount_key] = global_discount
+            st.session_state['set_all_groups_to_global'] = True
             st.rerun()
     
     with col2:
         # Count custom prices
         custom_price_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
         if st.button(f"🗑️ Clear All Custom Prices ({custom_price_count})"):
-            for idx, row in df.iterrows():
-                price_key = f"price_{idx}"
-                if price_key in st.session_state:
-                    st.session_state[price_key] = ""
-            st.success(f"✅ Cleared {custom_price_count} custom prices")
+            st.session_state['clear_all_custom_prices'] = True
             st.rerun()
     
     with col3:

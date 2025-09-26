@@ -1419,13 +1419,13 @@ if df is not None and header_pdf_file:
         col = cols[i % 3]  # Fill down each column
         with col:
             discount_key = f"{group}_{subsection}_discount"
-            # Use session state value if available, otherwise use global discount
-            default_value = st.session_state.get(discount_key, global_discount)
+            # Initialize session state if key doesn't exist (avoids widget/session state conflict)
+            if discount_key not in st.session_state:
+                st.session_state[discount_key] = global_discount
             st.number_input(
                 f"{group} - {subsection} (%)",
                 min_value=0.0,
                 max_value=100.0,
-                value=default_value,
                 step=0.01,
                 key=discount_key
             )

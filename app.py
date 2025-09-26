@@ -2342,17 +2342,27 @@ with st.sidebar:
             x1 = x0 + col_widths[col_index]
             y_text = page_height - margin_y + text_offset_y
             y_rect = page_height - margin_y - 14
-            # Remove border drawing and make text bold
+            # Draw header background in #7DA6D8
+            header_color = (125/255, 166/255, 216/255)  # #7DA6D8
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=header_color, fill=header_color)
             page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="hebo")  # hebo = Helvetica Bold
 
-        # Draw data rows
+        # Draw data rows with alternating colors
         for row_index, row in enumerate(transport_data):
+            # Alternate between #F7FCFF and #DAE9F8
+            if row_index % 2 == 0:
+                row_color = (247/255, 252/255, 255/255)  # #F7FCFF
+            else:
+                row_color = (218/255, 233/255, 248/255)  # #DAE9F8
+            
             for col_index, cell in enumerate(row):
                 x0 = margin_x + sum(col_widths[:col_index])
                 x1 = x0 + col_widths[col_index]
                 y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
                 y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
-                # Remove border drawing and format cell content
+                # Draw alternating row background
+                page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=row_color, fill=row_color)
+                # Format cell content
                 cell_text = str(cell)
                 if col_index == 1:  # Charge column
                     # Add £ symbol if it's a numeric value
@@ -2798,18 +2808,30 @@ with st.sidebar:
                                     y_end = margin_y
                                     text_x = x_start + text_padding_x
                                     text_y = y_start + (row_height / 2) + text_offset_y
-                                    # Remove border drawing and make text bold
+                                    # Draw header background in #7DA6D8
+                                    header_color = (125/255, 166/255, 216/255)  # #7DA6D8
+                                    rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                    page3.draw_rect(rect, color=header_color, fill=header_color)
                                     page3.insert_text((text_x, text_y), header, fontsize=font_size_transport, 
                                                     fontname="hebo", fill=(0, 0, 0))  # hebo = Helvetica Bold
 
-                                # Draw data rows
+                                # Draw data rows with alternating colors
                                 for row_index, row_data in enumerate(transport_data):
+                                    # Alternate between #F7FCFF and #DAE9F8
+                                    if row_index % 2 == 0:
+                                        row_color = (247/255, 252/255, 255/255)  # #F7FCFF
+                                    else:
+                                        row_color = (218/255, 233/255, 248/255)  # #DAE9F8
+                                    
                                     for col_index, cell_data in enumerate(row_data):
                                         x_start = margin_x + sum(col_widths[:col_index])
                                         x_end = x_start + col_widths[col_index]
                                         y_start = margin_y - (row_index + 2) * row_height
                                         y_end = y_start + row_height
-                                        # Remove border drawing and format cell content
+                                        # Draw alternating row background
+                                        rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                        page3.draw_rect(rect, color=row_color, fill=row_color)
+                                        # Format cell content
                                         cell_text = str(cell_data)
                                         if col_index == 1:  # Charge column
                                             # Add £ symbol if it's a numeric value

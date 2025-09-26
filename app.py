@@ -1649,7 +1649,18 @@ if df is not None and header_pdf_file:
             st.session_state[price_key] = ""
     
     for (group, subsection), group_df in grouped_df:
-        with st.expander(f"{group} - {subsection}", expanded=False):
+        # Check if this group has any custom prices
+        has_custom_in_group = any(
+            st.session_state.get(f"price_{idx}", "").strip() 
+            for idx in group_df.index
+        )
+        
+        # Add target emoji to header if group contains custom prices
+        header_text = f"{group} - {subsection}"
+        if has_custom_in_group:
+            header_text += " 🎯"
+        
+        with st.expander(header_text, expanded=False):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"

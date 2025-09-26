@@ -1635,7 +1635,6 @@ if df is not None and header_pdf_file:
         with col1:
             st.markdown("**🎯 Custom Price:** You've entered a specific price")
             st.markdown("**📊 Calculated Price:** Based on group discount")
-            st.markdown("**💡 Custom prices are always preserved when updating discounts**")
         with col2:
             st.markdown("**Quick Actions Guide:**")
             st.markdown("- **Set All Groups:** Updates all group discounts to global %")  
@@ -1686,7 +1685,7 @@ if df is not None and header_pdf_file:
                         placeholder_text = "Custom price active"
                         help_text = "🎯 Custom price set - overrides group discount"
                     else:
-                        placeholder_text = "Enter custom price"
+                        placeholder_text = "Enter Special Rate or POA"
                         help_text = "💡 Leave empty to use group discount calculation"
                     
                     st.text_input("", key=price_key, label_visibility="collapsed", 

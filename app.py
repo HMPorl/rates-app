@@ -2804,15 +2804,13 @@ with st.sidebar:
                                 for col_index, header in enumerate(headers):
                                     x_start = margin_x + sum(col_widths[:col_index])
                                     x_end = x_start + col_widths[col_index]
-                                    y_start = margin_y - row_height
-                                    y_end = margin_y
-                                    text_x = x_start + text_padding_x
-                                    text_y = y_start + (row_height / 2) + text_offset_y
+                                    y_text = page_height - margin_y + text_offset_y
+                                    y_rect = page_height - margin_y - 14
                                     # Draw header background in #7DA6D8
                                     header_color = (125/255, 166/255, 216/255)  # #7DA6D8
-                                    rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                    rect = fitz.Rect(x_start, y_rect, x_end, y_rect + row_height)
                                     page3.draw_rect(rect, color=header_color, fill=header_color)
-                                    page3.insert_text((text_x, text_y), header, fontsize=font_size_transport, 
+                                    page3.insert_text((x_start + text_padding_x, y_text), header, fontsize=font_size_transport, 
                                                     fontname="hebo", fill=(0, 0, 0))  # hebo = Helvetica Bold
 
                                 # Draw data rows with alternating colors
@@ -2826,10 +2824,10 @@ with st.sidebar:
                                     for col_index, cell_data in enumerate(row_data):
                                         x_start = margin_x + sum(col_widths[:col_index])
                                         x_end = x_start + col_widths[col_index]
-                                        y_start = margin_y - (row_index + 2) * row_height
-                                        y_end = y_start + row_height
+                                        y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
+                                        y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
                                         # Draw alternating row background
-                                        rect = fitz.Rect(x_start, y_start, x_end, y_end)
+                                        rect = fitz.Rect(x_start, y_rect, x_end, y_rect + row_height)
                                         page3.draw_rect(rect, color=row_color, fill=row_color)
                                         # Format cell content
                                         cell_text = str(cell_data)
@@ -2849,8 +2847,7 @@ with st.sidebar:
                                                     cell_text, fontsize=font_size_transport)
                                             else:
                                                 text_x = x_start + text_padding_x
-                                        text_y = y_start + (row_height / 2) + text_offset_y
-                                        page3.insert_text((text_x, text_y), cell_text, fontsize=font_size_transport, 
+                                        page3.insert_text((text_x, y_text), cell_text, fontsize=font_size_transport, 
                                                         fontname=font_name, fill=(0, 0, 0))
 
                                 # Merge PDFs

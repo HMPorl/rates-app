@@ -1496,6 +1496,52 @@ if df is not None and header_pdf_file:
         
         return ((orig_numeric - custom_numeric) / orig_numeric) * 100
 
+    # Standardized formatting functions for consistent data export
+    def format_price_for_export(value):
+        """Format price for export - numeric only, handles POA values"""
+        if is_poa_value(value):
+            return "POA"
+        numeric_value = get_numeric_price(value)
+        if numeric_value is not None:
+            return f"{numeric_value:.2f}"
+        return "POA"
+    
+    def format_custom_price_for_export(value):
+        """Format custom price for export - handles None, POA, and numeric values"""
+        if pd.isna(value) or is_poa_value(value) or value == "POA" or value is None:
+            return "POA"
+        try:
+            if str(value).replace('.','').replace('-','').isdigit():
+                return f"{float(value):.2f}"
+            else:
+                return str(value)
+        except (ValueError, TypeError):
+            return "POA"
+    
+    def format_discount_for_export(value):
+        """Format discount percentage for export - handles POA and numeric values"""
+        if pd.isna(value) or value == "POA" or is_poa_value(value) or value is None:
+            return "POA"
+        try:
+            if str(value).replace('.','').replace('-','').isdigit():
+                return f"{float(value):.2f}%"
+            else:
+                return str(value)
+        except (ValueError, TypeError):
+            return "POA"
+    
+    def format_custom_price_for_display(value):
+        """Format custom price for display - includes £ symbol"""
+        if pd.isna(value) or is_poa_value(value) or value == "POA" or value is None:
+            return "POA"
+        try:
+            if str(value).replace('.','').replace('-','').isdigit():
+                return f"£{float(value):.2f}"
+            else:
+                return str(value)
+        except (ValueError, TypeError):
+            return "POA"
+
     # -------------------------------
     # Adjust Prices by Group and Sub Section
     # -------------------------------
@@ -1586,14 +1632,10 @@ if df is not None and header_pdf_file:
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]].copy()
     
-    # Format the display columns for better readability
+    # Format the display columns for better readability using standardized functions
     display_df["HireRateWeekly"] = display_df["HireRateWeekly"].apply(format_price_display)
-    display_df["CustomPrice"] = display_df["CustomPrice"].apply(
-        lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-    )
-    display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(
-        lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-    )
+    display_df["CustomPrice"] = display_df["CustomPrice"].apply(format_custom_price_for_display)
+    display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(format_discount_for_export)
     
     # Rename columns for better display
     display_df.columns = ["Item Category", "Equipment Name", "Original Price", "Group", "Sub Section", "Final Price", "Discount %"]
@@ -1950,16 +1992,10 @@ with st.sidebar:
             "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
         ]].copy()
         
-        # Format values for export (handle POA and None values properly)
-        admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
-            lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
-        )
-        admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
-            lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-        )
-        admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-            lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-        )
+        # Format values for export using standardized functions
+        admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(format_price_for_export)
+        admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(format_custom_price_for_export)
+        admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(format_discount_for_export)
         
         admin_df.columns = [
             "Item Category", "Equipment Name", "Original Price (£)", 
@@ -2509,16 +2545,10 @@ with st.sidebar:
                 "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
             ]].copy()
             
-            # Format values for export (handle POA and None values properly)
-            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
-                lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
-            )
-            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
-                lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-            )
-            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
-                lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
-            )
+            # Format values for export using standardized functions
+            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(format_price_for_export)
+            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(format_custom_price_for_export)
+            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(format_discount_for_export)
             
             admin_df.columns = [
                 "Item Category", "Equipment Name", "Original Price (£)", 

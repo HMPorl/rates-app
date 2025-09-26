@@ -1974,12 +1974,16 @@ with st.sidebar:
             "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
         ]]
         
-        # Create transport charges DataFrame
+        # Create transport charges DataFrame using proper UI transport types
         transport_inputs = []
-        transport_types = ["Delivery", "Collection", "Driver", "Maintenance"]
-        for transport_type in transport_types:
-            charge_key = f"transport_{transport_type.lower()}"
-            charge = st.session_state.get(charge_key, "")
+        transport_types = [
+            "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+            "Tower", "Powered Access", "Low-level Access", "Long Distance"
+        ]
+        default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+        
+        for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+            charge = st.session_state.get(f"transport_{i}", default_value)
             if charge:  # Only include if there's a value
                 transport_inputs.append({
                     "Delivery or Collection type": transport_type,
@@ -2529,8 +2533,22 @@ with st.sidebar:
                 "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
             ]]
             
-            # Create empty transport DataFrame (no transport charges from sidebar)
-            transport_df = pd.DataFrame()
+            # Create transport charges DataFrame using proper UI transport types
+            transport_inputs = []
+            transport_types = [
+                "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+                "Tower", "Powered Access", "Low-level Access", "Long Distance"
+            ]
+            default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+            
+            for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+                charge = st.session_state.get(f"transport_{i}", default_value)
+                if charge:  # Only include if there's a value
+                    transport_inputs.append({
+                        "Delivery or Collection type": transport_type,
+                        "Charge (£)": charge
+                    })
+            transport_df = pd.DataFrame(transport_inputs)
             
             try:
                 with st.spinner("📧 Sending email..."):

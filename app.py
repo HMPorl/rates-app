@@ -1391,21 +1391,10 @@ if df is not None and header_pdf_file:
     if st.session_state.get('apply_global_to_non_custom', False):
         st.session_state['apply_global_to_non_custom'] = False  # Clear the trigger
         
-        # Get the global discount value to apply
+        # Set a flag to process this after helper functions are available
+        st.session_state['process_global_to_non_custom'] = True
         global_discount_to_apply = st.session_state.get('global_discount', 0.0)
-        
-        # Update all group discounts to global discount
-        # This affects all items that DON'T have custom prices  
-        group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-        for group, subsection in group_keys:
-            discount_key = f"{group}_{subsection}_discount"
-            st.session_state[discount_key] = global_discount_to_apply
-        
-        # Count custom prices that will be preserved
-        custom_price_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
-        non_custom_count = len(df) - custom_price_count
-        
-        st.success(f"✅ Applied {global_discount_to_apply}% discount to {non_custom_count} non-custom items. {custom_price_count} custom prices preserved.")
+        st.session_state['global_discount_to_apply'] = global_discount_to_apply
     
     # Process "Set All Groups to Global Discount" action
     if st.session_state.get('set_all_groups_to_global', False):
@@ -1521,8 +1510,8 @@ if df is not None and header_pdf_file:
         custom_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
         non_custom_count = len(df) - custom_count
         
-        button_text = f"🎯 Apply Global to Non-Custom ({non_custom_count})"
-        help_text = f"Updates {non_custom_count} items to use {global_discount}% discount. Preserves {custom_count} custom prices."
+        button_text = f"🎯 Lock Global Price for Non-Custom ({non_custom_count})"
+        help_text = f"Locks {non_custom_count} items at {global_discount}% discount as custom prices. Preserves {custom_count} existing custom prices unchanged."
         
         if st.button(button_text, help=help_text):
             # This will update group discounts but preserve custom prices
@@ -1669,7 +1658,7 @@ if df is not None and header_pdf_file:
             st.markdown("**� Quick Actions Guide:**")
             st.markdown("- **Set All Groups:** Updates all group discounts to global %")  
             st.markdown("- **Clear Custom:** Removes your manual price entries")
-            st.markdown("- **Apply Global:** Updates non-custom items while preserving custom prices")
+            st.markdown("- **Lock Global:** Converts non-custom items to custom prices using global discount")
     
     # Initialize all price keys to empty strings if they don't exist
     # This ensures widgets start with empty values unless specifically set
@@ -1677,6 +1666,36 @@ if df is not None and header_pdf_file:
         price_key = f"price_{idx}"
         if price_key not in st.session_state:
             st.session_state[price_key] = ""
+    
+    # Process "Apply Global to Non-Custom" after helper functions are available
+    if st.session_state.get('process_global_to_non_custom', False):
+        st.session_state['process_global_to_non_custom'] = False  # Clear the trigger
+        
+        global_discount_to_apply = st.session_state.get('global_discount_to_apply', 0.0)
+        
+        # Apply global discount ONLY to items that don't have custom prices
+        # This creates custom prices for non-custom items using the global discount
+        updated_count = 0
+        preserved_count = 0
+        
+        for idx, row in df.iterrows():
+            price_key = f"price_{idx}"
+            current_custom_price = st.session_state.get(price_key, "").strip()
+            
+            if current_custom_price:
+                # Item has custom price - preserve it completely
+                preserved_count += 1
+            else:
+                # Item doesn't have custom price - apply global discount
+                if not is_poa_value(row["HireRateWeekly"]):
+                    orig_price = get_numeric_price(row["HireRateWeekly"])
+                    if orig_price:
+                        new_price = orig_price * (1 - global_discount_to_apply / 100)
+                        # Set this as a custom price so it's locked in
+                        st.session_state[price_key] = f"{new_price:.2f}"
+                        updated_count += 1
+        
+        st.success(f"✅ Applied {global_discount_to_apply}% discount to {updated_count} items. {preserved_count} custom prices preserved unchanged.")
     
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
         with st.expander(f"{group} - {subsection}", expanded=False):

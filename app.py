@@ -832,13 +832,15 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             for idx, row in original_df.iterrows():
                 price_key = f"price_{idx}"
                 item_key = str(row["ItemCategory"])
-                custom_prices[item_key] = st.session_state.get(price_key, "")
+                price_value = st.session_state.get(price_key, "")
+                if price_value:  # Only include non-empty prices
+                    custom_prices[item_key] = price_value
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {
                 key.replace("price_", ""): st.session_state.get(key, "")
                 for key in st.session_state
-                if key.startswith("price_")
+                if key.startswith("price_") and st.session_state.get(key, "").strip()  # Only non-empty prices
             }
             
         save_data = {
@@ -1001,13 +1003,15 @@ Net Rates Calculator System
             for idx, row in original_df.iterrows():
                 price_key = f"price_{idx}"
                 item_key = str(row["ItemCategory"])
-                custom_prices[item_key] = st.session_state.get(price_key, "")
+                price_value = st.session_state.get(price_key, "")
+                if price_value:  # Only include non-empty prices
+                    custom_prices[item_key] = price_value
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {
                 key.replace("price_", ""): st.session_state.get(key, "")
                 for key in st.session_state
-                if key.startswith("price_")
+                if key.startswith("price_") and st.session_state.get(key, "").strip()  # Only non-empty prices
             }
             
         save_data = {

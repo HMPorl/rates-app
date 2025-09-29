@@ -574,7 +574,6 @@ def add_footer_logo(canvas, doc):
         pass  # If logo not found, skip
 
 
-=======
 # --- Weather: Current + Daily Summary 1 ---
 def get_weather_and_forecast(lat, lon):
     url = (

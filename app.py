@@ -573,6 +573,82 @@ def add_footer_logo(canvas, doc):
     except Exception:
         pass  # If logo not found, skip
 
+
+=======
+# --- Weather: Current + Daily Summary 1 ---
+def get_weather_and_forecast(lat, lon):
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?"
+        f"latitude={lat}&longitude={lon}"
+        f"&current_weather=true"
+        f"&hourly=temperature_2m,weathercode"
+        f"&timezone=Europe/London"
+    )
+    try:
+        resp = requests.get(url, timeout=5)
+        data = resp.json()
+        current = data["current_weather"]
+        times = data["hourly"]["time"]
+        temps = data["hourly"]["temperature_2m"]
+        codes = data["hourly"]["weathercode"]
+        return current, times, temps, codes
+    except Exception:
+        return None, [], [], []
+
+# Add this toggle before the weather section
+show_weather = st.checkbox("Show weather information", value=False)
+
+if show_weather:
+    city = "London"
+    lat, lon = 51.5074, -0.1278
+
+    current, times, temps, codes = get_weather_and_forecast(lat, lon)
+
+    weather_icons = {
+        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
+        51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
+        61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
+        71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
+        81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
+        96: "⛈️", 99: "⛈️"
+    }
+
+    if current:
+        # Current weather
+        icon = weather_icons.get(current["weathercode"], "❓")
+        st.markdown(
+            f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
+        )
+
+        # Daily summary
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
+        today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
+        if today_temps:
+            min_temp = min(today_temps)
+            max_temp = max(today_temps)
+            # Most common weather code for the day
+            from collections import Counter
+            main_code = Counter(today_codes).most_common(1)[0][0]
+            main_icon = weather_icons.get(main_code, "❓")
+            st.markdown(
+                f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
+            )
+    else:
+        st.markdown("### 🌦️ Weather: Unable to fetch data")
+
+
+
+# -------------------------------
+# Streamlit Page Configuration
+# -------------------------------
+st.set_page_config(
+    page_title="Net Rates Calculator",
+    page_icon="🚀",
+    layout="wide"
+)
+
+
 # -------------------------------
 # Security: PIN Authentication
 # -------------------------------

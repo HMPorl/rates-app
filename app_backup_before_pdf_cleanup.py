@@ -316,7 +316,7 @@ def save_progress_to_google_drive(progress_data, customer_name):
     """Save progress data to Google Drive (with local fallback)"""
     # Always save locally first as backup
     safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-    timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"{safe_customer_name}_progress_{timestamp}.json"
     json_content = json.dumps(progress_data, indent=2)
     
@@ -573,82 +573,6 @@ def add_footer_logo(canvas, doc):
     except Exception:
         pass  # If logo not found, skip
 
-
-=======
-# --- Weather: Current + Daily Summary 1 ---
-def get_weather_and_forecast(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        f"&current_weather=true"
-        f"&hourly=temperature_2m,weathercode"
-        f"&timezone=Europe/London"
-    )
-    try:
-        resp = requests.get(url, timeout=5)
-        data = resp.json()
-        current = data["current_weather"]
-        times = data["hourly"]["time"]
-        temps = data["hourly"]["temperature_2m"]
-        codes = data["hourly"]["weathercode"]
-        return current, times, temps, codes
-    except Exception:
-        return None, [], [], []
-
-# Add this toggle before the weather section
-show_weather = st.checkbox("Show weather information", value=False)
-
-if show_weather:
-    city = "London"
-    lat, lon = 51.5074, -0.1278
-
-    current, times, temps, codes = get_weather_and_forecast(lat, lon)
-
-    weather_icons = {
-        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-        51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
-        61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
-        71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
-        81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
-        96: "⛈️", 99: "⛈️"
-    }
-
-    if current:
-        # Current weather
-        icon = weather_icons.get(current["weathercode"], "❓")
-        st.markdown(
-            f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
-        )
-
-        # Daily summary
-        today = datetime.now().strftime("%Y-%m-%d")
-        today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
-        today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
-        if today_temps:
-            min_temp = min(today_temps)
-            max_temp = max(today_temps)
-            # Most common weather code for the day
-            from collections import Counter
-            main_code = Counter(today_codes).most_common(1)[0][0]
-            main_icon = weather_icons.get(main_code, "❓")
-            st.markdown(
-                f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
-            )
-    else:
-        st.markdown("### 🌦️ Weather: Unable to fetch data")
-
-
-
-# -------------------------------
-# Streamlit Page Configuration
-# -------------------------------
-st.set_page_config(
-    page_title="Net Rates Calculator",
-    page_icon="🚀",
-    layout="wide"
-)
-
-
 # -------------------------------
 # Security: PIN Authentication
 # -------------------------------
@@ -830,7 +754,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             summary_data = {
                 'Customer': [customer_name],
                 'Total Items': [len(admin_df)],
-                'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M BST")],
+                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
                 'Created By': ['Net Rates Calculator']
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
@@ -851,7 +775,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         
         # Encode Excel file as base64 for attachment
         excel_base64 = base64.b64encode(output_excel.getvalue()).decode()
-        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         excel_filename = f"{customer_name}_pricelist_{timestamp}.xlsx"
         
         # Extract salesperson from header choice (first 2 letters)
@@ -865,7 +789,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             
             <p><strong>Salesperson:</strong> {salesperson}</p>
             <p><strong>Customer:</strong> {customer_name}</p>
-            <p><strong>Generated:</strong> {get_uk_time().strftime('%Y-%m-%d %H:%M:%S BST')}</p>
+            <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             <p><strong>Total Items:</strong> {len(admin_df)}</p>
             <p><strong>Global Discount:</strong> {global_discount}%</p>
             <p><strong>Custom Prices:</strong> {len([key for key in st.session_state.keys() if key.startswith('price_') and st.session_state.get(key, '').strip()])}</p>
@@ -890,7 +814,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
         message = Mail(
             from_email=sendgrid_from_email,
             to_emails=to_emails,
-            subject=f"Net Rates Price List - {customer_name} ({get_uk_time().strftime('%Y-%m-%d')})",
+            subject=f"Net Rates Price List - {customer_name} ({datetime.now().strftime('%Y-%m-%d')})",
             html_content=html_content
         )
         
@@ -899,7 +823,7 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             message.cc = cc_emails
         
         # Create JSON save file for backup/reload capability
-        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         # Prepare JSON save data (same format as Save Progress feature)
         # Use original_df if provided, otherwise fallback to a simple approach
@@ -908,15 +832,13 @@ def send_email_via_sendgrid_api(customer_name, admin_df, transport_df, recipient
             for idx, row in original_df.iterrows():
                 price_key = f"price_{idx}"
                 item_key = str(row["ItemCategory"])
-                price_value = st.session_state.get(price_key, "")
-                if price_value:  # Only include non-empty prices
-                    custom_prices[item_key] = price_value
+                custom_prices[item_key] = st.session_state.get(price_key, "")
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {
                 key.replace("price_", ""): st.session_state.get(key, "")
                 for key in st.session_state
-                if key.startswith("price_") and st.session_state.get(key, "").strip()  # Only non-empty prices
+                if key.startswith("price_")
             }
             
         save_data = {
@@ -1014,7 +936,7 @@ def send_email_with_pricelist(customer_name, admin_df, transport_df, recipient_e
         if cc_email and cc_email.strip():
             msg['Cc'] = cc_email.strip()
             
-        msg['Subject'] = f"Price List for {customer_name} - {get_uk_time().strftime('%Y-%m-%d')}"
+        msg['Subject'] = f"Price List for {customer_name} - {datetime.now().strftime('%Y-%m-%d')}"
         
         # Email body
         cc_note = f"\n(CC: {cc_email})" if cc_email and cc_email.strip() else ""
@@ -1030,7 +952,7 @@ Summary:
 - Total Items: {len(admin_df)}
 - Global Discount: {global_discount}%
 - Custom Prices: {custom_prices_count}
-- Date Created: {get_uk_time().strftime('%Y-%m-%d %H:%M BST')}
+- Date Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 - Created via: Net Rates Calculator{cc_note}
 
 The attached files contain:
@@ -1055,7 +977,7 @@ Net Rates Calculator System
             summary_data = {
                 'Customer': [customer_name],
                 'Total Items': [len(admin_df)],
-                'Date Created': [get_uk_time().strftime("%Y-%m-%d %H:%M BST")],
+                'Date Created': [datetime.now().strftime("%Y-%m-%d %H:%M")],
                 'Created By': ['Net Rates Calculator']
             }
             pd.DataFrame(summary_data).to_excel(writer, sheet_name='Summary', index=False)
@@ -1066,12 +988,12 @@ Net Rates Calculator System
         encoders.encode_base64(part)
         part.add_header(
             'Content-Disposition',
-            f'attachment; filename={customer_name}_pricelist_{get_uk_time().strftime("%Y%m%d")}.xlsx'
+            f'attachment; filename={customer_name}_pricelist_{datetime.now().strftime("%Y%m%d")}.xlsx'
         )
         msg.attach(part)
         
         # Create and attach JSON save file
-        timestamp = get_uk_time().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
         # Use original_df if provided, otherwise fallback to a simple approach
         if original_df is not None and hasattr(original_df, 'iterrows'):
@@ -1079,15 +1001,13 @@ Net Rates Calculator System
             for idx, row in original_df.iterrows():
                 price_key = f"price_{idx}"
                 item_key = str(row["ItemCategory"])
-                price_value = st.session_state.get(price_key, "")
-                if price_value:  # Only include non-empty prices
-                    custom_prices[item_key] = price_value
+                custom_prices[item_key] = st.session_state.get(price_key, "")
         else:
             # Fallback: get custom prices from session state directly
             custom_prices = {
                 key.replace("price_", ""): st.session_state.get(key, "")
                 for key in st.session_state
-                if key.startswith("price_") and st.session_state.get(key, "").strip()  # Only non-empty prices
+                if key.startswith("price_")
             }
             
         save_data = {
@@ -1161,7 +1081,19 @@ Net Rates Calculator System
     except Exception as e:
         return {'status': 'error', 'message': f'Email preparation failed: {str(e)}'}
 
-# --- PDF Header Selection (moved to top) ---
+# Customer name input
+if "customer_name" not in st.session_state:
+    st.session_state["customer_name"] = ""
+
+customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
+
+if "bespoke_email" not in st.session_state:
+    st.session_state["bespoke_email"] = ""
+
+bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
+logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
+
+# --- Move PDF header selection ABOVE Excel upload ---
 # Add refresh button for PDF headers
 col1, col2 = st.columns([4, 1])
 
@@ -1180,18 +1112,6 @@ with col1:
 with col2:
     if st.button("🔄 Refresh PDF List", help="Click to refresh the list of available PDF header files"):
         st.rerun()
-
-# Customer name input
-if "customer_name" not in st.session_state:
-    st.session_state["customer_name"] = ""
-
-customer_name = st.text_input("⭐Enter Customer Name", key="customer_name")
-
-if "bespoke_email" not in st.session_state:
-    st.session_state["bespoke_email"] = ""
-
-bespoke_email = st.text_input("⭐ Bespoke email address (optional)", key="bespoke_email")
-logo_file = st.file_uploader("⭐Upload Company Logo", type=["png", "jpg", "jpeg"])
 
 # Toggle for admin options (hide by default)
 show_admin_uploads = st.toggle("Show Admin Upload Options", value=False)
@@ -1266,7 +1186,15 @@ if uploaded_file:
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
+                # Debug: Show what we're trying to load
+                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
+                for key, value in list(pending_prices.items())[:3]:  # Show first 3
+                    st.info(f"🔧 Loading: {key} = {value}")
+                
                 # Clear ALL existing custom price keys first
+                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
+                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
+                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
@@ -1278,6 +1206,7 @@ if uploaded_file:
                     item_category_to_index[str(row["ItemCategory"])] = idx
                 
                 prices_set = 0
+                debug_shown = 0
                 total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
                 # Show progress indicator for large datasets
@@ -1293,12 +1222,22 @@ if uploaded_file:
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
                         
+                        # Smart debug output - avoid spam for large datasets
+                        if debug_shown < 3:
+                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                            debug_shown += 1
+                        elif debug_shown == 3 and total_to_process > 10:
+                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
+                            debug_shown += 1
                 
                 # Clear progress indicator
                 if total_to_process > 20:
                     progress_placeholder.empty()
                 
-                # Show success message
+                # Smart final summary based on dataset size
+                if prices_set <= 10:
+                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                else:
                     st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
@@ -1321,7 +1260,7 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
         # Get file modification time for cache invalidation
         import os
         mod_time = os.path.getmtime(DEFAULT_EXCEL_PATH)
-        mod_time_readable = datetime.fromtimestamp(mod_time, tz=get_uk_time().tzinfo).strftime("%Y-%m-%d %H:%M:%S BST")
+        mod_time_readable = datetime.fromtimestamp(mod_time).strftime("%Y-%m-%d %H:%M:%S")
         
         # Use timestamp-aware loading to auto-refresh when file changes
         df = load_excel_with_timestamp(DEFAULT_EXCEL_PATH, mod_time)
@@ -1332,7 +1271,15 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
             try:
                 pending_prices = st.session_state['pending_custom_prices']
                 
+                # Debug: Show what we're trying to load
+                st.info(f"🔧 DEBUG: Loading {len(pending_prices)} custom prices")
+                for key, value in list(pending_prices.items())[:3]:  # Show first 3
+                    st.info(f"🔧 Loading: {key} = {value}")
+                
                 # Clear ALL existing custom price keys first
+                existing_price_keys = [key for key in st.session_state.keys() if key.startswith("price_")]
+                st.info(f"🔧 DEBUG: Clearing {len(existing_price_keys)} existing price keys")
+                
                 for key in list(st.session_state.keys()):
                     if key.startswith("price_"):
                         del st.session_state[key]
@@ -1344,6 +1291,7 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                     item_category_to_index[str(row["ItemCategory"])] = idx
                 
                 prices_set = 0
+                debug_shown = 0
                 total_to_process = len([k for k in pending_prices.keys() if k in item_category_to_index])
                 
                 # Show progress indicator for large datasets
@@ -1359,12 +1307,22 @@ elif os.path.exists(DEFAULT_EXCEL_PATH):
                         st.session_state[price_key] = str(price_value)
                         prices_set += 1
                         
+                        # Smart debug output - avoid spam for large datasets
+                        if debug_shown < 3:
+                            st.info(f"🔧 Mapped: {item_category} → {price_key} = {price_value}")
+                            debug_shown += 1
+                        elif debug_shown == 3 and total_to_process > 10:
+                            st.info(f"🔧 ... processing {total_to_process - 3} more prices ...")
+                            debug_shown += 1
                 
                 # Clear progress indicator
                 if total_to_process > 20:
                     progress_placeholder.empty()
                 
-                # Show success message
+                # Smart final summary based on dataset size
+                if prices_set <= 10:
+                    st.info(f"🔧 DEBUG: Set {prices_set} custom prices using ItemCategory mapping")
+                else:
                     st.success(f"✅ Successfully loaded {prices_set} custom prices from progress file")
                 
                 # Clear the pending data and show success
@@ -1460,71 +1418,6 @@ if df is not None and header_pdf_file:
     
     # Store DataFrame in session state for sidebar access
     st.session_state['df'] = df
-    
-    # Pre-calculate group operations for efficiency (reused multiple times below)
-    group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-    grouped_df = df.groupby(["GroupName", "Sub Section"])
-
-    # -------------------------------
-    # Process bulk discount updates BEFORE creating widgets
-    # -------------------------------
-    
-    # Process "Set All Groups to Global Discount" action
-    if st.session_state.get('set_all_groups_to_global', False):
-        st.session_state['set_all_groups_to_global'] = False  # Clear the trigger
-        
-        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
-        for group, subsection in group_keys:
-            discount_key = f"{group}_{subsection}_discount"
-            st.session_state[discount_key] = global_discount_to_apply
-        
-        st.success(f"✅ All group discounts set to {global_discount_to_apply}%")
-    
-    # Process "Update Group Discounts Only" action
-    if st.session_state.get('update_group_discounts_only', False):
-        st.session_state['update_group_discounts_only'] = False  # Clear the trigger
-        
-        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
-        for group, subsection in group_keys:
-            discount_key = f"{group}_{subsection}_discount"
-            st.session_state[discount_key] = global_discount_to_apply
-        
-        st.success(f"✅ Group discounts updated to {global_discount_to_apply}% (custom prices preserved)")
-    
-    # Process "Update All & Clear Custom Prices" action
-    if st.session_state.get('update_all_and_clear_custom', False):
-        st.session_state['update_all_and_clear_custom'] = False  # Clear the trigger
-        
-        global_discount_to_apply = st.session_state.get('global_discount', 0.0)
-        group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
-        
-        # Update group discounts
-        for group, subsection in group_keys:
-            discount_key = f"{group}_{subsection}_discount"
-            st.session_state[discount_key] = global_discount_to_apply
-        
-        # Clear all custom prices
-        cleared_count = 0
-        for idx, row in df.iterrows():
-            price_key = f"price_{idx}"
-            if st.session_state.get(price_key, "").strip():
-                st.session_state[price_key] = ""
-                cleared_count += 1
-        
-        st.success(f"✅ All discounts updated to {global_discount_to_apply}% and {cleared_count} custom prices cleared")
-    
-    # Process "Clear All Custom Prices" action
-    if st.session_state.get('clear_all_custom_prices', False):
-        st.session_state['clear_all_custom_prices'] = False  # Clear the trigger
-        
-        cleared_count = 0
-        for idx, row in df.iterrows():
-            price_key = f"price_{idx}"
-            if st.session_state.get(price_key, "").strip():
-                st.session_state[price_key] = ""
-                cleared_count += 1
-        
-        st.success(f"✅ Cleared {cleared_count} custom prices")
 
     # -------------------------------
     # Global and Group-Level Discounts
@@ -1539,55 +1432,38 @@ if df is not None and header_pdf_file:
     previous_global_discount = st.session_state.get("previous_global_discount", global_discount)
     if global_discount != previous_global_discount:
         st.session_state["previous_global_discount"] = global_discount
-        
-        # Show options when global discount changes
-        st.info(f"🔄 Global discount changed from {previous_global_discount}% to {global_discount}%")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            # Option 1: Update group discounts only (preserves custom prices)
-            if st.button(f"🔄 Update Group Discounts Only", type="primary"):
-                st.session_state['update_group_discounts_only'] = True
-                st.rerun()
-        
-        with col2:
-            # Option 2: Update everything including custom prices
-            if st.button(f"⚠️ Update All & Clear Custom Prices", type="secondary"):
-                st.session_state['update_all_and_clear_custom'] = True
-                st.rerun()
+        # Show option to update all group discounts when global discount changes
+        if st.button(f"🔄 Update all group discounts to {global_discount}%", type="primary"):
+            group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
+            for group, subsection in group_keys:
+                discount_key = f"{group}_{subsection}_discount"
+                st.session_state[discount_key] = global_discount
+            st.success(f"✅ All group discounts updated to {global_discount}%")
+            st.rerun()
 
     st.markdown("### Group-Level Discounts")
     group_discount_keys = {}
+    group_keys = list(df.groupby(["GroupName", "Sub Section"]).groups.keys())
 
     # Add button to sync all group discounts with global discount
-    # Create a row with 2 columns for the main buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔄 Set All Groups to Global Discount"):
-            st.session_state['set_all_groups_to_global'] = True
-            st.rerun()
-    
-    with col2:
-        # Count custom prices
-        custom_price_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
-        if st.button(f"🗑️ Clear All Custom Prices ({custom_price_count})"):
-            st.session_state['clear_all_custom_prices'] = True
-            st.rerun()
+    if st.button("🔄 Set All Groups to Global Discount"):
+        for group, subsection in group_keys:
+            discount_key = f"{group}_{subsection}_discount"
+            st.session_state[discount_key] = global_discount
+        st.rerun()
 
     cols = st.columns(3)
     for i, (group, subsection) in enumerate(group_keys):
         col = cols[i % 3]  # Fill down each column
         with col:
             discount_key = f"{group}_{subsection}_discount"
-            # Initialize session state if key doesn't exist (avoids widget/session state conflict)
-            if discount_key not in st.session_state:
-                st.session_state[discount_key] = global_discount
+            # Use session state value if available, otherwise use global discount
+            default_value = st.session_state.get(discount_key, global_discount)
             st.number_input(
                 f"{group} - {subsection} (%)",
                 min_value=0.0,
                 max_value=100.0,
+                value=default_value,
                 step=0.01,
                 key=discount_key
             )
@@ -1654,67 +1530,10 @@ if df is not None and header_pdf_file:
         
         return ((orig_numeric - custom_numeric) / orig_numeric) * 100
 
-    # Standardized formatting functions for consistent data export
-    def format_price_for_export(value):
-        """Format price for export - numeric only, handles POA values"""
-        if is_poa_value(value):
-            return "POA"
-        numeric_value = get_numeric_price(value)
-        if numeric_value is not None:
-            return f"{numeric_value:.2f}"
-        return "POA"
-    
-    def format_custom_price_for_export(value):
-        """Format custom price for export - handles None, POA, and numeric values"""
-        if pd.isna(value) or is_poa_value(value) or value == "POA" or value is None:
-            return "POA"
-        try:
-            if str(value).replace('.','').replace('-','').isdigit():
-                return f"{float(value):.2f}"
-            else:
-                return str(value)
-        except (ValueError, TypeError):
-            return "POA"
-    
-    def format_discount_for_export(value):
-        """Format discount percentage for export - handles POA and numeric values"""
-        if pd.isna(value) or value == "POA" or is_poa_value(value) or value is None:
-            return "POA"
-        try:
-            if str(value).replace('.','').replace('-','').isdigit():
-                return f"{float(value):.2f}%"
-            else:
-                return str(value)
-        except (ValueError, TypeError):
-            return "POA"
-    
-    def format_custom_price_for_display(value):
-        """Format custom price for display - includes £ symbol"""
-        if pd.isna(value) or is_poa_value(value) or value == "POA" or value is None:
-            return "POA"
-        try:
-            if str(value).replace('.','').replace('-','').isdigit():
-                return f"£{float(value):.2f}"
-            else:
-                return str(value)
-        except (ValueError, TypeError):
-            return "POA"
-
     # -------------------------------
     # Adjust Prices by Group and Sub Section
     # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
-    
-    # Add legend for visual indicators
-    with st.expander("📖 Legend & Quick Actions", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**🎯 Custom Price:** You've entered a specific price")
-            st.markdown("**📊 Calculated Price:** Based on group discount")
-        with col2:
-            st.markdown("**Quick Actions Guide:**")
-            st.markdown("- **Set All Groups:** Updates all group discounts to global %")  
-            st.markdown("- **Clear Custom:** Removes your manual price entries")
     
     # Initialize all price keys to empty strings if they don't exist
     # This ensures widgets start with empty values unless specifically set
@@ -1723,19 +1542,8 @@ if df is not None and header_pdf_file:
         if price_key not in st.session_state:
             st.session_state[price_key] = ""
     
-    for (group, subsection), group_df in grouped_df:
-        # Check if this group has any custom prices
-        has_custom_in_group = any(
-            st.session_state.get(f"price_{idx}", "").strip() 
-            for idx in group_df.index
-        )
-        
-        # Add target emoji to header if group contains custom prices
-        header_text = f"{group} - {subsection}"
-        if has_custom_in_group:
-            header_text += " 🎯"
-        
-        with st.expander(header_text, expanded=False):
+    for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
+        with st.expander(f"{group} - {subsection}", expanded=False):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
@@ -1752,20 +1560,10 @@ if df is not None and header_pdf_file:
                     else:
                         st.write(f"£{discounted_price:.2f}")
                 with col4:
-                    # Check if user has a custom price
-                    user_input = st.session_state.get(price_key, "").strip()
-                    has_custom_price = bool(user_input)
-                    
-                    # Input field with status-aware placeholder and label
-                    if has_custom_price:
-                        placeholder_text = "Custom price active"
-                        help_text = "🎯 Custom price set - overrides group discount"
-                    else:
-                        placeholder_text = "Enter Special Rate or POA"
-                        help_text = "💡 Leave empty to use group discount calculation"
-                    
+                    # Input field with helpful placeholder
+                    placeholder_text = "Enter price or POA"
                     st.text_input("", key=price_key, label_visibility="collapsed", 
-                                placeholder=placeholder_text, help=help_text)
+                                placeholder=placeholder_text)
                 with col5:
                     # Handle custom price input (numeric or POA)
                     user_input = st.session_state.get(price_key, "").strip()
@@ -1784,9 +1582,9 @@ if df is not None and header_pdf_file:
                                 discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
                                 
                                 if discount_percent == "POA":
-                                    st.markdown("**POA** 🎯")
+                                    st.markdown("**POA**")
                                 else:
-                                    st.markdown(f"**{discount_percent:.2f}%** 🎯")
+                                    st.markdown(f"**{discount_percent:.2f}%**")
                                     # Check max discount only for numeric values
                                     orig_numeric = get_numeric_price(row["HireRateWeekly"])
                                     if orig_numeric and discount_percent > row["Max Discount"]:
@@ -1795,7 +1593,7 @@ if df is not None and header_pdf_file:
                                 # Invalid input - treat as POA
                                 custom_price = "POA"
                                 discount_percent = "POA"
-                                st.markdown("**POA** 🎯")
+                                st.markdown("**POA**")
                                 st.warning("⚠️ Invalid input - treated as POA")
                     else:
                         # No user input - use calculated price
@@ -1803,9 +1601,9 @@ if df is not None and header_pdf_file:
                         discount_percent = calculate_discount_percent(row["HireRateWeekly"], custom_price)
                         
                         if discount_percent == "POA":
-                            st.markdown("**POA** 📊")
+                            st.markdown("**POA**")
                         else:
-                            st.markdown(f"**{discount_percent:.2f}%** 📊")
+                            st.markdown(f"**{discount_percent:.2f}%**")
 
                 # Store the final values
                 df.at[idx, "CustomPrice"] = custom_price
@@ -1822,10 +1620,14 @@ if df is not None and header_pdf_file:
         "GroupName", "Sub Section", "CustomPrice", "DiscountPercent"
     ]].copy()
     
-    # Format the display columns for better readability using standardized functions
+    # Format the display columns for better readability
     display_df["HireRateWeekly"] = display_df["HireRateWeekly"].apply(format_price_display)
-    display_df["CustomPrice"] = display_df["CustomPrice"].apply(format_custom_price_for_display)
-    display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(format_discount_for_export)
+    display_df["CustomPrice"] = display_df["CustomPrice"].apply(
+        lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"£{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
+    display_df["DiscountPercent"] = display_df["DiscountPercent"].apply(
+        lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+    )
     
     # Rename columns for better display
     display_df.columns = ["Item Category", "Equipment Name", "Original Price", "Group", "Sub Section", "Final Price", "Discount %"]
@@ -1930,7 +1732,334 @@ if df is not None and header_pdf_file:
     # Direct Email to Accounts Team
     # -------------------------------
     # Email Net Rates - Moved to Sidebar
+
+    # -------------------------------
+
+
+            elements.append(Spacer(1, 12))
+            elements.append(Paragraph("Special Rates", styles['Heading2']))
+            elements.append(Spacer(1, 6))
+            table_data = [["Category", "Equipment", "Special (£)"]]
+            table_data.extend(custom_price_rows)
+            row_styles = [
+                ('BACKGROUND', (0, 0), (-1, 0), '#FFD51D'),  # Yellow header
+                ('BACKGROUND', (0, 1), (-1, -1), '#FFF2B8'),  # Light yellow background for data rows
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+                # Removed GRID line to eliminate cell borders
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ]
+            table = Table(table_data, colWidths=[60, 380, 60])
+            table.setStyle(TableStyle(row_styles))
+            elements.append(table)
+            elements.append(Spacer(1, 12))
+            # Insert a page break if the user wants the special rates table on its own page
+            if special_rates_pagebreak:
+                from reportlab.platypus import PageBreak
+                elements.append(PageBreak())
+            # Add extra spacing after special rates if specified
+            elif special_rates_spacing > 0:
+                # Add the specified number of blank lines (each line is approximately 12 points)
+                for _ in range(special_rates_spacing):
+                    elements.append(Spacer(1, 12))
+    else:
+        # If not including custom table, still show the main title
+        customer_title = customer_name if customer_name else "Customer"
+        elements.append(Paragraph(f"Net Rates for {customer_title}", styles['Title']))
+        elements.append(Spacer(1, 12))
+
+    # --- Main Price List Tables ---
+    table_col_widths = [60, 380, 60]
+    bar_width = sum(table_col_widths)
+
+    for group, group_df in df.groupby("GroupName"):
+        group_elements = []
+
+        # Group header bar (dark blue)
+        bar_table = Table(
+            [[Paragraph(f"{group.upper()}", styles['BarHeading2'])]],
+            colWidths=[bar_width]
+        )
+        bar_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), '#002D56'),
+            ('TEXTCOLOR', (0, 0), (-1, -1), 'white'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ]))
+        group_spacer = Spacer(1, 2)
+        group_subsection_blocks = []
+
+        # Subsection header bar (light blue) - ensure same width and padding as group bar
+        for subsection, sub_df in group_df.groupby("Sub Section"):
+            if pd.isnull(subsection) or str(subsection).strip() == "" or subsection == "nan":
+                subsection_title = "Untitled"
+            else:
+                subsection_title = str(subsection)
+
+            # Subsection header row (subtitle in the second/wide cell)
+            header_row = [
+                '',  # Empty cell for ItemCategory (narrow)
+                Paragraph(f"<i>{subsection_title}</i>", styles['LeftHeading3']),  # Subtitle in wide cell
+                ''   # Empty cell for Price column
+            ]
+
+            # Table data (no header, no grid)
+            table_data = [header_row]
+            special_rate_rows = []  # Track rows with special rates for highlighting
+            
+            for row_idx, (_, row) in enumerate(sub_df.iterrows(), start=1):  # start=1 because header is row 0
+                # Handle POA values in PDF generation
+                if is_poa_value(row['CustomPrice']) or row['CustomPrice'] == "POA":
+                    price_text = "POA"
+                    has_special_rate = False
+                else:
+                    try:
+                        price_text = f"£{float(row['CustomPrice']):.2f}"
+                        # Check if this is a special rate (user entered custom price)
+                        price_key = f"price_{row.name}"  # row.name is the original DataFrame index
+                        user_input = str(st.session_state.get(price_key, "")).strip()
+                        has_special_rate = bool(user_input and not is_poa_value(user_input))
+                    except (ValueError, TypeError):
+                        price_text = "POA"
+                        has_special_rate = False
+                
+                # Track rows with special rates for highlighting
+                if has_special_rate:
+                    special_rate_rows.append(row_idx)
+                
+                table_data.append([
+                    row["ItemCategory"],
+                    Paragraph(row["EquipmentName"], styles['BodyText']),
+                    price_text
+                ])
+
+            table_with_repeat_header = Table(
+                table_data,
+                colWidths=table_col_widths,
+                repeatRows=1
+            )
+            
+            # Build table style with yellow highlighting for special rates
+            table_style = [
+                # Style for the header row
+                ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
+                ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
+                ('LEFTPADDING', (0, 0), (-1, 0), 8),
+                ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+                ('ALIGN', (1, 0), (1, 0), 'LEFT'),  # Align subtitle left in the wide cell
+                # Style for the rest of the table
+                ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ]
+            
+            # Add yellow highlighting for special rate rows
+            for row_num in special_rate_rows:
+                table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFD51D'))  # Updated yellow color
+            
+            table_with_repeat_header.setStyle(TableStyle(table_style))
+
+            group_subsection_blocks.append(
+                [table_with_repeat_header, Spacer(1, 12)]
+            )
+
+        # Now, for the first subsection, wrap group bar + first subsection in KeepTogether
+        if group_subsection_blocks:
+            group_elements.append(
+                KeepTogether([
+                    bar_table,
+                    group_spacer,
+                    *group_subsection_blocks[0]
+                ])
+            )
+            # Add the rest of the subsections as normal (each in their own KeepTogether)
+            for block in group_subsection_blocks[1:]:
+                group_elements.append(KeepTogether(block))
+        else:
+            group_elements.append(
+                KeepTogether([
+                    bar_table,
+                    group_spacer
+                ])
+            )
+
+        elements.extend(group_elements)
+
+    # NOTE: Transport Charges table is now drawn directly on page 3 of the header PDF.
+    # We skip adding it here to avoid duplication.
+
+    doc.build(elements, onFirstPage=add_footer_logo, onLaterPages=add_footer_logo)
+    pdf_buffer.seek(0)
+
+
+    # -------------------------------
+    # Merge Header PDF with Generated PDF doc
+    # -------------------------------
+    header_data = read_pdf_header(header_pdf_file)
+    header_pdf = fitz.open(stream=header_data, filetype="pdf")
+
+    # Ensure there are at least 3 pages
+    while len(header_pdf) < 3:
+        header_pdf.new_page()
+
+    # Add customer name and logo to the first page
+    page1 = header_pdf[0]
+    if customer_name:
+        font_size = 22
+        font_color = (0 / 255, 45 / 255, 86 / 255)
+        font_name = "helv"
+        page_width = page1.rect.width
+        page_height = page1.rect.height
+        text_y = page_height / 3
+        font = fitz.Font(fontname=font_name)
+        text_width = font.text_length(customer_name, fontsize=font_size)
+        text_x = (page_width - text_width) / 2
+        page1.insert_text((text_x, text_y), customer_name, fontsize=font_size, fontname=font_name, fill=font_color)
+
+        # Add bespoke email address below customer name if provided
+        if bespoke_email.strip():
+            email_font_size = 13
+            email_font_color = (0 / 255, 90 / 255, 156 / 255)  # #005a9c
+            email_text_y = text_y + font_size + 6  # Slightly below customer name
+            email_text_width = font.text_length(bespoke_email, fontsize=email_font_size)
+            email_text_x = (page_width - email_text_width) / 2
+            page1.insert_text(
+                (email_text_x, email_text_y),
+                bespoke_email,
+                fontsize=email_font_size,
+                fontname=font_name,
+                fill=email_font_color
+            )
+
+    if logo_file:
+        logo_image = Image.open(logo_file)
+        logo_bytes = io.BytesIO()
+        logo_image.save(logo_bytes, format="PNG")
+        logo_bytes.seek(0)
+        logo_width = 100
+        logo_height = logo_image.height * (logo_width / logo_image.width)
+        logo_x = (page_width - logo_width) / 2
+        # Place logo below the email if present, otherwise below the name
+        if bespoke_email.strip():
+            logo_y = email_text_y + email_font_size + 20
+        else:
+            logo_y = text_y + font_size + 20
+        rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
+        page1.insert_image(rect_logo, stream=logo_bytes.read())
+
+
+    # Draw Transport Charges table as a grid on page 3
+    page3 = header_pdf[2]
+    page_width = page3.rect.width
+    page_height = page3.rect.height
+
+    row_height = 22
+    col_widths = [300, 100]
+    font_size = 10
+    text_padding_x = 6
+    text_offset_y = 2  # Adjust text vertical alignment
+
+    # Calculate total table height
+    num_rows = len(transport_df) + 1  # +1 for header
+    table_height = num_rows * row_height
+
+    # Position table so its bottom is ~1 cm (28.35 pts) from bottom of page
+    bottom_margin_cm = 28.35
+    margin_y = bottom_margin_cm + table_height
+
+    # Center table horizontally
+    table_width = sum(col_widths)
+    margin_x = (page_width - table_width) / 2
+
+    # Header color: #7DA6DB → RGB
+    header_fill_color = (125 / 255, 166 / 255, 219 / 255)
+
+    # Table header
+    headers = ["Delivery or Collection type", "Charge (£)"]
+    data_rows = transport_df.values.tolist()
+
+    # Draw header row
+    for col_index, header in enumerate(headers):
+        x0 = margin_x + sum(col_widths[:col_index])
+        x1 = x0 + col_widths[col_index]
+        y_text = page_height - margin_y + text_offset_y
+        y_rect = page_height - margin_y - 14 #height
+        page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
+        page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
+
+    # Draw data rows
+    for row_index, row in enumerate(data_rows):
+        for col_index, cell in enumerate(row):
+            x0 = margin_x + sum(col_widths[:col_index])
+            x1 = x0 + col_widths[col_index]
+            y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
+            y_rect = page_height - margin_y + row_height * (row_index + 1) - 14 #height
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
+            page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
+
+
+
+
+    # Merge with generated PDF
+    modified_header = io.BytesIO()
+    header_pdf.save(modified_header)
+    header_pdf.close()
+
+    merged_pdf = fitz.open(stream=modified_header.getvalue(), filetype="pdf")
+    generated_pdf = fitz.open(stream=pdf_buffer.getvalue(), filetype="pdf")
+    merged_pdf.insert_pdf(generated_pdf)
+    merged_output = io.BytesIO()
+    merged_pdf.save(merged_output)
+    merged_pdf.close()
+
+    # PDF Download Button
+    # Generate filename: Price List for "Customer Name" Month Year.pdf
+    from datetime import datetime
+    now = datetime.now()
+    month_year = now.strftime("%B %Y")
+    safe_customer_name = customer_name.strip() if customer_name else "Customer"
+    filename = f'Price List for {safe_customer_name} {month_year}.pdf'
+
+    # Make PDF download button prominent and red
+    st.markdown("---")
+    st.markdown("#### 🎯 **Download Your PDF Price List**")
+    st.download_button(
+        label="📄 Download as PDF",
+        data=merged_output.getvalue(),
+        file_name=filename,
+        mime="application/pdf",
+        type="primary",
+        help="Download your customized price list as a PDF document"
+    )
     
+    # Add custom CSS to make the button red
+    st.markdown("""
+    <style>
+    .stDownloadButton > button {
+        background-color: #ff4444 !important;
+        color: white !important;
+        border: 2px solid #ff4444 !important;
+        border-radius: 8px !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        padding: 12px 24px !important;
+        margin: 10px 0 !important;
+    }
+    .stDownloadButton > button:hover {
+        background-color: #cc0000 !important;
+        border-color: #cc0000 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# -------------------------------
 # Admin Dashboard (Collapsible)
 # -------------------------------
 st.markdown("---")
@@ -2081,7 +2210,7 @@ with st.sidebar:
     customer_name = st.session_state.get('customer_name', '')
     if customer_name:
         safe_customer_name = customer_name.strip().replace(" ", "_").replace("/", "_")
-        timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{safe_customer_name}_progress_{timestamp}.json"
         
         # Collect all session state data
@@ -2182,10 +2311,16 @@ with st.sidebar:
             "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
         ]].copy()
         
-        # Format values for export using standardized functions
-        admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(format_price_for_export)
-        admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(format_custom_price_for_export)
-        admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(format_discount_for_export)
+        # Format values for export (handle POA and None values properly)
+        admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
+            lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+        )
+        admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
+            lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        )
+        admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
+            lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+        )
         
         admin_df.columns = [
             "Item Category", "Equipment Name", "Original Price (£)", 
@@ -2200,16 +2335,12 @@ with st.sidebar:
             "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
         ]]
         
-        # Create transport charges DataFrame using proper UI transport types
+        # Create transport charges DataFrame
         transport_inputs = []
-        transport_types = [
-            "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
-            "Tower", "Powered Access", "Low-level Access", "Long Distance"
-        ]
-        default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
-        
-        for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
-            charge = st.session_state.get(f"transport_{i}", default_value)
+        transport_types = ["Delivery", "Collection", "Driver", "Maintenance"]
+        for transport_type in transport_types:
+            charge_key = f"transport_{transport_type.lower()}"
+            charge = st.session_state.get(charge_key, "")
             if charge:  # Only include if there's a value
                 transport_inputs.append({
                     "Delivery or Collection type": transport_type,
@@ -2576,36 +2707,18 @@ with st.sidebar:
             x1 = x0 + col_widths[col_index]
             y_text = page_height - margin_y + text_offset_y
             y_rect = page_height - margin_y - 14
-            # Draw header background in #7DA6D8
-            header_color = (125/255, 166/255, 216/255)  # #7DA6D8
-            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=header_color, fill=header_color)
-            page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="hebo")  # hebo = Helvetica Bold
+            page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7), fill=header_fill_color)
+            page3.insert_text((x0 + text_padding_x, y_text), header, fontsize=font_size, fontname="helv")
 
-        # Draw data rows with alternating colors
+        # Draw data rows
         for row_index, row in enumerate(transport_data):
-            # Alternate between #F7FCFF and #DAE9F8
-            if row_index % 2 == 0:
-                row_color = (247/255, 252/255, 255/255)  # #F7FCFF
-            else:
-                row_color = (218/255, 233/255, 248/255)  # #DAE9F8
-            
             for col_index, cell in enumerate(row):
                 x0 = margin_x + sum(col_widths[:col_index])
                 x1 = x0 + col_widths[col_index]
                 y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
                 y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
-                # Draw alternating row background
-                page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=row_color, fill=row_color)
-                # Format cell content
-                cell_text = str(cell)
-                if col_index == 1:  # Charge column
-                    # Add £ symbol if it's a numeric value
-                    if cell_text.replace('.', '').replace('-', '').isdigit():
-                        cell_text = f"£{cell_text}"
-                    elif cell_text.lower() not in ['negotiable', 'poa', 'n/a']:
-                        # Add £ to any value that isn't a special text
-                        cell_text = f"£{cell_text}"
-                page3.insert_text((x0 + text_padding_x, y_text), cell_text, fontsize=font_size, fontname="helv")
+                page3.draw_rect(fitz.Rect(x0, y_rect, x1, y_rect + row_height), color=(0.7, 0.7, 0.7))
+                page3.insert_text((x0 + text_padding_x, y_text), str(cell), fontsize=font_size, fontname="helv")
 
         # Merge PDFs
         modified_header = io.BytesIO()
@@ -2735,10 +2848,16 @@ with st.sidebar:
                 "CustomPrice", "DiscountPercent", "GroupName", "Sub Section"
             ]].copy()
             
-            # Format values for export using standardized functions
-            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(format_price_for_export)
-            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(format_custom_price_for_export)
-            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(format_discount_for_export)
+            # Format values for export (handle POA and None values properly)
+            admin_df["HireRateWeekly"] = admin_df["HireRateWeekly"].apply(
+                lambda x: "POA" if is_poa_value(x) else f"{float(x):.2f}" if get_numeric_price(x) is not None else "POA"
+            )
+            admin_df["CustomPrice"] = admin_df["CustomPrice"].apply(
+                lambda x: "POA" if pd.isna(x) or is_poa_value(x) or x == "POA" or x is None else f"{float(x):.2f}" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
+            admin_df["DiscountPercent"] = admin_df["DiscountPercent"].apply(
+                lambda x: "POA" if pd.isna(x) or x == "POA" or is_poa_value(x) or x is None else f"{float(x):.2f}%" if str(x).replace('.','').replace('-','').isdigit() else str(x)
+            )
             
             admin_df.columns = [
                 "Item Category", "Equipment Name", "Original Price (£)", 
@@ -2753,22 +2872,8 @@ with st.sidebar:
                 "Original Price (£)", "Net Price (£)", "Discount %", "Group", "Sub Section"
             ]]
             
-            # Create transport charges DataFrame using proper UI transport types
-            transport_inputs = []
-            transport_types = [
-                "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
-                "Tower", "Powered Access", "Low-level Access", "Long Distance"
-            ]
-            default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
-            
-            for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
-                charge = st.session_state.get(f"transport_{i}", default_value)
-                if charge:  # Only include if there's a value
-                    transport_inputs.append({
-                        "Delivery or Collection type": transport_type,
-                        "Charge (£)": charge
-                    })
-            transport_df = pd.DataFrame(transport_inputs)
+            # Create empty transport DataFrame (no transport charges from sidebar)
+            transport_df = pd.DataFrame()
             
             try:
                 with st.spinner("📧 Sending email..."):
@@ -2992,106 +3097,6 @@ with st.sidebar:
                                         fill=email_font_color
                                     )
 
-                                # Add logo to header if provided
-                                logo_file = st.session_state.get('logo_file', None)
-                                if logo_file:
-                                    logo_image = Image.open(logo_file)
-                                    logo_bytes = io.BytesIO()
-                                    logo_image.save(logo_bytes, format="PNG")
-                                    logo_bytes.seek(0)
-                                    logo_width = 100
-                                    logo_height = logo_image.height * (logo_width / logo_image.width)
-                                    logo_x = (page_width - logo_width) / 2
-                                    bespoke_email = st.session_state.get('bespoke_email', '')
-                                    if bespoke_email and bespoke_email.strip():
-                                        logo_y = text_y + font_size + 13 + 20
-                                    else:
-                                        logo_y = text_y + font_size + 20
-                                    rect_logo = fitz.Rect(logo_x, logo_y, logo_x + logo_width, logo_y + logo_height)
-                                    page1.insert_image(rect_logo, stream=logo_bytes.read())
-
-                                # Draw Transport Charges table on page 3
-                                page3 = header_pdf[2]
-                                page_width = page3.rect.width
-                                page_height = page3.rect.height
-
-                                # Get transport data from session state
-                                transport_types = [
-                                    "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
-                                    "Tower", "Powered Access", "Low-level Access", "Long Distance"
-                                ]
-                                default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
-                                
-                                transport_data = []
-                                for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
-                                    charge = st.session_state.get(f"transport_{i}", default_value)
-                                    transport_data.append([transport_type, charge])
-
-                                row_height = 22
-                                col_widths = [300, 100]
-                                font_size_transport = 10
-                                text_padding_x = 6
-                                text_offset_y = 2
-
-                                num_rows = len(transport_data) + 1
-                                table_height = num_rows * row_height
-                                bottom_margin_cm = 28.35
-                                margin_y = bottom_margin_cm + table_height
-                                table_width = sum(col_widths)
-                                margin_x = (page_width - table_width) / 2
-                                header_fill_color = (125 / 255, 166 / 255, 219 / 255)
-
-                                # Draw header row
-                                headers = ["Delivery or Collection type", "Charge (£)"]
-                                for col_index, header in enumerate(headers):
-                                    x_start = margin_x + sum(col_widths[:col_index])
-                                    x_end = x_start + col_widths[col_index]
-                                    y_text = page_height - margin_y + text_offset_y
-                                    y_rect = page_height - margin_y - 14
-                                    # Draw header background in #7DA6D8
-                                    header_color = (125/255, 166/255, 216/255)  # #7DA6D8
-                                    rect = fitz.Rect(x_start, y_rect, x_end, y_rect + row_height)
-                                    page3.draw_rect(rect, color=header_color, fill=header_color)
-                                    page3.insert_text((x_start + text_padding_x, y_text), header, fontsize=font_size_transport, 
-                                                    fontname="hebo", fill=(0, 0, 0))  # hebo = Helvetica Bold
-
-                                # Draw data rows with alternating colors
-                                for row_index, row_data in enumerate(transport_data):
-                                    # Alternate between #F7FCFF and #DAE9F8
-                                    if row_index % 2 == 0:
-                                        row_color = (247/255, 252/255, 255/255)  # #F7FCFF
-                                    else:
-                                        row_color = (218/255, 233/255, 248/255)  # #DAE9F8
-                                    
-                                    for col_index, cell_data in enumerate(row_data):
-                                        x_start = margin_x + sum(col_widths[:col_index])
-                                        x_end = x_start + col_widths[col_index]
-                                        y_text = page_height - margin_y + row_height * (row_index + 1) + text_offset_y
-                                        y_rect = page_height - margin_y + row_height * (row_index + 1) - 14
-                                        # Draw alternating row background
-                                        rect = fitz.Rect(x_start, y_rect, x_end, y_rect + row_height)
-                                        page3.draw_rect(rect, color=row_color, fill=row_color)
-                                        # Format cell content
-                                        cell_text = str(cell_data)
-                                        if col_index == 1:  # Charge column
-                                            # Add £ symbol if it's a numeric value
-                                            if cell_text.replace('.', '').replace('-', '').isdigit():
-                                                cell_text = f"£{cell_text}"
-                                            elif cell_text.lower() not in ['negotiable', 'poa', 'n/a']:
-                                                # Add £ to any value that isn't a special text
-                                                cell_text = f"£{cell_text}"
-                                        
-                                        if col_index == 0:
-                                            text_x = x_start + text_padding_x
-                                        else:
-                                            if cell_text.replace('£', '').replace('.', '', 1).isdigit():
-                                                text_x = x_end - text_padding_x - fitz.Font(fontname=font_name).text_length(
-                                                    cell_text, fontsize=font_size_transport)
-                                            else:
-                                                text_x = x_start + text_padding_x
-                                        page3.insert_text((text_x, y_text), cell_text, fontsize=font_size_transport, 
-                                                        fontname=font_name, fill=(0, 0, 0))
-
                                 # Merge PDFs
                                 modified_header = io.BytesIO()
                                 header_pdf.save(modified_header)
@@ -3156,7 +3161,11 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"❌ Email error: {str(e)}")
 
-
+# Main content area - simplified load progress section
+st.markdown("### Load Progress from Saved Files")
+if st.session_state.get('show_load_progress', False):
+    st.info("👈 Use the sidebar to load progress from saved files.")
+    st.session_state['show_load_progress'] = False
 
 
 

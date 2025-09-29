@@ -1,0 +1,23 @@
+else:
+    # Handle case when df is None or header_pdf_file is missing
+    st.markdown("---")
+    st.markdown("## ⚠️ Setup Required")
+    
+    missing_items = []
+    if df is None:
+        missing_items.append("📊 Excel file")
+    if 'header_pdf_file' not in locals() or header_pdf_file is None:
+        missing_items.append("📄 PDF header file")
+    
+    st.warning(f"**Missing:** {', '.join(missing_items)}")
+    
+    if df is None:
+        st.info("👆 **Step 1:** Upload an Excel file using the Admin section above")
+    
+    if 'header_pdf_file' not in locals() or header_pdf_file is None:
+        st.info("👆 **Step 2:** Select a PDF header file from the dropdown above")
+    
+    st.markdown("### 🔄 Next Steps")
+    st.markdown("1. Use the **Admin Upload** section to upload your Excel file")
+    st.markdown("2. Select a **PDF Header** from the dropdown")
+    st.markdown("3. The app will automatically reload with your data")

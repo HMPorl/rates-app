@@ -1481,40 +1481,43 @@ if df is not None and header_pdf_file:
                 st.session_state['update_all_and_clear_custom'] = True
                 st.rerun()
 
-    st.markdown("### Group-Level Discounts")
-    group_discount_keys = {}
+    # Group-Level Discounts in expandable section (rarely used)
+    with st.expander("🎛️ Group-Level Discounts (Advanced)", expanded=False):
+        st.markdown("**Configure individual discount rates for each equipment group:**")
+        
+        group_discount_keys = {}
 
-    # Add button to sync all group discounts with global discount
-    # Create a row with 2 columns for the main buttons
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔄 Set All Groups to Global Discount"):
-            st.session_state['set_all_groups_to_global'] = True
-            st.rerun()
-    
-    with col2:
-        # Count custom prices
-        custom_price_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
-        if st.button(f"🗑️ Clear All Custom Prices ({custom_price_count})"):
-            st.session_state['clear_all_custom_prices'] = True
-            st.rerun()
+        # Add button to sync all group discounts with global discount
+        # Create a row with 2 columns for the main buttons
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🔄 Set All Groups to Global Discount"):
+                st.session_state['set_all_groups_to_global'] = True
+                st.rerun()
+        
+        with col2:
+            # Count custom prices
+            custom_price_count = sum(1 for idx, _ in df.iterrows() if st.session_state.get(f"price_{idx}", "").strip())
+            if st.button(f"🗑️ Clear All Custom Prices ({custom_price_count})"):
+                st.session_state['clear_all_custom_prices'] = True
+                st.rerun()
 
-    cols = st.columns(3)
-    for i, (group, subsection) in enumerate(group_keys):
-        col = cols[i % 3]  # Fill down each column
-        with col:
-            discount_key = f"{group}_{subsection}_discount"
-            # Initialize session state if key doesn't exist (avoids widget/session state conflict)
-            if discount_key not in st.session_state:
-                st.session_state[discount_key] = global_discount
-            st.number_input(
-                f"{group} - {subsection} (%)",
-                min_value=0.0,
-                max_value=100.0,
-                step=0.01,
-                key=discount_key
-            )
+        cols = st.columns(3)
+        for i, (group, subsection) in enumerate(group_keys):
+            col = cols[i % 3]  # Fill down each column
+            with col:
+                discount_key = f"{group}_{subsection}_discount"
+                # Initialize session state if key doesn't exist (avoids widget/session state conflict)
+                if discount_key not in st.session_state:
+                    st.session_state[discount_key] = global_discount
+                st.number_input(
+                    f"{group} - {subsection} (%)",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.01,
+                    key=discount_key
+                )
 
 
     # -------------------------------

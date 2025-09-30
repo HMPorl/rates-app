@@ -936,8 +936,21 @@ if df is not None and header_pdf_file:
     # Adjust Prices by Group and Sub Section
     # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
+    
+    # Add option to keep sections expanded while editing
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("🔓 Expand All Sections"):
+            st.session_state.keep_expanded = True
+    with col_btn2:
+        if st.button("🔒 Collapse All Sections"):
+            st.session_state.keep_expanded = False
+    
+    # Check if we should keep sections expanded
+    keep_expanded = st.session_state.get("keep_expanded", False)
+    
     for (group, subsection), group_df in df.groupby(["GroupName", "Sub Section"]):
-        with st.expander(f"{group} - {subsection}", expanded=False):
+        with st.expander(f"{group} - {subsection}", expanded=keep_expanded):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
@@ -978,17 +991,17 @@ if df is not None and header_pdf_file:
                                 if discount_percent == "POA":
                                     st.markdown("**POA**")
                                 else:
-                                    st.markdown(f"**{discount_percent:.2f}%**")
                                     # Check max discount only for numeric values
                                     orig_numeric = get_numeric_price(row["HireRateWeekly"])
                                     if orig_numeric and discount_percent > row["Max Discount"]:
-                                        st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
+                                        st.markdown(f"**{discount_percent:.2f}%** ⚠️")
+                                    else:
+                                        st.markdown(f"**{discount_percent:.2f}%**")
                             except ValueError:
                                 # Invalid input - treat as POA
                                 custom_price = "POA"
                                 discount_percent = "POA"
-                                st.markdown("**POA**")
-                                st.warning("⚠️ Invalid input - treated as POA")
+                                st.markdown("**POA** ⚠️")
                     else:
                         # No user input - use calculated price
                         custom_price = discounted_price

@@ -573,82 +573,6 @@ def add_footer_logo(canvas, doc):
     except Exception:
         pass  # If logo not found, skip
 
-
-=======
-# --- Weather: Current + Daily Summary 1 ---
-def get_weather_and_forecast(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        f"&current_weather=true"
-        f"&hourly=temperature_2m,weathercode"
-        f"&timezone=Europe/London"
-    )
-    try:
-        resp = requests.get(url, timeout=5)
-        data = resp.json()
-        current = data["current_weather"]
-        times = data["hourly"]["time"]
-        temps = data["hourly"]["temperature_2m"]
-        codes = data["hourly"]["weathercode"]
-        return current, times, temps, codes
-    except Exception:
-        return None, [], [], []
-
-# Add this toggle before the weather section
-show_weather = st.checkbox("Show weather information", value=False)
-
-if show_weather:
-    city = "London"
-    lat, lon = 51.5074, -0.1278
-
-    current, times, temps, codes = get_weather_and_forecast(lat, lon)
-
-    weather_icons = {
-        0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 48: "🌫️",
-        51: "🌦️", 53: "🌦️", 55: "🌦️", 56: "🌧️", 57: "🌧️",
-        61: "🌧️", 63: "🌧️", 65: "🌧️", 66: "🌧️", 67: "🌧️",
-        71: "🌨️", 73: "🌨️", 75: "🌨️", 77: "🌨️", 80: "🌦️",
-        81: "🌦️", 82: "🌦️", 85: "🌨️", 86: "🌨️", 95: "⛈️",
-        96: "⛈️", 99: "⛈️"
-    }
-
-    if current:
-        # Current weather
-        icon = weather_icons.get(current["weathercode"], "❓")
-        st.markdown(
-            f"### {icon} {city}: {current['temperature']}°C, Wind {current['windspeed']} km/h"
-        )
-
-        # Daily summary
-        today = datetime.now().strftime("%Y-%m-%d")
-        today_temps = [t for t, time in zip(temps, times) if time.startswith(today)]
-        today_codes = [c for c, time in zip(codes, times) if time.startswith(today)]
-        if today_temps:
-            min_temp = min(today_temps)
-            max_temp = max(today_temps)
-            # Most common weather code for the day
-            from collections import Counter
-            main_code = Counter(today_codes).most_common(1)[0][0]
-            main_icon = weather_icons.get(main_code, "❓")
-            st.markdown(
-                f"**Day: {main_icon} {min_temp:.1f}°C to {max_temp:.1f}°C**"
-            )
-    else:
-        st.markdown("### 🌦️ Weather: Unable to fetch data")
-
-
-
-# -------------------------------
-# Streamlit Page Configuration
-# -------------------------------
-st.set_page_config(
-    page_title="Net Rates Calculator",
-    page_icon="🚀",
-    layout="wide"
-)
-
-
 # -------------------------------
 # Security: PIN Authentication
 # -------------------------------
@@ -1705,16 +1629,25 @@ if df is not None and header_pdf_file:
     # -------------------------------
     st.markdown("### Adjust Prices by Group and Sub Section")
     
-    # Add legend for visual indicators
-    with st.expander("📖 Legend & Quick Actions", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
+    # Add option to keep sections expanded while editing
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    with col_btn1:
+        if st.button("🔓 Force Expand All"):
+            st.session_state.keep_expanded = True
+    with col_btn2:
+        if st.button("🔒 Auto-Expand Only"):
+            st.session_state.keep_expanded = False
+    with col_btn3:
+        # Add legend for visual indicators
+        with st.popover("📖 Legend & Tips"):
             st.markdown("**🎯 Custom Price:** You've entered a specific price")
             st.markdown("**📊 Calculated Price:** Based on group discount")
-        with col2:
-            st.markdown("**Quick Actions Guide:**")
-            st.markdown("- **Set All Groups:** Updates all group discounts to global %")  
-            st.markdown("- **Clear Custom:** Removes your manual price entries")
+            st.markdown("**⚠️ Warning:** Exceeds max discount or invalid input")
+            st.markdown("---")
+            st.markdown("**💡 Tip:** Sections with custom prices auto-expand and stay open!")
+    
+    # Check if we should keep sections expanded
+    keep_expanded = st.session_state.get("keep_expanded", False)
     
     # Initialize all price keys to empty strings if they don't exist
     # This ensures widgets start with empty values unless specifically set
@@ -1722,6 +1655,9 @@ if df is not None and header_pdf_file:
         price_key = f"price_{idx}"
         if price_key not in st.session_state:
             st.session_state[price_key] = ""
+    
+    # Group the data for better organization
+    grouped_df = df.groupby(["GroupName", "Sub Section"])
     
     for (group, subsection), group_df in grouped_df:
         # Check if this group has any custom prices
@@ -1735,7 +1671,10 @@ if df is not None and header_pdf_file:
         if has_custom_in_group:
             header_text += " 🎯"
         
-        with st.expander(header_text, expanded=False):
+        # Auto-expand sections that have custom prices OR if global expand is enabled
+        should_expand = keep_expanded or has_custom_in_group
+        
+        with st.expander(header_text, expanded=should_expand):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"
@@ -1786,17 +1725,17 @@ if df is not None and header_pdf_file:
                                 if discount_percent == "POA":
                                     st.markdown("**POA** 🎯")
                                 else:
-                                    st.markdown(f"**{discount_percent:.2f}%** 🎯")
                                     # Check max discount only for numeric values
                                     orig_numeric = get_numeric_price(row["HireRateWeekly"])
                                     if orig_numeric and discount_percent > row["Max Discount"]:
-                                        st.warning(f"⚠️ Exceeds Max Discount ({row['Max Discount']}%)")
+                                        st.markdown(f"**{discount_percent:.2f}%** 🎯⚠️")
+                                    else:
+                                        st.markdown(f"**{discount_percent:.2f}%** 🎯")
                             except ValueError:
                                 # Invalid input - treat as POA
                                 custom_price = "POA"
                                 discount_percent = "POA"
-                                st.markdown("**POA** 🎯")
-                                st.warning("⚠️ Invalid input - treated as POA")
+                                st.markdown("**POA** 🎯⚠️")
                     else:
                         # No user input - use calculated price
                         custom_price = discounted_price

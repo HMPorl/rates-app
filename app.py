@@ -1632,17 +1632,19 @@ if df is not None and header_pdf_file:
     # Add option to keep sections expanded while editing
     col_btn1, col_btn2, col_btn3 = st.columns(3)
     with col_btn1:
-        if st.button("🔓 Expand All Sections"):
+        if st.button("🔓 Force Expand All"):
             st.session_state.keep_expanded = True
     with col_btn2:
-        if st.button("🔒 Collapse All Sections"):
+        if st.button("🔒 Auto-Expand Only"):
             st.session_state.keep_expanded = False
     with col_btn3:
         # Add legend for visual indicators
-        with st.popover("📖 Legend"):
+        with st.popover("📖 Legend & Tips"):
             st.markdown("**🎯 Custom Price:** You've entered a specific price")
             st.markdown("**📊 Calculated Price:** Based on group discount")
             st.markdown("**⚠️ Warning:** Exceeds max discount or invalid input")
+            st.markdown("---")
+            st.markdown("**💡 Tip:** Sections with custom prices auto-expand and stay open!")
     
     # Check if we should keep sections expanded
     keep_expanded = st.session_state.get("keep_expanded", False)
@@ -1669,7 +1671,10 @@ if df is not None and header_pdf_file:
         if has_custom_in_group:
             header_text += " 🎯"
         
-        with st.expander(header_text, expanded=keep_expanded):
+        # Auto-expand sections that have custom prices OR if global expand is enabled
+        should_expand = keep_expanded or has_custom_in_group
+        
+        with st.expander(header_text, expanded=should_expand):
             for idx, row in group_df.iterrows():
                 discounted_price = get_discounted_price(row)
                 price_key = f"price_{idx}"

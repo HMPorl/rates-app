@@ -2854,19 +2854,26 @@ with st.sidebar:
                                     
                                     # Build table data for this subsection
                                     table_data = [["Category", "Equipment", "Rate (£)"]]
-                                    for idx, row in sub_df.iterrows():
+                                    special_rate_rows = []
+                                    
+                                    for row_idx, (idx, row) in enumerate(sub_df.iterrows(), start=1):
                                         price_key = f"price_{idx}"
                                         user_input = str(st.session_state.get(price_key, "")).strip()
+                                        has_special_rate = False
                                         
                                         if user_input and not is_poa_value(user_input):
                                             try:
                                                 display_price = f"£{float(user_input):.2f}"
+                                                has_special_rate = True
                                             except ValueError:
                                                 display_price = f"£{float(row['HireRateWeekly']):.2f}"
                                         elif is_poa_value(row['HireRateWeekly']):
                                             display_price = "POA"
                                         else:
                                             display_price = f"£{float(row['HireRateWeekly']):.2f}"
+                                        
+                                        if has_special_rate:
+                                            special_rate_rows.append(row_idx)
                                         
                                         table_data.append([
                                             row["ItemCategory"],
@@ -2876,15 +2883,26 @@ with st.sidebar:
 
                                     # Create and style table
                                     table = Table(table_data, colWidths=table_col_widths)
-                                    table.setStyle(TableStyle([
-                                        ('BACKGROUND', (0, 0), (-1, 0), '#E6F3FF'),
-                                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
-                                        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
-                                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                                        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-                                        ('GRID', (0, 0), (-1, -1), 1, '#CCCCCC'),
-                                        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                    ]))
+                                    
+                                    table_style = [
+                                        ('BACKGROUND', (0, 0), (-1, 0), '#e6eef7'),
+                                        ('TEXTCOLOR', (0, 0), (-1, 0), '#002D56'),
+                                        ('LEFTPADDING', (0, 0), (-1, 0), 8),
+                                        ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+                                        ('TOPPADDING', (0, 0), (-1, 0), 4),
+                                        ('BOTTOMPADDING', (0, 0), (-1, 0), 4),
+                                        ('ALIGN', (1, 0), (1, 0), 'LEFT'),
+                                        ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+                                        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                                        ('FONTSIZE', (0, 1), (-1, -1), 10),
+                                        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                                    ]
+                                    
+                                    # Add yellow highlighting for special rates
+                                    for row_num in special_rate_rows:
+                                        table_style.append(('BACKGROUND', (0, row_num), (-1, row_num), '#FFD51D'))
+                                    
+                                    table.setStyle(TableStyle(table_style))
 
                                     elements.append(Paragraph(subsection_title, styles['LeftHeading3']))
                                     elements.append(table)

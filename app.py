@@ -212,6 +212,117 @@ def handle_file_loading():
 loading_happened = handle_file_loading()
 
 # -------------------------------
+# Syrinx Import Processing Functions
+# -------------------------------
+
+def process_syrinx_file(syrinx_file, global_discount, df):
+    """Process Syrinx Excel file and return matched/ignored items"""
+    try:
+        # Read Excel file without headers
+        syrinx_df = pd.read_excel(syrinx_file, header=None, names=['CategoryCode', 'SpecialPrice'])
+        
+        matched_items = []
+        ignored_codes = []
+        
+        for _, row in syrinx_df.iterrows():
+            category_code = str(row['CategoryCode']).strip()
+            try:
+                special_price = float(row['SpecialPrice'])
+            except (ValueError, TypeError):
+                ignored_codes.append(category_code)
+                continue
+            
+            # Find matching equipment in main DataFrame
+            matching_equipment = df[df['ItemCategory'] == category_code]
+            
+            if not matching_equipment.empty:
+                # Apply global discount
+                final_price = special_price * (1 - global_discount / 100)
+                
+                for idx, equipment_row in matching_equipment.iterrows():
+                    matched_items.append({
+                        'code': category_code,
+                        'equipment': equipment_row['EquipmentName'],
+                        'original_price': special_price,
+                        'final_price': final_price,
+                        'index': idx
+                    })
+            else:
+                ignored_codes.append(category_code)
+        
+        return {
+            'matched': matched_items,
+            'ignored': ignored_codes,
+            'total_processed': len(syrinx_df)
+        }
+        
+    except Exception as e:
+        st.error(f"Error processing Syrinx file: {str(e)}")
+        return None
+
+def apply_syrinx_import(preview_data, global_discount):
+    """Apply Syrinx import data to session state"""
+    try:
+        # Clear all existing custom prices
+        for key in list(st.session_state.keys()):
+            if key.startswith("price_"):
+                del st.session_state[key]
+        
+        # Apply new prices from Syrinx import
+        matched_items = preview_data.get('matched', [])
+        for item in matched_items:
+            price_key = f"price_{item['index']}"
+            st.session_state[price_key] = str(item['final_price'])
+        
+        # Update global discount
+        st.session_state['global_discount'] = global_discount
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error applying Syrinx import: {str(e)}")
+        return False
+
+def handle_syrinx_processing():
+    """Handle Syrinx import processing"""
+    df = st.session_state.get('df', pd.DataFrame())
+    
+    # Handle preview request
+    if st.session_state.get('syrinx_preview_file') and not df.empty:
+        syrinx_file = st.session_state['syrinx_preview_file']
+        discount = st.session_state.get('syrinx_preview_discount', 0)
+        
+        # Process the file
+        syrinx_file.seek(0)  # Reset file pointer
+        preview_data = process_syrinx_file(syrinx_file, discount, df)
+        
+        if preview_data:
+            st.session_state['syrinx_preview_data'] = preview_data
+            st.success(f"Preview generated: {len(preview_data['matched'])} items matched, {len(preview_data['ignored'])} ignored")
+        
+        # Clear the preview file from session state
+        st.session_state.pop('syrinx_preview_file', None)
+    
+    # Handle apply import request
+    if st.session_state.get('apply_syrinx_import', False):
+        st.session_state['apply_syrinx_import'] = False
+        
+        preview_data = st.session_state.get('syrinx_preview_data', {})
+        discount = st.session_state.get('syrinx_preview_discount', 0)
+        
+        if preview_data and apply_syrinx_import(preview_data, discount):
+            st.success(f"✅ Syrinx import applied! {len(preview_data['matched'])} prices loaded.")
+            # Clear preview data
+            st.session_state['show_syrinx_preview'] = False
+            st.session_state.pop('syrinx_preview_data', None)
+            st.balloons()
+        else:
+            st.error("Failed to apply Syrinx import")
+
+# Process Syrinx import
+handle_syrinx_processing()
+
+# -------------------------------
 # Google Drive Integration Functions
 # -------------------------------
 
@@ -2095,6 +2206,71 @@ with st.sidebar:
             st.session_state['uploaded_file_to_load'] = uploaded_file
             st.session_state['trigger_upload_load'] = True
             st.rerun()
+    
+    st.markdown("---")
+    
+    # Syrinx Import Section
+    st.markdown("### 🏢 Syrinx Import")
+    
+    # File uploader for Excel files
+    syrinx_file = st.file_uploader(
+        "📊 Upload Syrinx Excel", 
+        type=['xlsx', 'xls'], 
+        key="syrinx_upload",
+        help="Upload Excel file with Category Codes (Column A) and Special Prices (Column B)"
+    )
+    
+    # Global discount input for Syrinx import
+    syrinx_global_discount = st.number_input(
+        "Global Discount (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=0.0,
+        step=0.01,
+        key="syrinx_global_discount",
+        help="Discount to apply to all imported prices"
+    )
+    
+    if syrinx_file:
+        # Preview button
+        if st.button("👁️ Preview Import", use_container_width=True):
+            st.session_state['syrinx_preview_file'] = syrinx_file
+            st.session_state['syrinx_preview_discount'] = syrinx_global_discount
+            st.session_state['show_syrinx_preview'] = True
+            st.rerun()
+        
+        # Apply import button (only show if preview exists)
+        if st.session_state.get('show_syrinx_preview', False):
+            if st.button("✅ Apply Import & Clear Session", use_container_width=True, type="primary"):
+                st.session_state['apply_syrinx_import'] = True
+                st.rerun()
+            
+            if st.button("❌ Cancel Preview", use_container_width=True):
+                st.session_state['show_syrinx_preview'] = False
+                st.session_state.pop('syrinx_preview_data', None)
+                st.rerun()
+    
+    # Show preview results if available
+    if st.session_state.get('show_syrinx_preview', False):
+        preview_data = st.session_state.get('syrinx_preview_data', {})
+        if preview_data:
+            st.markdown("**Preview Results:**")
+            matched = preview_data.get('matched', [])
+            ignored = preview_data.get('ignored', [])
+            
+            if matched:
+                st.success(f"✅ {len(matched)} items matched")
+                for item in matched[:3]:  # Show first 3
+                    st.text(f"• {item['code']} → {item['equipment']} → £{item['final_price']:.2f}")
+                if len(matched) > 3:
+                    st.text(f"... and {len(matched) - 3} more")
+            
+            if ignored:
+                st.warning(f"⚠️ {len(ignored)} codes ignored")
+                for code in ignored[:3]:  # Show first 3
+                    st.text(f"• {code}")
+                if len(ignored) > 3:
+                    st.text(f"... and {len(ignored) - 3} more")
     
     st.markdown("---")
     

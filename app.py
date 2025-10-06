@@ -259,18 +259,27 @@ def process_syrinx_file(syrinx_file, global_discount, df):
         return None
 
 def apply_syrinx_import(preview_data, global_discount):
-    """Apply Syrinx import data to session state"""
+    """Apply Syrinx import data to session state using the same mechanism as JSON loading"""
     try:
-        # Clear all existing custom prices
-        for key in list(st.session_state.keys()):
-            if key.startswith("price_"):
-                del st.session_state[key]
+        # Create pending_custom_prices dictionary like JSON loading
+        pending_prices = {}
         
-        # Apply new prices from Syrinx import (store special prices, let app apply global discount)
+        # Build pending prices from Syrinx data 
         matched_items = preview_data.get('matched', [])
         for item in matched_items:
-            price_key = f"price_{item['index']}"
-            st.session_state[price_key] = str(item['special_price'])
+            item_category = str(item['item_category'])  # Use item_category for lookup
+            special_price = item['special_price']
+            
+            if special_price and special_price != 'N/A':
+                try:
+                    price_value = float(special_price)
+                    pending_prices[item_category] = price_value
+                except (ValueError, TypeError):
+                    continue  # Skip invalid prices
+        
+        # Store in session state using the same mechanism as JSON loading
+        st.session_state['pending_custom_prices'] = pending_prices
+        st.session_state['loading_success'] = True
         
         # Update global discount
         st.session_state['global_discount'] = global_discount

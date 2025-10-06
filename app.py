@@ -267,7 +267,7 @@ def apply_syrinx_import(preview_data, global_discount):
         # Build pending prices from Syrinx data 
         matched_items = preview_data.get('matched', [])
         for item in matched_items:
-            item_category = str(item['item_category'])  # Use item_category for lookup
+            item_category = str(item['code'])  # Use 'code' which is the correct key from process_syrinx_file
             special_price = item['special_price']
             
             if special_price and special_price != 'N/A':
@@ -323,6 +323,8 @@ def handle_syrinx_processing():
             st.session_state['show_syrinx_preview'] = False
             st.session_state.pop('syrinx_preview_data', None)
             st.balloons()
+            # Force rerun to update UI with new global discount and pending prices
+            st.rerun()
         else:
             st.error("Failed to apply Syrinx import")
 

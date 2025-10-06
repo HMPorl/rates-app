@@ -229,8 +229,8 @@ def process_excel_to_json(excel_file, global_discount, customer_name, df):
             category_code = str(row['CategoryCode']).strip()
             try:
                 special_price = float(row['SpecialPrice'])
-                # Map category code to price (JSON format expects ItemCategory as key)
-                custom_prices[category_code] = special_price
+                # Store as string to match working Save Progress format
+                custom_prices[category_code] = str(special_price)
                 matched_count += 1
             except (ValueError, TypeError):
                 ignored_codes.append(category_code)
@@ -241,6 +241,9 @@ def process_excel_to_json(excel_file, global_discount, customer_name, df):
         for group, subsection in df.groupby(["GroupName", "Sub Section"]).groups.keys():
             discount_key = f"{group}_{subsection}_discount"
             group_discounts[discount_key] = global_discount
+        
+        # Add global_discount key to group_discounts (matches working Save files)
+        group_discounts["global_discount"] = global_discount
         
         # Generate transport charges with default values (same as Save Progress)
         transport_charges = {}
@@ -2194,16 +2197,9 @@ with st.sidebar:
         help="Enter customer name for the JSON file"
     )
     
-    # Global discount input for JSON
-    global_discount_json = st.number_input(
-        "Global Discount (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=st.session_state.get('global_discount', 0.0),
-        step=0.01,
-        key="json_global_discount",
-        help="Global discount to include in JSON file"
-    )
+    # Use main global discount from session state
+    global_discount_json = st.session_state.get('global_discount', 0.0)
+    st.info(f"Using Global Discount: {global_discount_json}% (from main app settings)")
     
     if excel_file and customer_name_json:
         # Process and download button

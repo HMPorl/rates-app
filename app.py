@@ -330,6 +330,73 @@ def handle_syrinx_processing():
 handle_syrinx_processing()
 
 # -------------------------------
+# Excel to JSON Converter Functions
+# -------------------------------
+
+def process_excel_to_json(excel_file, global_discount, customer_name, df):
+    """Convert Excel file with category codes and prices to JSON format"""
+    try:
+        # Read Excel file without headers
+        excel_df = pd.read_excel(excel_file, header=None, names=['CategoryCode', 'SpecialPrice'])
+        
+        custom_prices = {}
+        matched_count = 0
+        ignored_codes = []
+        
+        for _, row in excel_df.iterrows():
+            category_code = str(row['CategoryCode']).strip()
+            try:
+                special_price = float(row['SpecialPrice'])
+                # Store as string to match working Save Progress format
+                custom_prices[category_code] = str(special_price)
+                matched_count += 1
+            except (ValueError, TypeError):
+                ignored_codes.append(category_code)
+                continue
+        
+        # Generate group discounts for all equipment groups (same as Save Progress)
+        group_discounts = {}
+        for group, subsection in df.groupby(["GroupName", "Sub Section"]).groups.keys():
+            discount_key = f"{group}_{subsection}_discount"
+            group_discounts[discount_key] = global_discount
+        
+        # Add global_discount key to group_discounts (matches working Save files)
+        group_discounts["global_discount"] = global_discount
+        
+        # Generate transport charges with default values (same as Save Progress)
+        transport_charges = {}
+        transport_types = [
+            "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+            "Tower", "Powered Access", "Low-level Access", "Long Distance"
+        ]
+        default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+        
+        for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+            transport_charges[f"transport_{i}"] = default_value
+        
+        # Create JSON in same format as Save Progress
+        json_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": group_discounts,
+            "custom_prices": custom_prices,
+            "transport_charges": transport_charges,
+            "created_timestamp": datetime.now().isoformat(),
+            "created_by": "Excel to JSON Converter"
+        }
+        
+        return {
+            'json_data': json_data,
+            'matched_count': matched_count,
+            'ignored_codes': ignored_codes,
+            'total_processed': len(excel_df)
+        }
+        
+    except Exception as e:
+        st.error(f"Error processing Excel file: {str(e)}")
+        return None
+
+# -------------------------------
 # Google Drive Integration Functions
 # -------------------------------
 
@@ -3297,6 +3364,77 @@ with st.sidebar:
                         
             except Exception as e:
                 st.error(f"❌ Email error: {str(e)}")
+    
+    st.markdown("---")
+    
+    # Excel to JSON Converter Section
+    st.markdown("### 📊 Excel to JSON Converter")
+    st.markdown("*Convert Excel category codes and prices to JSON format*")
+    
+    # File uploader for Excel files
+    excel_file = st.file_uploader(
+        "📊 Upload Excel File", 
+        type=['xlsx', 'xls'], 
+        key="excel_to_json_upload",
+        help="Upload Excel file with Category Codes (Column A) and Special Prices (Column B)"
+    )
+    
+    # Customer name input for JSON
+    customer_name_json = st.text_input(
+        "Customer Name for JSON",
+        value=st.session_state.get('customer_name', ''),
+        help="Enter customer name for the JSON file"
+    )
+    
+    # Use main global discount from session state
+    global_discount_json = st.session_state.get('global_discount', 0.0)
+    st.info(f"Using Global Discount: {global_discount_json}% (from main app settings)")
+    
+    if excel_file and customer_name_json:
+        # Process and download button
+        if st.button("🔄 Convert to JSON & Download", use_container_width=True, type="primary"):
+            df = st.session_state.get('df', pd.DataFrame())
+            if not df.empty:
+                # Process the Excel file
+                excel_file.seek(0)  # Reset file pointer
+                result = process_excel_to_json(excel_file, global_discount_json, customer_name_json, df)
+                
+                if result:
+                    json_data = result['json_data']
+                    matched_count = result['matched_count']
+                    ignored_codes = result['ignored_codes']
+                    
+                    # Create filename
+                    safe_customer_name = customer_name_json.strip().replace(" ", "_").replace("/", "_")
+                    timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
+                    filename = f"{safe_customer_name}_converted_{timestamp}.json"
+                    
+                    # Convert to JSON string
+                    json_string = json.dumps(json_data, indent=2)
+                    
+                    # Show results
+                    st.success(f"✅ Converted {matched_count} prices successfully!")
+                    if ignored_codes:
+                        st.warning(f"⚠️ {len(ignored_codes)} codes ignored: {', '.join(ignored_codes[:5])}")
+                    
+                    # Download button
+                    st.download_button(
+                        label=f"💾 Download {filename}",
+                        data=json_string,
+                        file_name=filename,
+                        mime="application/json",
+                        use_container_width=True,
+                        help="Download JSON file for use with 'Load Progress' feature"
+                    )
+                else:
+                    st.error("❌ Failed to process Excel file")
+            else:
+                st.error("❌ Please load equipment data first (main Excel file)")
+    else:
+        if not excel_file:
+            st.info("📋 Upload an Excel file to convert")
+        if not customer_name_json:
+            st.info("📋 Enter customer name")
 
 
 

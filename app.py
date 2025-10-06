@@ -1527,7 +1527,14 @@ if df is not None and header_pdf_file:
     if "global_discount" not in st.session_state:
         st.session_state["global_discount"] = 0.0
     
-    global_discount = st.number_input("Global Discount (%)", min_value=0.0, max_value=100.0, step=0.01, key="global_discount")
+    global_discount = st.number_input(
+        "Global Discount (%)", 
+        min_value=0.0, 
+        max_value=100.0, 
+        step=0.01, 
+        value=st.session_state.get("global_discount", 0.0),
+        key="global_discount"
+    )
 
     # Check if global discount has changed
     previous_global_discount = st.session_state.get("previous_global_discount", global_discount)

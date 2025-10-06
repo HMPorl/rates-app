@@ -212,127 +212,57 @@ def handle_file_loading():
 loading_happened = handle_file_loading()
 
 # -------------------------------
-# Syrinx Import Processing Functions
+# Excel to JSON Converter Functions
 # -------------------------------
 
-def process_syrinx_file(syrinx_file, global_discount, df):
-    """Process Syrinx Excel file and return matched/ignored items"""
+def process_excel_to_json(excel_file, global_discount, customer_name, df):
+    """Convert Excel file with category codes and prices to JSON format"""
     try:
         # Read Excel file without headers
-        syrinx_df = pd.read_excel(syrinx_file, header=None, names=['CategoryCode', 'SpecialPrice'])
+        excel_df = pd.read_excel(excel_file, header=None, names=['CategoryCode', 'SpecialPrice'])
         
-        matched_items = []
+        custom_prices = {}
+        matched_count = 0
         ignored_codes = []
         
-        for _, row in syrinx_df.iterrows():
+        for _, row in excel_df.iterrows():
             category_code = str(row['CategoryCode']).strip()
             try:
                 special_price = float(row['SpecialPrice'])
+                # Map category code to price (JSON format expects ItemCategory as key)
+                custom_prices[category_code] = special_price
+                matched_count += 1
             except (ValueError, TypeError):
                 ignored_codes.append(category_code)
                 continue
-            
-            # Find matching equipment in main DataFrame
-            matching_equipment = df[df['ItemCategory'] == category_code]
-            
-            if not matching_equipment.empty:
-                # Store original special price (global discount will be applied by the app)
-                for idx, equipment_row in matching_equipment.iterrows():
-                    matched_items.append({
-                        'code': category_code,
-                        'equipment': equipment_row['EquipmentName'],
-                        'special_price': special_price,
-                        'preview_final_price': special_price * (1 - global_discount / 100),
-                        'index': idx
-                    })
-            else:
-                ignored_codes.append(category_code)
+        
+        # Create JSON in same format as Save Progress
+        json_data = {
+            "customer_name": customer_name,
+            "global_discount": global_discount,
+            "group_discounts": {},  # Empty for now
+            "custom_prices": custom_prices,
+            "transport_charges": {},  # Empty for now
+            "created_timestamp": datetime.now().isoformat(),
+            "created_by": "Excel to JSON Converter"
+        }
         
         return {
-            'matched': matched_items,
-            'ignored': ignored_codes,
-            'total_processed': len(syrinx_df)
+            'json_data': json_data,
+            'matched_count': matched_count,
+            'ignored_codes': ignored_codes,
+            'total_processed': len(excel_df)
         }
         
     except Exception as e:
-        st.error(f"Error processing Syrinx file: {str(e)}")
+        st.error(f"Error processing Excel file: {str(e)}")
         return None
 
-def apply_syrinx_import(preview_data, global_discount):
-    """Apply Syrinx import data directly to session state - simple and reliable approach"""
-    try:
-        # Update global discount first
-        st.session_state['global_discount'] = global_discount
-        
-        # Clear all existing custom prices first
-        for key in list(st.session_state.keys()):
-            if key.startswith("price_"):
-                del st.session_state[key]
-        
-        # Apply special prices directly from Syrinx data
-        matched_items = preview_data.get('matched', [])
-        prices_applied = 0
-        
-        for item in matched_items:
-            idx = item['index']  # Use the DataFrame index from process_syrinx_file
-            special_price = item['special_price']
-            
-            if special_price and special_price != 'N/A':
-                try:
-                    price_value = float(special_price)
-                    price_key = f"price_{idx}"
-                    st.session_state[price_key] = str(price_value)
-                    prices_applied += 1
-                except (ValueError, TypeError):
-                    continue  # Skip invalid prices
-        
-        return prices_applied
-        
-    except Exception as e:
-        st.error(f"Error applying Syrinx import: {str(e)}")
-        return 0
-
-def handle_syrinx_processing():
-    """Handle Syrinx import processing"""
-    df = st.session_state.get('df', pd.DataFrame())
-    
-    # Handle preview request
-    if st.session_state.get('syrinx_preview_file') and not df.empty:
-        syrinx_file = st.session_state['syrinx_preview_file']
-        discount = st.session_state.get('syrinx_preview_discount', 0)
-        
-        # Process the file
-        syrinx_file.seek(0)  # Reset file pointer
-        preview_data = process_syrinx_file(syrinx_file, discount, df)
-        
-        if preview_data:
-            st.session_state['syrinx_preview_data'] = preview_data
-            st.success(f"Preview generated: {len(preview_data['matched'])} items matched, {len(preview_data['ignored'])} ignored")
-        
-        # Clear the preview file from session state
-        st.session_state.pop('syrinx_preview_file', None)
-    
-    # Handle apply import request
-    if st.session_state.get('apply_syrinx_import', False):
-        st.session_state['apply_syrinx_import'] = False
-        
-        preview_data = st.session_state.get('syrinx_preview_data', {})
-        discount = st.session_state.get('syrinx_preview_discount', 0)
-        
-        prices_applied = apply_syrinx_import(preview_data, discount)
-        if prices_applied > 0:
-            st.success(f"✅ Syrinx import applied! {prices_applied} special prices loaded.")
-            # Clear preview data
-            st.session_state['show_syrinx_preview'] = False
-            st.session_state.pop('syrinx_preview_data', None)
-            st.balloons()
-            # Force rerun to update UI with new global discount and applied prices
-            st.rerun()
-        else:
-            st.error("Failed to apply Syrinx import - no valid prices found")
-
-# Process Syrinx import
-handle_syrinx_processing()
+# Process Excel to JSON conversion
+def handle_excel_to_json():
+    """Handle Excel to JSON conversion"""
+    # This will be called from the sidebar section
+    pass
 
 # -------------------------------
 # Google Drive Integration Functions
@@ -2221,69 +2151,81 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Syrinx Import Section
-    st.markdown("### 🏢 Syrinx Import")
+    # Excel to JSON Converter Section
+    st.markdown("### 📊 Excel to JSON Converter")
+    st.markdown("*Convert Excel category codes and prices to JSON format*")
     
     # File uploader for Excel files
-    syrinx_file = st.file_uploader(
-        "📊 Upload Syrinx Excel", 
+    excel_file = st.file_uploader(
+        "📊 Upload Excel File", 
         type=['xlsx', 'xls'], 
-        key="syrinx_upload",
+        key="excel_to_json_upload",
         help="Upload Excel file with Category Codes (Column A) and Special Prices (Column B)"
     )
     
-    # Global discount input for Syrinx import
-    syrinx_global_discount = st.number_input(
+    # Customer name input for JSON
+    customer_name_json = st.text_input(
+        "Customer Name for JSON",
+        value=st.session_state.get('customer_name', ''),
+        help="Enter customer name for the JSON file"
+    )
+    
+    # Global discount input for JSON
+    global_discount_json = st.number_input(
         "Global Discount (%)",
         min_value=0.0,
         max_value=100.0,
-        value=0.0,
+        value=st.session_state.get('global_discount', 0.0),
         step=0.01,
-        key="syrinx_global_discount",
-        help="Discount to apply to all imported prices"
+        key="json_global_discount",
+        help="Global discount to include in JSON file"
     )
     
-    if syrinx_file:
-        # Preview button
-        if st.button("👁️ Preview Import", use_container_width=True):
-            st.session_state['syrinx_preview_file'] = syrinx_file
-            st.session_state['syrinx_preview_discount'] = syrinx_global_discount
-            st.session_state['show_syrinx_preview'] = True
-            st.rerun()
-        
-        # Apply import button (only show if preview exists)
-        if st.session_state.get('show_syrinx_preview', False):
-            if st.button("✅ Apply Import & Clear Session", use_container_width=True, type="primary"):
-                st.session_state['apply_syrinx_import'] = True
-                st.rerun()
-            
-            if st.button("❌ Cancel Preview", use_container_width=True):
-                st.session_state['show_syrinx_preview'] = False
-                st.session_state.pop('syrinx_preview_data', None)
-                st.rerun()
-    
-    # Show preview results if available
-    if st.session_state.get('show_syrinx_preview', False):
-        preview_data = st.session_state.get('syrinx_preview_data', {})
-        if preview_data:
-            st.markdown("**Preview Results:**")
-            matched = preview_data.get('matched', [])
-            ignored = preview_data.get('ignored', [])
-            
-            if matched:
-                st.success(f"✅ {len(matched)} items matched")
-                for item in matched[:3]:  # Show first 3
-                    st.text(f"• {item['code']} → {item['equipment']} → £{item['preview_final_price']:.2f}")
-                if len(matched) > 3:
-                    st.text(f"... and {len(matched) - 3} more")
-            
-            if ignored:
-                st.warning(f"⚠️ {len(ignored)} codes ignored")
-                for code in ignored[:3]:  # Show first 3
-                    st.text(f"• {code}")
-                if len(ignored) > 3:
-                    st.text(f"... and {len(ignored) - 3} more")
-    
+    if excel_file and customer_name_json:
+        # Process and download button
+        if st.button("� Convert to JSON & Download", use_container_width=True, type="primary"):
+            df = st.session_state.get('df', pd.DataFrame())
+            if not df.empty:
+                # Process the Excel file
+                excel_file.seek(0)  # Reset file pointer
+                result = process_excel_to_json(excel_file, global_discount_json, customer_name_json, df)
+                
+                if result:
+                    json_data = result['json_data']
+                    matched_count = result['matched_count']
+                    ignored_codes = result['ignored_codes']
+                    
+                    # Create filename
+                    safe_customer_name = customer_name_json.strip().replace(" ", "_").replace("/", "_")
+                    timestamp = get_uk_time().strftime("%Y-%m-%d_%H-%M-%S")
+                    filename = f"{safe_customer_name}_converted_{timestamp}.json"
+                    
+                    # Convert to JSON string
+                    json_string = json.dumps(json_data, indent=2)
+                    
+                    # Show results
+                    st.success(f"✅ Converted {matched_count} prices successfully!")
+                    if ignored_codes:
+                        st.warning(f"⚠️ {len(ignored_codes)} codes ignored: {', '.join(ignored_codes[:5])}")
+                    
+                    # Download button
+                    st.download_button(
+                        label=f"💾 Download {filename}",
+                        data=json_string,
+                        file_name=filename,
+                        mime="application/json",
+                        use_container_width=True,
+                        help="Download JSON file for use with 'Load Progress' feature"
+                    )
+                    
+                    st.balloons()
+            else:
+                st.error("No equipment data loaded. Please ensure Excel data is available.")
+    elif excel_file and not customer_name_json:
+        st.info("💡 Enter a customer name to enable conversion")
+    elif not excel_file and customer_name_json:
+        st.info("💡 Upload an Excel file to enable conversion")
+
     st.markdown("---")
     
     # Method 2: SharePoint (Placeholder buttons)

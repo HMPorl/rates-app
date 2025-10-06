@@ -236,13 +236,30 @@ def process_excel_to_json(excel_file, global_discount, customer_name, df):
                 ignored_codes.append(category_code)
                 continue
         
+        # Generate group discounts for all equipment groups (same as Save Progress)
+        group_discounts = {}
+        for group, subsection in df.groupby(["GroupName", "Sub Section"]).groups.keys():
+            discount_key = f"{group}_{subsection}_discount"
+            group_discounts[discount_key] = global_discount
+        
+        # Generate transport charges with default values (same as Save Progress)
+        transport_charges = {}
+        transport_types = [
+            "Standard - small tools", "Towables", "Non-mechanical", "Fencing",
+            "Tower", "Powered Access", "Low-level Access", "Long Distance"
+        ]
+        default_charges = ["5", "7.5", "10", "15", "5", "Negotiable", "5", "15"]
+        
+        for i, (transport_type, default_value) in enumerate(zip(transport_types, default_charges)):
+            transport_charges[f"transport_{i}"] = default_value
+        
         # Create JSON in same format as Save Progress
         json_data = {
             "customer_name": customer_name,
             "global_discount": global_discount,
-            "group_discounts": {},  # Empty for now
+            "group_discounts": group_discounts,
             "custom_prices": custom_prices,
-            "transport_charges": {},  # Empty for now
+            "transport_charges": transport_charges,
             "created_timestamp": datetime.now().isoformat(),
             "created_by": "Excel to JSON Converter"
         }

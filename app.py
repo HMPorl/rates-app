@@ -2220,7 +2220,21 @@ with st.sidebar:
                     
                     st.balloons()
             else:
-                st.error("No equipment data loaded. Please ensure Excel data is available.")
+                st.error("❌ Equipment database not loaded yet!")
+                st.info("💡 **Solution**: Please ensure the main app has loaded the Excel equipment data first. Look for '✅ Excel file uploaded' or '✅ Using default Excel data' message above.")
+                
+                # Show current status
+                if st.session_state.get('customer_name', ''):
+                    st.info(f"✅ Customer name: {st.session_state.get('customer_name')}")
+                else:
+                    st.warning("⚠️ No customer name entered in main app")
+                    
+                # Debug info in expander
+                with st.expander("🔧 Debug Info"):
+                    st.write("Session state keys:", [k for k in st.session_state.keys() if not k.startswith('FormSubmitter')])
+                    st.write("DataFrame in session:", 'df' in st.session_state)
+                    if 'df' in st.session_state:
+                        st.write("DataFrame shape:", st.session_state['df'].shape)
     elif excel_file and not customer_name_json:
         st.info("💡 Enter a customer name to enable conversion")
     elif not excel_file and customer_name_json:

@@ -259,36 +259,38 @@ def process_syrinx_file(syrinx_file, global_discount, df):
         return None
 
 def apply_syrinx_import(preview_data, global_discount):
-    """Apply Syrinx import data to session state using the same mechanism as JSON loading"""
+    """Apply Syrinx import data directly to session state - simple and reliable approach"""
     try:
-        # Create pending_custom_prices dictionary like JSON loading
-        pending_prices = {}
+        # Update global discount first
+        st.session_state['global_discount'] = global_discount
         
-        # Build pending prices from Syrinx data 
+        # Clear all existing custom prices first
+        for key in list(st.session_state.keys()):
+            if key.startswith("price_"):
+                del st.session_state[key]
+        
+        # Apply special prices directly from Syrinx data
         matched_items = preview_data.get('matched', [])
+        prices_applied = 0
+        
         for item in matched_items:
-            item_category = str(item['code'])  # Use 'code' which is the correct key from process_syrinx_file
+            idx = item['index']  # Use the DataFrame index from process_syrinx_file
             special_price = item['special_price']
             
             if special_price and special_price != 'N/A':
                 try:
                     price_value = float(special_price)
-                    pending_prices[item_category] = price_value
+                    price_key = f"price_{idx}"
+                    st.session_state[price_key] = str(price_value)
+                    prices_applied += 1
                 except (ValueError, TypeError):
                     continue  # Skip invalid prices
         
-        # Store in session state using the same mechanism as JSON loading
-        st.session_state['pending_custom_prices'] = pending_prices
-        st.session_state['loading_success'] = True
-        
-        # Update global discount
-        st.session_state['global_discount'] = global_discount
-        
-        return True
+        return prices_applied
         
     except Exception as e:
         st.error(f"Error applying Syrinx import: {str(e)}")
-        return False
+        return 0
 
 def handle_syrinx_processing():
     """Handle Syrinx import processing"""
@@ -317,16 +319,17 @@ def handle_syrinx_processing():
         preview_data = st.session_state.get('syrinx_preview_data', {})
         discount = st.session_state.get('syrinx_preview_discount', 0)
         
-        if preview_data and apply_syrinx_import(preview_data, discount):
-            st.success(f"✅ Syrinx import applied! {len(preview_data['matched'])} prices loaded.")
+        prices_applied = apply_syrinx_import(preview_data, discount)
+        if prices_applied > 0:
+            st.success(f"✅ Syrinx import applied! {prices_applied} special prices loaded.")
             # Clear preview data
             st.session_state['show_syrinx_preview'] = False
             st.session_state.pop('syrinx_preview_data', None)
             st.balloons()
-            # Force rerun to update UI with new global discount and pending prices
+            # Force rerun to update UI with new global discount and applied prices
             st.rerun()
         else:
-            st.error("Failed to apply Syrinx import")
+            st.error("Failed to apply Syrinx import - no valid prices found")
 
 # Process Syrinx import
 handle_syrinx_processing()

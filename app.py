@@ -236,15 +236,13 @@ def process_syrinx_file(syrinx_file, global_discount, df):
             matching_equipment = df[df['ItemCategory'] == category_code]
             
             if not matching_equipment.empty:
-                # Apply global discount
-                final_price = special_price * (1 - global_discount / 100)
-                
+                # Store original special price (global discount will be applied by the app)
                 for idx, equipment_row in matching_equipment.iterrows():
                     matched_items.append({
                         'code': category_code,
                         'equipment': equipment_row['EquipmentName'],
-                        'original_price': special_price,
-                        'final_price': final_price,
+                        'special_price': special_price,
+                        'preview_final_price': special_price * (1 - global_discount / 100),
                         'index': idx
                     })
             else:
@@ -268,11 +266,11 @@ def apply_syrinx_import(preview_data, global_discount):
             if key.startswith("price_"):
                 del st.session_state[key]
         
-        # Apply new prices from Syrinx import
+        # Apply new prices from Syrinx import (store special prices, let app apply global discount)
         matched_items = preview_data.get('matched', [])
         for item in matched_items:
             price_key = f"price_{item['index']}"
-            st.session_state[price_key] = str(item['final_price'])
+            st.session_state[price_key] = str(item['special_price'])
         
         # Update global discount
         st.session_state['global_discount'] = global_discount
@@ -2261,7 +2259,7 @@ with st.sidebar:
             if matched:
                 st.success(f"✅ {len(matched)} items matched")
                 for item in matched[:3]:  # Show first 3
-                    st.text(f"• {item['code']} → {item['equipment']} → £{item['final_price']:.2f}")
+                    st.text(f"• {item['code']} → {item['equipment']} → £{item['preview_final_price']:.2f}")
                 if len(matched) > 3:
                     st.text(f"... and {len(matched) - 3} more")
             
